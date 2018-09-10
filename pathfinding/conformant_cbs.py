@@ -86,7 +86,7 @@ class ConformantCbsPlanner:
         self.planner.set_start_time(self.start_time)
         root = constraint_node()
         root.constraints = self.constraints
-        root.solution = self.planner.compute_individual_paths(root, self.startPositions, self.constraints)
+        root.solution = self.planner.compute_individual_paths(root, self.startPositions, self.constraints, -1)
         if not root.solution:
             return None
         root.cost = self.__compute_paths_cost(root.solution)
@@ -101,7 +101,7 @@ class ConformantCbsPlanner:
 
             best_node = self.__getBestNode(open_nodes)
             nodes_expanded += 1
-            print("Validating node number " + str(nodes_expanded))
+           # print("Validating node number " + str(nodes_expanded))
             new_constraints = self.__validate_solution(best_node.solution)
 
             if not new_constraints:  # Meaning that new_constraints is null, i.e there are no new constraints. Solved!
@@ -111,10 +111,12 @@ class ConformantCbsPlanner:
 
             for new_con in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
                 new_node = constraint_node(new_constraint=new_con, parent=best_node)
+                min_time = len(best_node.solution[1][PATH_INDEX]) - 1
                 new_node.solution[new_con[AGENT_INDEX]] = self.planner.compute_agent_path(
-                    new_node, new_con[0],
+                    new_node, new_con[AGENT_INDEX],
                     self.startPositions[new_con[0]],
-                    self.goalPositions[new_con[0]])  # compute the path for a single agent.
+                    self.goalPositions[new_con[0]],
+                min_time)  # compute the path for a single agent.
                 new_node.cost = self.__compute_paths_cost(new_node.solution)  # compute the cost
 
                 if new_node.cost < math.inf:

@@ -25,7 +25,7 @@ class constraint_Astar:
         self.map = map
         self.constraints = {}
 
-    def compute_individual_paths(self, ct_node, init_positions, constraints, time_limit=1000 * 60):
+    def compute_individual_paths(self, ct_node, init_positions, constraints, min_time, time_limit=1000 * 60):
         """
         Computes the paths for every agent given their initial positions and constraints. Note that the goal positions
         are stored in self.goalPositions.
@@ -42,7 +42,7 @@ class constraint_Astar:
         for agent_id, agent_start in init_positions.items():
             if time.time() - self.start_time > time_limit:
                 raise OutOfTimeError('Ran out of time while computing individual paths')
-            agent_path = self.compute_agent_path(ct_node, agent_id, agent_start, self.goal_positions[agent_id])
+            agent_path = self.compute_agent_path(ct_node, agent_id, agent_start, self.goal_positions[agent_id], min_time)
             if agent_path[1]:  # Solution found
                 solution[agent_id] = agent_path
             else:  # No solution for a particular agent
@@ -52,7 +52,7 @@ class constraint_Astar:
 
         return solution
 
-    def compute_agent_path(self, new_CT_node, agent, start_pos, goal_pos):
+    def compute_agent_path(self, new_CT_node, agent, start_pos, goal_pos, min_time):
         """
         Computes the path for a particular agent in a given node. The node should contain the new constraint for this
         agents. Note that the agent is simply an int (the agent's id).
@@ -77,7 +77,7 @@ class constraint_Astar:
             node_tuple = best_node.create_tuple()
             open_dict.pop(node_tuple, None)
             closed_set.add(node_tuple)
-            if best_node.current_position == goal_pos:
+            if best_node.current_position == goal_pos and self.__min_time_reached(best_node, min_time):
                 return best_node.calc_path()
 
             successors = best_node.expand(new_CT_node.constraints)
@@ -166,6 +166,15 @@ class constraint_Astar:
                 return None # no solution
 
         return True
+
+    def __min_time_reached(self, best_node, min_time):
+        """
+        A function that verifies that the agent has reached the goal at an appropriate time. Useful when an agent
+        reaches the goal in, for example, 5 time units however in the solution it takes another agent 10 time units.
+        Therefor we must verify what happens if this agent stands still all this time (there might be a constraint!)
+        """
+        return best_node.f_val >= min_time
+
 
 class singleAgentNode:
     """

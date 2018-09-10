@@ -1,7 +1,7 @@
 import random
-import time
 from pathfinding.path_finder import constraint_Astar
 from pathfinding.conformant_cbs import constraint_node
+
 
 class ccbsMap:
     """
@@ -36,12 +36,12 @@ class ccbsMap:
         solvable = False
         while not solvable:
             new_map.map = ccbsMap.__generate_map(height, width)
-            new_map.__generate_edges_and_timeSteps(min_time_range, max_time_range)
+            new_map.generate_edges_and_timeSteps(min_time_range, max_time_range)
             new_map.__generate_agents(agent_num)
             solver = constraint_Astar(new_map.start_positions, new_map.goal_positions, new_map)
             root = constraint_node()
             root.constraints = {}
-            solvable = solver.compute_individual_paths(root, new_map.start_positions, set(), time_limit=1000 * 10 * 60)
+            solvable = solver.compute_individual_paths(root, new_map.start_positions, set(), -1, time_limit=1000 * 10 * 60)
         return new_map
 
     @staticmethod
@@ -68,7 +68,7 @@ class ccbsMap:
                         for j in range(4):
                             ex = nx + dx[j]
                             ey = ny + dy[j]
-                            if ex >= 0 and ex < mx and ey >= 0 and ey < my:
+                            if ex >= 0 and ex < mx and 0 <= ey < my:
                                 if maze[ey][ex] == 1: ctr += 1
                         if ctr == 1:
                             nlst.append(i)
@@ -82,7 +82,7 @@ class ccbsMap:
                 stack.pop()
         return maze
 
-    def parse_file(self, agent_num=3, minTimeRange=(1,1), maxTimeRange=(1,1)):
+    def parse_file(self, agent_num=3, minTimeRange=(1, 1), maxTimeRange=(1, 1)):
         """
         The main function, parses the map text file and turns it into a manageable object that contains the actual map,
         the vertices/edges, the weights and the time steps.
@@ -90,7 +90,7 @@ class ccbsMap:
         with open(self.map_file_path) as map_text:
             if self.map_file_path[-4:] == ".map":  # It's a moving-ai map
                 self.__extract_moving_ai_map(map_text)
-                self.__generate_edges_and_timeSteps(minTimeRange, maxTimeRange)
+                self.generate_edges_and_timeSteps(minTimeRange, maxTimeRange)
                 self.__generate_agents(agent_num)
             else:
                 self.__extract_map(map_text)  # extract map
@@ -179,10 +179,9 @@ class ccbsMap:
         """
         start_cord = self.vertex_id_to_coordinate(start_pos)
         goal_cord = self.vertex_id_to_coordinate(goal_pos)
-        return abs(start_cord[0] - goal_cord[0]) + \
-               abs(start_cord[1] - goal_cord[1])
+        return abs(start_cord[0] - goal_cord[0]) + abs(start_cord[1] - goal_cord[1])
 
-    def __generate_edges_and_timeSteps(self, min_time_range, max_time_range):
+    def generate_edges_and_timeSteps(self, min_time_range, max_time_range):
         """
         With a given map, generates all the edges and assigns semi-random time ranges.
 

@@ -20,10 +20,10 @@ conformant_map = ccbsMap('../maps/Archipelago.map')
 start = time.time()
 
 print("Parsing map..")
-conformant_map.parse_file()
+conformant_map.parse_file(6)
 
 ccbs_planner = ConformantCbsPlanner(conformant_map)
-for agent in range(1,len(conformant_map.start_positions)):
+for agent in range(1,len(conformant_map.start_positions)+1):
     print("Agent " + str(agent) + ": " + str(conformant_map.vertex_id_to_coordinate(conformant_map.start_positions[agent])) + ", to " + str(conformant_map.vertex_id_to_coordinate(conformant_map.goal_positions[agent])))
 
 print("Finding solution..")
