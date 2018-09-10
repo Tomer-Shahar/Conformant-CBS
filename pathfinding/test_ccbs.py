@@ -30,3 +30,5 @@ solution = ccbs_planner.find_solution(time_limit=1000 * 30)
 
 if solution:
     print_solution(solution, rando_map)
+
+print("Test finished!")
