@@ -1,4 +1,5 @@
 import random
+import time
 from pathfinding.path_finder import constraint_Astar
 from pathfinding.conformant_cbs import constraint_node
 
@@ -81,16 +82,21 @@ class ccbsMap:
                 stack.pop()
         return maze
 
-    def parse_file(self):
+    def parse_file(self, agent_num=3, minTimeRange=(1,1), maxTimeRange=(1,1)):
         """
         The main function, parses the map text file and turns it into a manageable object that contains the actual map,
         the vertices/edges, the weights and the time steps.
         """
         with open(self.map_file_path) as map_text:
-            self.__extract_map(map_text)  # extract map
-            self.__extract_weights_and_time(map_text)  # extract edges, weights and traversal time
-            self.width = len(self.map[0])
-            self.__extract_agents(map_text)  # extract the agents' start and goal positions.
+            if self.map_file_path[-4:] == ".map":  # It's a moving-ai map
+                self.__extract_moving_ai_map(map_text)
+                self.__generate_edges_and_timeSteps(minTimeRange, maxTimeRange)
+                self.__generate_agents(agent_num)
+            else:
+                self.__extract_map(map_text)  # extract map
+                self.__extract_weights_and_time(map_text)  # extract edges, weights and traversal time
+                self.width = len(self.map[0])
+                self.__extract_agents(map_text)  # extract the agents' start and goal positions.
 
     def __extract_weights_and_time(self, map_text):
         """
@@ -253,3 +259,26 @@ class ccbsMap:
 
             self.goal_positions[agent_id] = x * self.width + y
             goal_set.add((x, y))
+
+    def __extract_moving_ai_map(self, map_text):
+        """
+        Parses a moving AI map.
+        """
+
+        curr_line = map_text.readline()
+        curr_line = map_text.readline()
+        self.height = int(curr_line.split(' ')[1][:-1])
+        curr_line = map_text.readline()
+        self.width = int(curr_line.split(' ')[1][:-1])
+        curr_line = map_text.readline()
+        for line in map_text:
+            row = []
+            for char in line:
+                if char == '.':
+                    row.append(0)
+                elif char == '\n':
+                    continue
+                else:
+                    row.append(1)
+
+            self.map.append(row)

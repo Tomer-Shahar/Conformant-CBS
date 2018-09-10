@@ -93,16 +93,20 @@ class ConformantCbsPlanner:
         print("Trivial solution found. Cost: " + str(root.cost))
 
         open_nodes = [root]  # initialize the list with root
+        nodes_expanded = 0
 
         while open_nodes:
             if time.time() - self.start_time > time_limit:
                 raise OutOfTimeError('Ran out of time :-(')
 
             best_node = self.__getBestNode(open_nodes)
+            nodes_expanded += 1
+            print("Validating node number " + str(nodes_expanded))
             new_constraints = self.__validate_solution(best_node.solution)
 
             if not new_constraints:  # Meaning that new_constraints is null, i.e there are no new constraints. Solved!
                 cost = self.__compute_paths_cost(best_node.solution)
+                print("Solution found - noded expanded: " + str(nodes_expanded))
                 return self.__fill_in_solution(best_node.solution,), cost
 
             for new_con in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"

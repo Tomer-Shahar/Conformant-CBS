@@ -36,7 +36,7 @@ class constraint_Astar:
 
         if len(constraints) == 0:
             if not self.trivial_solution(init_positions):
-                print("Error: No solution found")
+                print("Error: No trival solution found")
                 return None
 
         for agent_id, agent_start in init_positions.items():
@@ -131,7 +131,7 @@ class constraint_Astar:
         self.__add_node_to_open(open_list, open_dict, start_node)
         while open_list:
             best_node = open_list.pop()  # removes from open_list
-            node_tuple = (agent, best_node.current_position)
+            node_tuple = best_node.current_position
             open_dict.pop(node_tuple, None)
             closed_set.add(node_tuple)
             if best_node.current_position == goal_pos:
@@ -139,15 +139,15 @@ class constraint_Astar:
 
             successors = []
             for edge_tuple in self.map.edges_weights_and_timeSteps[best_node.current_position]:
-                successors.append((agent, int(edge_tuple[VERTEX_ID])))  # ToDo: how to properly express successor?
+                successors.append(int(edge_tuple[VERTEX_ID]))  # ToDo: how to properly express successor?
             for neighbor in successors:
-                if (neighbor[0], neighbor[1]) in closed_set:
+                if neighbor in closed_set:
                     continue
-                g_val = neighbor[1]
+                g_val = best_node.g_val + 1
                 if neighbor not in open_dict:
-                    neighbor_node = singleAgentNode(agent, neighbor[1], best_node, self.map)
+                    neighbor_node = singleAgentNode(agent, neighbor, best_node, self.map)
                     open_list.append(neighbor_node)
-                    key_tuple = (agent, neighbor[1])
+                    key_tuple = neighbor
                     open_dict[key_tuple] = neighbor_node
                 else:
                     neighbor_node = open_dict[neighbor]
@@ -162,7 +162,7 @@ class constraint_Astar:
     def trivial_solution(self, init_positions):
         for agent_id, agent_start in init_positions.items():
             if not self.trivial_path(agent_id, agent_start, self.goal_positions[agent_id]):
-                print("No trivial path found for agent " + str(agent_id))
+                #  print("No trivial path found for agent " + str(agent_id))
                 return None # no solution
 
         return True

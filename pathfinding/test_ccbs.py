@@ -12,14 +12,29 @@ def print_solution(solution,map):
         print()
     print("Solution cost: " + str(solution[1]))
 
-conformant_map = ccbsMap('../maps/map_4x4.ccbsMap')
 
+
+
+
+conformant_map = ccbsMap('../maps/Archipelago.map')
+start = time.time()
+
+print("Parsing map..")
 conformant_map.parse_file()
-#ccbs_planner = ConformantCbsPlanner(conformant_map)
-#solution = ccbs_planner.find_solution(time_limit=10000000)
 
-#print_solution(solution[0])
+ccbs_planner = ConformantCbsPlanner(conformant_map)
+for agent in range(1,len(conformant_map.start_positions)):
+    print("Agent " + str(agent) + ": " + str(conformant_map.vertex_id_to_coordinate(conformant_map.start_positions[agent])) + ", to " + str(conformant_map.vertex_id_to_coordinate(conformant_map.goal_positions[agent])))
 
+print("Finding solution..")
+start = time.time()
+solution = ccbs_planner.find_solution(time_limit=10000000)
+total = (time.time() - start)
+
+print("Solution found. Time Elapsed: " + str(total) + " seconds")
+print_solution(solution, conformant_map)
+
+"""
 num_of_agent = 3
 rando_map = ccbsMap.generate_rectangle_map(10, 10, (1,1), (1,1), num_of_agent)
 
@@ -30,5 +45,7 @@ solution = ccbs_planner.find_solution(time_limit=1000 * 30)
 
 if solution:
     print_solution(solution, rando_map)
+
+"""
 
 print("Test finished!")
