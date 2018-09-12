@@ -12,15 +12,23 @@ def print_solution(solution,map):
         print()
     print("Solution cost: " + str(solution[1]))
 
+num_of_agent = 3
+rando_map = ccbsMap.generate_rectangle_map(20, 20, (1,1), (1,1), num_of_agent)
 
+for agent in range(1,num_of_agent+1):
+    print("Agent " + str(agent) + ": " + str(rando_map.vertex_id_to_coordinate(rando_map.start_positions[agent])) + ", to " + str(rando_map.vertex_id_to_coordinate(rando_map.goal_positions[agent])))
+ccbs_planner = ConformantCbsPlanner(rando_map)
+solution = ccbs_planner.find_solution(time_limit=1000 * 30)
 
+if solution:
+    print_solution(solution, rando_map)
 
 
 conformant_map = ccbsMap('../maps/Archipelago.map')
 start = time.time()
 
 print("Parsing map..")
-conformant_map.parse_file(6)
+conformant_map.parse_file(agent_num=6)
 
 ccbs_planner = ConformantCbsPlanner(conformant_map)
 for agent in range(1,len(conformant_map.start_positions)+1):

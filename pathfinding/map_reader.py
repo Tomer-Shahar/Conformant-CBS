@@ -41,7 +41,7 @@ class ccbsMap:
             solver = constraint_Astar(new_map.start_positions, new_map.goal_positions, new_map)
             root = constraint_node()
             root.constraints = {}
-            solvable = solver.compute_individual_paths(root, new_map.start_positions, set(), -1, time_limit=1000 * 10 * 60)
+            solvable = solver.trivial_solution(new_map.start_positions)
         return new_map
 
     @staticmethod

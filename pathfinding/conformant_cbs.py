@@ -107,7 +107,8 @@ class ConformantCbsPlanner:
             if not new_constraints:  # Meaning that new_constraints is null, i.e there are no new constraints. Solved!
                 cost = self.__compute_paths_cost(best_node.solution)
                 print("Solution found - noded expanded: " + str(nodes_expanded))
-                return self.__fill_in_solution(best_node.solution,), cost
+              #  return self.__fill_in_solution(best_node.solution,), cost
+                return best_node.solution, cost
 
             for new_con in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
                 new_node = constraint_node(new_constraint=new_con, parent=best_node)
