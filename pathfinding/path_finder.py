@@ -43,6 +43,7 @@ class constraint_Astar:
             if time.time() - self.start_time > time_limit:
                 raise OutOfTimeError('Ran out of time while computing individual paths')
             agent_path = self.compute_agent_path(ct_node, agent_id, agent_start, self.goal_positions[agent_id], min_time)
+            print("Found path for agent " + str(agent_id))
             if agent_path[1]:  # Solution found
                 solution[agent_id] = agent_path
             else:  # No solution for a particular agent
@@ -70,10 +71,14 @@ class constraint_Astar:
 
         start_node = singleAgentNode(agent, start_pos, None, self.map)
         start_node.g_val = 0
-        start_node.f_val = self.map.calc_heuristic(start_pos, goal_pos)
+        start_node.f_val = self.map.calc_heuristic(start_pos, goal_pos) + start_node.g_val
         self.__add_node_to_open(open_list, open_dict, start_node)
+        expanded = -1
         while open_list:
             best_node = open_list.pop()  # removes from open_list
+            expanded+=1
+            if expanded % 1000 == 1:
+                print("Nodes expanded: " + str(expanded))
             node_tuple = best_node.create_tuple()
             open_dict.pop(node_tuple, None)
             closed_set.add(node_tuple)
@@ -95,7 +100,8 @@ class constraint_Astar:
 
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos)
 
-            open_list = sorted(open_list, key=lambda k: k.f_val, reverse=True)
+            open_list = sorted(open_list, key=lambda k: k.h_val, reverse=False) # first sort by secondary key.
+            open_list = sorted(open_list, key=lambda k: k.f_val, reverse=True) # This allows tie-breaking.
         print("No Solution!")
         return agent, None, math.inf #no solution
 
@@ -112,7 +118,8 @@ class constraint_Astar:
     def __update_node(self, neighbor_node, prev_node, g_val, goal_pos):
         neighbor_node.prev_node = prev_node
         neighbor_node.g_val = g_val
-        neighbor_node.f_val = g_val + neighbor_node.calc_heuristic(goal_pos)
+        neighbor_node.h_val = neighbor_node.calc_heuristic(goal_pos)
+        neighbor_node.f_val = g_val + neighbor_node.h_val
 
     def trivial_path(self, agent, start_pos, goal_pos):
         """
@@ -156,6 +163,7 @@ class constraint_Astar:
 
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos)
 
+            open_list = sorted(open_list, key=lambda k: k.h_val, reverse=False) # first sort by secondary key.
             open_list = sorted(open_list, key=lambda k: k.f_val, reverse=True)
         return None
 
@@ -186,6 +194,7 @@ class singleAgentNode:
         self.current_position = current_position
         self.prev_node = prev_node
         self.f_val = math.inf  # heuristic val + cost of predecessor
+        self.h_val = math.inf
         if prev_node:
             self.g_val = prev_node.g_val  # The time to reach the node.
             self.time = prev_node.time + 1  # The time when reaching the node

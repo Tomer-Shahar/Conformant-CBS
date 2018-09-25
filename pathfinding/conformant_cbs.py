@@ -101,6 +101,8 @@ class ConformantCbsPlanner:
 
             best_node = self.__getBestNode(open_nodes)
             nodes_expanded += 1
+            if nodes_expanded % 50 == 1 and nodes_expanded > 1:
+                print ("Nodes expanded: " + str(nodes_expanded))
            # print("Validating node number " + str(nodes_expanded))
             new_constraints = self.__validate_solution(best_node.solution)
 

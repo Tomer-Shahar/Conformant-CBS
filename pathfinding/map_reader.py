@@ -26,7 +26,7 @@ class ccbsMap:
         self.height = -1
 
     @staticmethod
-    def generate_rectangle_map(height, width, min_time_range, max_time_range, agent_num):
+    def generate_rectangle_map(height, width, min_time_range, max_time_range, agent_num, is_eight_connected):
         """
         Generates a map according to the given input. Returns a ccbsMap object
         """
@@ -36,7 +36,7 @@ class ccbsMap:
         solvable = False
         while not solvable:
             new_map.map = ccbsMap.__generate_map(height, width)
-            new_map.generate_edges_and_timeSteps(min_time_range, max_time_range)
+            new_map.generate_edges_and_timeSteps(min_time_range, max_time_range, is_eight_connected)
             new_map.__generate_agents(agent_num)
             solver = constraint_Astar(new_map.start_positions, new_map.goal_positions, new_map)
             root = constraint_node()
@@ -181,7 +181,7 @@ class ccbsMap:
         goal_cord = self.vertex_id_to_coordinate(goal_pos)
         return abs(start_cord[0] - goal_cord[0]) + abs(start_cord[1] - goal_cord[1])
 
-    def generate_edges_and_timeSteps(self, min_time_range, max_time_range):
+    def generate_edges_and_timeSteps(self, min_time_range, max_time_range, is_eight_connected=False):
         """
         With a given map, generates all the edges and assigns semi-random time ranges.
 
@@ -211,15 +211,34 @@ class ccbsMap:
                 if self.map[row][col] == 1:  # current index is a wall.
                     continue
                 self.edges_weights_and_timeSteps[curr_vertex] = []
-                for i in range(-1, 2):
-                    for j in range(-1, 2):
-                        if i == 0 and j == 0:
-                            continue
-                        if row + i < 0 or row + i == self.width or col + j < 0 or col + j == self.height:
-                            continue
-                        if self.map[row + i][col + j] == 0:
-                            edge = self.__generate_edge((row, col), i, j, min_time_range, max_time_range)
-                            self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                if is_eight_connected:
+                    for i in range(-1, 2):
+                        for j in range(-1, 2):
+                            if i == 0 and j == 0:
+                                continue
+                            if row + i < 0 or row + i == self.width or col + j < 0 or col + j == self.height:
+                                continue
+                            if self.map[row + i][col + j] == 0:
+                                edge = self.__generate_edge((row, col), i, j, min_time_range, max_time_range)
+                                self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                else: #  4-connected
+                    if row>0 and self.map[row-1][col] == 0:
+                        edge = self.__generate_edge((row, col), -1, 0, min_time_range, max_time_range)
+                        self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                    if col>0 and self.map[row][col-1] == 0:
+                        edge = self.__generate_edge((row, col), 0, -1, min_time_range, max_time_range)
+                        self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                    if col<self.width-1 and self.map[row][col+1] == 0:
+                        edge = self.__generate_edge((row, col), 0, 1, min_time_range, max_time_range)
+                        self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                    if row<self.height-1 and self.map[row+1][col] == 0:
+                        edge = self.__generate_edge((row, col), 1, 0, min_time_range, max_time_range)
+                        self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+
+
+
+
+
 
     def __generate_edge(self, coordinate, i, j, min_time_range, max_time_range):
 
