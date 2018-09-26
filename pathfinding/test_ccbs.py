@@ -10,10 +10,10 @@ def print_solution(solution,map):
             if path[1][-1] != movement:
                 print(" --> ", end="")
         print()
-    print("Solution cost: " + str(solution[1]))
+    print("Solution cost is between " + str(solution[1][0]) + " and " + str(solution[1][1]))
 
-num_of_agent = 2
-rando_map = ccbsMap.generate_rectangle_map(5, 5, (1,1), (1,1), num_of_agent, False)
+num_of_agent = 5
+rando_map = ccbsMap.generate_rectangle_map(11, 11, (1,1), (3,3), num_of_agent, False)
 
 for agent in range(1,num_of_agent+1):
     print("Agent " + str(agent) + ": " + str(rando_map.vertex_id_to_coordinate(rando_map.start_positions[agent])) + ", to " + str(rando_map.vertex_id_to_coordinate(rando_map.goal_positions[agent])))
@@ -27,7 +27,7 @@ conformant_map = ccbsMap('../maps/Archipelago.map')
 start = time.time()
 
 print("Parsing map..")
-conformant_map.parse_file(agent_num=6)
+conformant_map.parse_file(agent_num=3)
 
 ccbs_planner = ConformantCbsPlanner(conformant_map)
 for agent in range(1,len(conformant_map.start_positions)+1):

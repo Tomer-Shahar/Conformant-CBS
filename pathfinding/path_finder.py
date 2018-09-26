@@ -95,12 +95,13 @@ class constraint_Astar:
                     self.__add_node_to_open(open_list, open_dict, neighbor_node)
                 else:
                     neighbor_node = open_dict[neighbor]
+                    # TODO: How to address the g value? Min cost? Max cost? Average?
                     if g_val >= neighbor_node.g_val:  # No need to update node. Continue iterating successors
                         continue
 
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos)
 
-            open_list = sorted(open_list, key=lambda k: k.h_val, reverse=False) # first sort by secondary key.
+            open_list = sorted(open_list, key=lambda k: k.h_val, reverse=True) # first sort by secondary key.
             open_list = sorted(open_list, key=lambda k: k.f_val, reverse=True) # This allows tie-breaking.
         print("No Solution!")
         return agent, None, math.inf #no solution
@@ -183,6 +184,50 @@ class constraint_Astar:
         """
         return best_node.f_val >= min_time
 
+
+    def dijkstra_solution(self, source_vertex):
+        """
+        A function that calculates, using Dijkstra's algorithm, the distance from each point in the map to the given
+        goal. This will be used as a perfect heuristic. It receives as input the goal position and returns a dictionary
+        mapping each coordinate to the distance from it to the goal.
+
+        For now we will use the minimum time taken to pass an edge as the weight, in order to keep the heuristic
+        admissible.
+        """
+        distances = {}
+       # prev = {}
+        vertices = [] # list of vertices for which we haven't yet found the shortest path
+        """
+        curr_vertex = -1
+        for row in range(self.map.height):
+            for col in range(self.map.width):
+                curr_vertex += 1
+                if self.map.map[row][col] == 1:  # current index is a wall.
+                    continue
+            distances[curr_vertex] = math.inf
+          #  prev[curr_vertex] = None
+        vertices.append(curr_vertex)
+        """
+
+        for vertex in self.map.edges_weights_and_timeSteps:
+            distances[vertex] = math.inf
+            vertices.append(vertex)
+
+        distances[source_vertex] = 0
+        vertices = sorted(vertices, key=lambda k: distances[k], reverse=True)
+
+        while vertices:
+            best_node = vertices.pop()
+            position = self.map.vertex_id_to_coordinate(best_node)
+            for edge in self.map.edges_weights_and_timeSteps[best_node]: # iterate over neighbors
+                alternate = distances[best_node] + edge[1]
+                if alternate < distances[edge[0]]:
+                    distances[edge[0]] = alternate
+                    #prev[edge[0]] = curr_vertex
+
+            vertices = sorted(vertices, key=lambda k: distances[k], reverse=True)
+
+        return distances
 
 class singleAgentNode:
     """

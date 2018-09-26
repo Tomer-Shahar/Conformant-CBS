@@ -5,6 +5,7 @@ Meta-agent Conflict-Based Search for Optimal Multi-Agent Path Finding by
 Guni Sharon, Roni Stern, Ariel Felner and Nathan Sturtevant
 
 This implementation uses code from gswagner's github at: https://github.com/gswagner/mstar_public
+and maze generation code from https://github.com/boppreh/maze
 
 Basic idea is independent planning, then check for pairwise collisions.  Branch
 into two separate searches, which each require that one robot avoid that
@@ -90,7 +91,7 @@ class ConformantCbsPlanner:
         if not root.solution:
             return None
         root.cost = self.__compute_paths_cost(root.solution)
-        print("Trivial solution found. Cost: " + str(root.cost))
+        print("Trivial solution found. Cost is between " + str(root.cost[0]) + " and " + str(root.cost[1]))
 
         open_nodes = [root]  # initialize the list with root
         nodes_expanded = 0
@@ -122,7 +123,7 @@ class ConformantCbsPlanner:
                 min_time)  # compute the path for a single agent.
                 new_node.cost = self.__compute_paths_cost(new_node.solution)  # compute the cost
 
-                if new_node.cost < math.inf:
+                if new_node.cost[0] < math.inf: # If the minimum time is less than infinity..
                     self.__insert_open_node(open_nodes, new_node)
             open_nodes = sorted(open_nodes, key=lambda k: k.cost, reverse=True)
 
@@ -131,11 +132,21 @@ class ConformantCbsPlanner:
         A function that computes the cost for each agent to reach their goal given a solution.
         Useful for the SIC heuristic.
         """
-        total_cost = 0
-        for agent, path in solution.items():
-            total_cost += path[2]
+        min_cost = 0
+        max_cost = 0
 
-        return total_cost
+        for agent, path in solution.items():
+            prev_vertex = None
+            for step in path[1]:
+                vertex = step[1]
+                if prev_vertex:
+                    min_step_cost, max_step_cost = self.get_min_max_cost(prev_vertex, vertex)
+                    min_cost += min_step_cost
+                    max_cost += max_step_cost
+
+                prev_vertex = vertex
+
+        return min_cost,max_cost
 
     def __validate_solution(self, solution):
         """
@@ -350,6 +361,12 @@ class ConformantCbsPlanner:
             return True
 
         return False
+
+    def get_min_max_cost(self, prev_vertex, vertex):
+
+        for edge in self.edges_weights_and_timeSteps[prev_vertex]:
+            if edge[0] == vertex:
+                return edge[1],edge[2]
 
 
 class constraint_node:

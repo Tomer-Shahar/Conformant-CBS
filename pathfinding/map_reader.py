@@ -1,6 +1,7 @@
 import random
+import math
 from pathfinding.path_finder import constraint_Astar
-from pathfinding.conformant_cbs import constraint_node
+from pathfinding.maze import Maze
 
 
 class ccbsMap:
@@ -19,9 +20,10 @@ class ccbsMap:
         if map_file_path:
             self.map_file_path = map_file_path
         self.map = []
-        self.edges_weights_and_timeSteps = {}
+        self.edges_weights_and_timeSteps = None
         self.start_positions = {}
         self.goal_positions = {}
+        self.heuristic_table = None
         self.width = -1
         self.height = -1
 
@@ -34,18 +36,21 @@ class ccbsMap:
         new_map.width = width
         new_map.height = height
         solvable = False
+        solver = None
         while not solvable:
             new_map.map = ccbsMap.__generate_map(height, width)
             new_map.generate_edges_and_timeSteps(min_time_range, max_time_range, is_eight_connected)
             new_map.__generate_agents(agent_num)
             solver = constraint_Astar(new_map.start_positions, new_map.goal_positions, new_map)
-            root = constraint_node()
-            root.constraints = {}
+            # root = constraint_node()
+            # root.constraints = {}
             solvable = solver.trivial_solution(new_map.start_positions)
+        new_map.fill_heuristic_table(solver)
         return new_map
 
     @staticmethod
     def __generate_map(height, width):
+        """
         mx = width
         my = height  # width and height of the maze
         maze = [[0 for x in range(mx)] for y in range(my)]
@@ -80,7 +85,10 @@ class ccbsMap:
                 stack.append((cx, cy))
             else:
                 stack.pop()
+        """
+        maze = Maze.generate(width, height)._to_str_matrix()
         return maze
+
 
     def parse_file(self, agent_num=3, minTimeRange=(1, 1), maxTimeRange=(1, 1)):
         """
@@ -174,12 +182,17 @@ class ccbsMap:
     def calc_heuristic(self, start_pos, goal_pos):
         """
         calculates the heuristic value for given start and goal coordinates. Implemented here since
-        the way that heuristics are calculates depends on the map.
+        the way that heuristic calculated depends on the map.
         Currently a simple manhattan distance
         """
-        start_cord = self.vertex_id_to_coordinate(start_pos)
-        goal_cord = self.vertex_id_to_coordinate(goal_pos)
-        return abs(start_cord[0] - goal_cord[0]) + abs(start_cord[1] - goal_cord[1])
+
+        if self.heuristic_table:
+            return self.heuristic_table[goal_pos][start_pos]
+        else: # Useful for the first run (find trivial solution)
+            start_cord = self.vertex_id_to_coordinate(start_pos)
+            goal_cord = self.vertex_id_to_coordinate(goal_pos)
+            return abs(start_cord[0] - goal_cord[0]) + abs(start_cord[1] - goal_cord[1])
+
 
     def generate_edges_and_timeSteps(self, min_time_range, max_time_range, is_eight_connected=False):
         """
@@ -205,6 +218,7 @@ class ccbsMap:
         self.height = 5
         """
         curr_vertex = -1
+        self.edges_weights_and_timeSteps = {}
         for row in range(self.height):
             for col in range(self.width):
                 curr_vertex += 1
@@ -221,24 +235,19 @@ class ccbsMap:
                             if self.map[row + i][col + j] == 0:
                                 edge = self.__generate_edge((row, col), i, j, min_time_range, max_time_range)
                                 self.edges_weights_and_timeSteps[curr_vertex].append(edge)
-                else: #  4-connected
-                    if row>0 and self.map[row-1][col] == 0:
+                else:  # 4-connected
+                    if row > 0 and self.map[row - 1][col] == 0:
                         edge = self.__generate_edge((row, col), -1, 0, min_time_range, max_time_range)
                         self.edges_weights_and_timeSteps[curr_vertex].append(edge)
-                    if col>0 and self.map[row][col-1] == 0:
+                    if col > 0 and self.map[row][col - 1] == 0:
                         edge = self.__generate_edge((row, col), 0, -1, min_time_range, max_time_range)
                         self.edges_weights_and_timeSteps[curr_vertex].append(edge)
-                    if col<self.width-1 and self.map[row][col+1] == 0:
+                    if col < self.width - 1 and self.map[row][col + 1] == 0:
                         edge = self.__generate_edge((row, col), 0, 1, min_time_range, max_time_range)
                         self.edges_weights_and_timeSteps[curr_vertex].append(edge)
-                    if row<self.height-1 and self.map[row+1][col] == 0:
+                    if row < self.height - 1 and self.map[row + 1][col] == 0:
                         edge = self.__generate_edge((row, col), 1, 0, min_time_range, max_time_range)
                         self.edges_weights_and_timeSteps[curr_vertex].append(edge)
-
-
-
-
-
 
     def __generate_edge(self, coordinate, i, j, min_time_range, max_time_range):
 
@@ -300,3 +309,18 @@ class ccbsMap:
                     row.append(1)
 
             self.map.append(row)
+
+    def fill_heuristic_table(self, solver):
+
+        self.heuristic_table = {}
+        for agent,goal in self.goal_positions.items():
+            dist_to_goal = solver.dijkstra_solution(goal)
+            clean_distance_dict = {}
+
+            # There is no reason to keep the infinite distances (which might be many), since we know the map is
+            # solvable for each agent.
+            for vertex,dist in dist_to_goal.items():
+                if dist != math.inf:
+                    clean_distance_dict[vertex] = dist
+            self.heuristic_table[goal] = clean_distance_dict
+
