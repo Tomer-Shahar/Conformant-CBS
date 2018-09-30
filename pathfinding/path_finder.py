@@ -69,7 +69,7 @@ class constraint_Astar:
         open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
         closed_set = set()
 
-        start_node = singleAgentNode(start_pos, None, (0,0), self.map)
+        start_node = singleAgentNode(start_pos, None, (0,0))
         start_node.h_val = self.map.calc_heuristic(start_pos, goal_pos)
         start_node.f_val = (start_node.h_val, start_node.h_val)
         self.__add_node_to_open(open_list, open_dict, start_node)
@@ -85,24 +85,24 @@ class constraint_Astar:
             if best_node.current_position == goal_pos and self.__min_time_reached(best_node, min_time):
                 return best_node.calc_path(agent)
 
-            successors = best_node.expand(new_CT_node.constraints)
+            successors = best_node.expand(agent, new_CT_node.constraints, self.map)
             for neighbor in successors:
                 if neighbor in closed_set:
                     continue
-                g_val = neighbor[1]
+                g_val = neighbor[0],neighbor[1]
                 if neighbor not in open_dict:
-                    neighbor_node = singleAgentNode(agent, neighbor[2], best_node, self.map)
+                    neighbor_node = singleAgentNode(neighbor[2], best_node, (neighbor[0], neighbor[1]))
                     self.__add_node_to_open(open_list, open_dict, neighbor_node)
                 else:
                     neighbor_node = open_dict[neighbor]
                     # TODO: How to address the g value? Min cost? Max cost? Average?
-                    if g_val >= neighbor_node.g_val:  # No need to update node. Continue iterating successors
+                    if (g_val[0]+g_val[1])/2 >= (neighbor_node.g_val[0]+neighbor_node.g_val[1])/2:  # No need to update node. Continue iterating successors
                         continue
 
-                self.__update_node(neighbor_node, best_node, g_val, goal_pos)
+                self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.map)
 
-            open_list = sorted(open_list, key=lambda k: k.h_val, reverse=False) # first sort by secondary key.
-            open_list = sorted(open_list, key=lambda k: k.f_val, reverse=False) # This allows tie-breaking.
+            open_list = sorted(open_list, key=lambda k: k.h_val, reverse=True) # first sort by secondary key.
+            open_list = sorted(open_list, key=lambda k: k.f_val[0]+k.f_val[1], reverse=True) # This allows tie-breaking.
         print("No Solution!")
         return agent, None, math.inf #no solution
 
@@ -116,11 +116,11 @@ class constraint_Astar:
 
         return node
 
-    def __update_node(self, neighbor_node, prev_node, g_val, goal_pos):
+    def __update_node(self, neighbor_node, prev_node, g_val, goal_pos, map):
         neighbor_node.prev_node = prev_node
         neighbor_node.g_val = g_val
-        neighbor_node.h_val = neighbor_node.calc_heuristic(goal_pos)
-        neighbor_node.f_val = g_val + neighbor_node.h_val
+        neighbor_node.h_val = map.calc_heuristic(neighbor_node.current_position, goal_pos)
+        neighbor_node.f_val = g_val[0] + neighbor_node.h_val, g_val[1] + neighbor_node.h_val
 
     def trivial_path(self, start_pos, goal_pos):
         """
@@ -235,18 +235,16 @@ class singleAgentNode:
     The class that represents the nodes being created during the search for a single agent.
     """
 
-    def __init__(self, current_position, prev_node, time_span, map):
+    def __init__(self, current_position, prev_node, time_span):
         #self.agent = agent
         self.current_position = current_position
         self.prev_node = prev_node
         self.f_val = math.inf  # heuristic val + cost of predecessor
         self.h_val = math.inf
         if prev_node:
-            self.g_val = prev_node.g_val  # The time to reach the node.
-            self.time = prev_node.time[0] + time_span[0], prev_node.time[1] + time_span[1]
+            self.g_val = time_span  # The time to reach the node.
         else:  # if it's the root node..
-            self.g_val = 0  # Root node
-            self.time = time_span
+            self.g_val = time_span  # Root node
 
     def expand(self, agent, constraints, map):
         """
@@ -259,18 +257,15 @@ class singleAgentNode:
 
         for edge_tuple in map.edges_weights_and_timeSteps[self.current_position]:
            # for time_val in range(int(edge_tuple[MIN_EDGE_TIME]), int(edge_tuple[MAX_EDGE_TIME])+1):
-                    successor = (self.time[0]+edge_tuple[MIN_EDGE_TIME], self.time[1]+edge_tuple[MAX_EDGE_TIME], int(edge_tuple[VERTEX_ID]))  # ToDo: how to properly express successor?
+                    successor = (self.g_val[0]+edge_tuple[MIN_EDGE_TIME], self.g_val[1]+edge_tuple[MAX_EDGE_TIME], int(edge_tuple[VERTEX_ID]))  # ToDo: how to properly express successor?
                     if self.__legal_move(agent, successor, constraints):
                         neighbors.append(successor)
 
-        stay_still = (self.time+STAY_STILL_COST, self.current_position) # Add the option of not moving.
-        if stay_still not in constraints:
+        stay_still = (self.g_val[0]+STAY_STILL_COST,self.g_val[1]+STAY_STILL_COST, self.current_position) # Add the option of not moving.
+        if self.__legal_move(agent, stay_still, constraints):
             neighbors.append(stay_still)
 
         return neighbors
-
-    def calc_heuristic(self, map, goal_position):
-        return map.calc_heuristic(self.current_position, goal_position)
 
     def calc_path(self, agent):
         """
@@ -290,7 +285,7 @@ class singleAgentNode:
         Converts a node object into a tuple.
         (agent, time, vertex)
         """
-        return self.time, self.current_position
+        return self.g_val, self.current_position
 
     def __legal_move(self, agent, successor, vertex_constraints):
 
@@ -302,7 +297,7 @@ class singleAgentNode:
         for time in range(successor[0], successor[1]+1):
             if (successor[2], time) in vertex_constraints:
                 return False
-        for time in range(self.time[0], self.time[1]+1):
+        for time in range(self.g_val[0], self.g_val[1]+1):
             if (agent, time, (self.current_position, successor[2]))in vertex_constraints:
                 return False
 

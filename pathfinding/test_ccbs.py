@@ -13,7 +13,7 @@ def print_solution(solution,map):
     print("Solution cost is between " + str(solution[1][0]) + " and " + str(solution[1][1]))
 
 num_of_agent = 3
-rando_map = ccbsMap.generate_rectangle_map(8, 8, (1,1), (3,3), num_of_agent, False)
+rando_map = ccbsMap.generate_rectangle_map(8, 8, (1,1), (1,1), num_of_agent, False)
 
 for agent in range(1,num_of_agent+1):
     print("Agent " + str(agent) + ": " + str(rando_map.vertex_id_to_coordinate(rando_map.start_positions[agent])) + ", to " + str(rando_map.vertex_id_to_coordinate(rando_map.goal_positions[agent])))
