@@ -183,7 +183,7 @@ class ccbsMap:
         """
         calculates the heuristic value for given start and goal coordinates. Implemented here since
         the way that heuristic calculated depends on the map.
-        Currently a simple manhattan distance
+        Currently used a precomputed table
         """
 
         if self.heuristic_table:

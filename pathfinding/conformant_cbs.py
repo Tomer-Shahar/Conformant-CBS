@@ -56,7 +56,7 @@ class ConformantCbsPlanner:
     goalPositions - a list containing all goal positions.
     (Each position is represented as a (x,y) tuple.
 
-    constraints - a set of constraints. ToDo: Consider mapping time to constraints?
+    constraints - a set of constraints.
 
     """
 
@@ -363,7 +363,11 @@ class ConformantCbsPlanner:
         return False
 
     def get_min_max_cost(self, prev_vertex, vertex):
-
+        """
+        Returns the minimum and maximum time to traverse a given edge (source vertex and end vertex)
+        """
+        if prev_vertex == vertex:
+            return 0,0 # Cost for standing still
         for edge in self.edges_weights_and_timeSteps[prev_vertex]:
             if edge[0] == vertex:
                 return edge[1],edge[2]

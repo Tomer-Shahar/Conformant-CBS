@@ -245,8 +245,8 @@ class Maze(object):
         """
         Returns a new random perfect maze with the given sizes.
         """
-        width = int( (width-1)/2 )
-        height = int( (height-1)/2 )
+        #width = int( (width-1)/2 )
+        #height = int( (height-1)/2 )
         m = Maze(width, height)
         m.randomize()
         return m

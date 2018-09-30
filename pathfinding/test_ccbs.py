@@ -12,8 +12,8 @@ def print_solution(solution,map):
         print()
     print("Solution cost is between " + str(solution[1][0]) + " and " + str(solution[1][1]))
 
-num_of_agent = 5
-rando_map = ccbsMap.generate_rectangle_map(11, 11, (1,1), (3,3), num_of_agent, False)
+num_of_agent = 3
+rando_map = ccbsMap.generate_rectangle_map(8, 8, (1,1), (3,3), num_of_agent, False)
 
 for agent in range(1,num_of_agent+1):
     print("Agent " + str(agent) + ": " + str(rando_map.vertex_id_to_coordinate(rando_map.start_positions[agent])) + ", to " + str(rando_map.vertex_id_to_coordinate(rando_map.goal_positions[agent])))
@@ -23,15 +23,17 @@ solution = ccbs_planner.find_solution(time_limit=1000 * 30)
 if solution:
     print_solution(solution, rando_map)
 
-conformant_map = ccbsMap('../maps/Archipelago.map')
+"""------------------- Large moving-ai map ----------------------"""
+
+complex_map = ccbsMap('../maps/Archipelago.map')
 start = time.time()
 
 print("Parsing map..")
-conformant_map.parse_file(agent_num=3)
+complex_map.parse_file(agent_num=1)
 
-ccbs_planner = ConformantCbsPlanner(conformant_map)
-for agent in range(1,len(conformant_map.start_positions)+1):
-    print("Agent " + str(agent) + ": " + str(conformant_map.vertex_id_to_coordinate(conformant_map.start_positions[agent])) + ", to " + str(conformant_map.vertex_id_to_coordinate(conformant_map.goal_positions[agent])))
+ccbs_planner = ConformantCbsPlanner(complex_map)
+for agent in range(1, len(complex_map.start_positions) + 1):
+    print("Agent " + str(agent) + ": " + str(complex_map.vertex_id_to_coordinate(complex_map.start_positions[agent])) + ", to " + str(complex_map.vertex_id_to_coordinate(complex_map.goal_positions[agent])))
 
 print("Finding solution..")
 start = time.time()
@@ -39,7 +41,7 @@ solution = ccbs_planner.find_solution(time_limit=10000000)
 total = (time.time() - start)
 
 print("Solution found. Time Elapsed: " + str(total) + " seconds")
-print_solution(solution, conformant_map)
+print_solution(solution, complex_map)
 
 """
 num_of_agent = 3
