@@ -89,7 +89,6 @@ class ccbsMap:
         maze = Maze.generate(width, height)._to_str_matrix()
         return maze
 
-
     def parse_file(self, agent_num=3, minTimeRange=(1, 1), maxTimeRange=(1, 1)):
         """
         The main function, parses the map text file and turns it into a manageable object that contains the actual map,
@@ -179,6 +178,13 @@ class ccbsMap:
         col = v_id % self.width
         return row, col
 
+    def coordinate_to_vertex_id(self, coord):
+        """
+        Converts coordinates to the proper vertex id
+        """
+        vid = coord[0] * self.width + coord[1]
+        return vid
+
     def calc_heuristic(self, start_pos, goal_pos):
         """
         calculates the heuristic value for given start and goal coordinates. Implemented here since
@@ -188,11 +194,10 @@ class ccbsMap:
 
         if self.heuristic_table:
             return self.heuristic_table[goal_pos][start_pos]
-        else: # Useful for the first run (find trivial solution)
+        else:  # Useful for the first run (find trivial solution)
             start_cord = self.vertex_id_to_coordinate(start_pos)
             goal_cord = self.vertex_id_to_coordinate(goal_pos)
             return abs(start_cord[0] - goal_cord[0]) + abs(start_cord[1] - goal_cord[1])
-
 
     def generate_edges_and_timeSteps(self, min_time_range, max_time_range, is_eight_connected=False):
         """
@@ -265,27 +270,31 @@ class ccbsMap:
         """
         start_set = set()
         goal_set = set()
+        try:
 
-        for agent_id in range(1, agent_num + 1):
+            for agent_id in range(1, agent_num + 1):
+                y = random.randint(0, self.width - 1)
+                x = random.randint(0, self.height - 1)
+                while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
+                    x = random.randint(0, self.width - 1)
+                    y = random.randint(0, self.height - 1)
+
+                self.start_positions[agent_id] = x * self.width + y
+                start_set.add((x, y))
+
+                y = random.randint(0, self.width - 1)
+                x = random.randint(0, self.height - 1)
+
+                while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
+                    x = random.randint(0, self.width - 1)
+                    y = random.randint(0, self.height - 1)
+
+                self.goal_positions[agent_id] = x * self.width + y
+                goal_set.add((x, y))
+
+        except IndexError:
             x = random.randint(0, self.width - 1)
             y = random.randint(0, self.height - 1)
-
-            while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
-                x = random.randint(0, self.width - 1)
-                y = random.randint(0, self.height - 1)
-
-            self.start_positions[agent_id] = x * self.width + y
-            start_set.add((x, y))
-
-            x = random.randint(0, self.width - 1)
-            y = random.randint(0, self.height - 1)
-
-            while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
-                x = random.randint(0, self.width - 1)
-                y = random.randint(0, self.height - 1)
-
-            self.goal_positions[agent_id] = x * self.width + y
-            goal_set.add((x, y))
 
     def __extract_moving_ai_map(self, map_text):
         """
@@ -313,14 +322,13 @@ class ccbsMap:
     def fill_heuristic_table(self, solver):
 
         self.heuristic_table = {}
-        for agent,goal in self.goal_positions.items():
+        for agent, goal in self.goal_positions.items():
             dist_to_goal = solver.dijkstra_solution(goal)
             clean_distance_dict = {}
 
             # There is no reason to keep the infinite distances (which might be many), since we know the map is
             # solvable for each agent.
-            for vertex,dist in dist_to_goal.items():
+            for vertex, dist in dist_to_goal.items():
                 if dist != math.inf:
                     clean_distance_dict[vertex] = dist
             self.heuristic_table[goal] = clean_distance_dict
-

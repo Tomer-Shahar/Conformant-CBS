@@ -1,10 +1,11 @@
 from pathfinding.map_reader import ccbsMap
 from pathfinding.conformant_cbs import *
 
-def print_solution(solution,map):
+
+def print_solution(solution, map):
     print("")
-    for agent,path in solution[0].items():
-        print("Path for agent_"+str(agent)+": ")
+    for agent, path in solution[0].items():
+        print("Path for agent_" + str(agent) + ": ")
         for movement in path[1]:
             print(map.vertex_id_to_coordinate(movement[1]), end="")
             if path[1][-1] != movement:
@@ -12,11 +13,40 @@ def print_solution(solution,map):
         print()
     print("Solution cost is between " + str(solution[1][0]) + " and " + str(solution[1][1]))
 
-num_of_agent = 3
-rando_map = ccbsMap.generate_rectangle_map(8, 8, (1,1), (1,1), num_of_agent, False)
 
-for agent in range(1,num_of_agent+1):
-    print("Agent " + str(agent) + ": " + str(rando_map.vertex_id_to_coordinate(rando_map.start_positions[agent])) + ", to " + str(rando_map.vertex_id_to_coordinate(rando_map.goal_positions[agent])))
+test_map = ccbsMap('../maps/test_map.map')
+start = time.time()
+
+print("Parsing map..")
+test_map.parse_file(2, (1, 1), (1, 1))
+test_map.start_positions[1] = 0
+test_map.start_positions[2] = test_map.coordinate_to_vertex_id((4, 0))
+test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((8, 0))
+test_map.goal_positions[2] = test_map.coordinate_to_vertex_id((1, 0))
+
+ccbs_planner = ConformantCbsPlanner(test_map)
+for agent in range(1, len(test_map.start_positions) + 1):
+    print("Agent " + str(agent) + ": " + str(
+        test_map.vertex_id_to_coordinate(test_map.start_positions[agent])) + ", to " + str(
+        test_map.vertex_id_to_coordinate(test_map.goal_positions[agent])))
+
+print("Finding solution..")
+start = time.time()
+solution = ccbs_planner.find_solution(time_limit=10000000)
+total = (time.time() - start)
+
+print("Solution found. Time Elapsed: " + str(total) + " seconds")
+print_solution(solution, test_map)
+
+
+""" ----------------------------------------------------------------------"""
+num_of_agent = 3
+rando_map = ccbsMap.generate_rectangle_map(8, 8, (1, 1), (2, 2), num_of_agent, False)
+
+for agent in range(1, num_of_agent + 1):
+    print("Agent " + str(agent) + ": " + str(
+        rando_map.vertex_id_to_coordinate(rando_map.start_positions[agent])) + ", to " + str(
+        rando_map.vertex_id_to_coordinate(rando_map.goal_positions[agent])))
 ccbs_planner = ConformantCbsPlanner(rando_map)
 solution = ccbs_planner.find_solution(time_limit=1000 * 30)
 
@@ -33,7 +63,9 @@ complex_map.parse_file(agent_num=1)
 
 ccbs_planner = ConformantCbsPlanner(complex_map)
 for agent in range(1, len(complex_map.start_positions) + 1):
-    print("Agent " + str(agent) + ": " + str(complex_map.vertex_id_to_coordinate(complex_map.start_positions[agent])) + ", to " + str(complex_map.vertex_id_to_coordinate(complex_map.goal_positions[agent])))
+    print("Agent " + str(agent) + ": " + str(
+        complex_map.vertex_id_to_coordinate(complex_map.start_positions[agent])) + ", to " + str(
+        complex_map.vertex_id_to_coordinate(complex_map.goal_positions[agent])))
 
 print("Finding solution..")
 start = time.time()
