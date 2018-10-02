@@ -112,7 +112,7 @@ class constraint_Astar:
             else:
                 open_list = sorted(open_list, key=lambda k: k.f_val[1], reverse=True)  # This allows tie-breaking.
 
-        print("No Solution!")
+       # print("No Solution!")
         return agent, None, math.inf  # no solution
 
     def set_start_time(self, start_time):
@@ -206,17 +206,6 @@ class constraint_Astar:
         distances = {}
         # prev = {}
         vertices = []  # list of vertices for which we haven't yet found the shortest path
-        """
-        curr_vertex = -1
-        for row in range(self.map.height):
-            for col in range(self.map.width):
-                curr_vertex += 1
-                if self.map.map[row][col] == 1:  # current index is a wall.
-                    continue
-            distances[curr_vertex] = math.inf
-          #  prev[curr_vertex] = None
-        vertices.append(curr_vertex)
-        """
 
         for vertex in self.map.edges_weights_and_timeSteps:
             distances[vertex] = math.inf

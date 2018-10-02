@@ -137,6 +137,9 @@ class ConformantCbsPlanner:
         max_cost = 0
 
         for agent, path in solution.items():
+            if path[1] is None:
+                return math.inf, math.inf
+
             min_cost += path[2][0]
             max_cost += path[2][1]
         return min_cost, max_cost
