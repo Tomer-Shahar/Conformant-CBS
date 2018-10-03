@@ -53,23 +53,30 @@ for agent in range(1, num_of_agent + 1):
 ccbs_planner = ConformantCbsPlanner(rando_map)
 start = time.time()
 solution = ccbs_planner.find_solution(time_limit=1000 * 30)
+total = (time.time() - start)
 if solution:
     print("Solution found. Time Elapsed: " + str(total) + " seconds")
     print_solution(solution, rando_map)
 
 """------------------- Large moving-ai map ----------------------"""
+print("------------------- Large moving-ai map ----------------------")
 
 complex_map = ccbsMap('../maps/Archipelago.map')
 start = time.time()
 
 print("Parsing map..")
-complex_map.parse_file(agent_num=2)
-test_map.fill_heuristic_table()
+complex_map.parse_file(agent_num=1)
+print("Filling heuristic table")
+complex_map.fill_heuristic_table()
+
 ccbs_planner = ConformantCbsPlanner(complex_map)
 for agent in range(1, len(complex_map.start_positions) + 1):
     print("Agent " + str(agent) + ": " + str(
         complex_map.vertex_id_to_coordinate(complex_map.start_positions[agent])) + ", to " + str(
         complex_map.vertex_id_to_coordinate(complex_map.goal_positions[agent])))
+
+print("Filled heuristic table")
+#print(test_map.heuristic_table)
 
 print("Finding solution..")
 start = time.time()

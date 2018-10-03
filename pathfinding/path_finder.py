@@ -20,7 +20,7 @@ class constraint_Astar:
     def __init__(self, start_positions, goal_positions, map):
         self.start_positions = start_positions
         self.goal_positions = goal_positions
-        self.start_time = time.time()
+        #self.start_time = time.time()
         self.map = map
         self.constraints = {}
 
@@ -31,7 +31,7 @@ class constraint_Astar:
         The output is a dictionary with a path for each agent (aka a solution)
         """
         solution = {}
-        self.constraints = constraints
+        self.constraints = constraints  # ToDO: Can I remove this data member?
 
         if len(constraints) == 0:
             if not self.trivial_solution(init_positions):
@@ -212,9 +212,12 @@ class constraint_Astar:
             vertices.append(vertex)
 
         distances[source_vertex] = 0
-        vertices = sorted(vertices, key=lambda k: distances[k], reverse=True)
+        vertices.sort(key=lambda k: distances[k], reverse=True)
+        iteration = 0
 
         while vertices:
+            iteration+=1
+            print(iteration)
             best_node = vertices.pop()
             position = self.map.vertex_id_to_coordinate(best_node)
             for edge in self.map.edges_weights_and_timeSteps[best_node]:  # iterate over neighbors
@@ -223,7 +226,7 @@ class constraint_Astar:
                     distances[edge[0]] = alternate
                     # prev[edge[0]] = curr_vertex
 
-            vertices = sorted(vertices, key=lambda k: distances[k], reverse=True)
+            vertices.sort(key=lambda k: distances[k], reverse=True)
 
         return distances
 

@@ -126,7 +126,8 @@ class ConformantCbsPlanner:
 
                 if new_node.cost[0] < math.inf:  # If the minimum time is less than infinity..
                     self.__insert_open_node(open_nodes, new_node)
-            open_nodes = sorted(open_nodes, key=lambda k: k.cost, reverse=True)
+
+            open_nodes.sort(key=lambda k: k.cost, reverse=True)
 
     def __compute_paths_cost(self, solution):
         """
