@@ -12,6 +12,7 @@ def print_solution(solution, map):
                 print(" --> ", end="")
         print()
     print("Solution cost is between " + str(solution[1][0]) + " and " + str(solution[1][1]))
+    print("Solution length is  " + str(solution[2]))
 
 
 def run_map(ccbs_map):
@@ -34,9 +35,15 @@ test_map = ccbsMap('../maps/test_map.map')
 print("Parsing map..")
 test_map.parse_file(2, (1, 1), (1, 1))
 test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
-test_map.start_positions[2] = test_map.coordinate_to_vertex_id((2, 0))
-test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((2, 0))
-test_map.goal_positions[2] = test_map.coordinate_to_vertex_id((1, 0))
+test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
+test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
+test_map.goal_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
+test_map.fill_heuristic_table()
+
+test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
+test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
+test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
+test_map.goal_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
 test_map.fill_heuristic_table()
 
 run_map(test_map)
@@ -48,10 +55,8 @@ run_map(rando_map)
 print("------------------- Large moving-ai map ----------------------")
 
 complex_map = ccbsMap('../maps/Archipelago.map')
-start = time.time()
-
 print("Parsing map..")
-complex_map.parse_file(agent_num=1)
+complex_map.parse_file(agent_num=2)
 print("Filling heuristic table")
 complex_map.fill_heuristic_table()
 

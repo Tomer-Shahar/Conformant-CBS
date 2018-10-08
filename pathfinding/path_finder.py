@@ -21,7 +21,7 @@ class constraint_Astar:
     def __init__(self, map):
         self.map = map
 
-    def compute_agent_path(self, new_CT_node, agent, start_pos, goal_pos, min_best_case=True):
+    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, min_best_case=True):
         """
         Computes the path for a particular agent in a given node. The node should contain the new constraint for this
         agents. Note that the agent is simply an int (the agent's id).
@@ -38,8 +38,6 @@ class constraint_Astar:
         closed_set = set()
 
         start_node = singleAgentNode(start_pos, None, (0, 0), self.map, goal_pos)
-        #start_node.h_val = self.map.calc_heuristic(start_pos, goal_pos)
-        #start_node.f_val = (start_node.h_val, start_node.h_val)
         self.__add_node_to_open(open_list, open_dict, start_node)
         expanded = -1
         while open_list:
@@ -50,10 +48,10 @@ class constraint_Astar:
             node_tuple = best_node.create_tuple()
             open_dict.pop(node_tuple, None)
             closed_set.add(node_tuple)
-            if best_node.current_position == goal_pos: # and self.__can_stay_still(agent, best_node, new_CT_node.constraints):
+            if best_node.current_position == goal_pos and self.__can_stay_still(agent, best_node, constraints):
                 return best_node.calc_path(agent)
 
-            successors = best_node.expand(agent, new_CT_node.constraints, self.map)
+            successors = best_node.expand(agent, constraints, self.map)
             for neighbor in successors:
                 if neighbor in closed_set:
                     continue
@@ -126,7 +124,7 @@ class constraint_Astar:
 
             successors = []
             for edge_tuple in self.map.edges_and_weights[best_node[0]]:
-                successors.append(int(edge_tuple[VERTEX_ID]))  # ToDo: how to properly express successor?
+                successors.append(int(edge_tuple[VERTEX_ID]))
             for neighbor in successors:
                 if neighbor in closed_set:
                     continue
@@ -161,7 +159,7 @@ class constraint_Astar:
         Therefor we must verify what happens if this agent stands still all this time (there might be a constraint!)
         """
         for con in constraints:
-            if con[0] == agent and con[1] == best_node.current_position and con[2] >= best_node.g_val[1]:
+            if con[0] == agent and con[1] >= best_node.g_val[1] and con[2] == best_node.current_position:
                 return False
 
         return True

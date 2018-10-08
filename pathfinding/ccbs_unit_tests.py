@@ -1,8 +1,10 @@
 """
 Unit tests for Conformant-CBS
 """
+
 from pathfinding.map_reader import ccbsMap
 from pathfinding.conformant_cbs import *
+from pathfinding.path_finder import *
 import unittest
 
 class TestCcbsPlanner(unittest.TestCase):

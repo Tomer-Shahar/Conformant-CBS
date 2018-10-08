@@ -73,7 +73,7 @@ class ConformantCbsPlanner:
         self.start_time = 0
         self.planner = constraint_Astar(conformed_map)
 
-    def find_solution(self, time_limit=5 * 60 * 1000):
+    def find_solution(self, min_best_case=True, time_limit=5 * 60 * 1000):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -104,41 +104,53 @@ class ConformantCbsPlanner:
             nodes_expanded += 1
             if nodes_expanded % 50 == 1 and nodes_expanded > 1:
                 print("Nodes expanded: " + str(nodes_expanded))
-            # print("Validating node number " + str(nodes_expanded))
+            #print("Validating a node with a cost of " + str(best_node.cost))
             new_constraints = self.__validate_solution(best_node.solution)
 
             if not new_constraints:  # Meaning that new_constraints is null, i.e there are no new constraints. Solved!
-                cost = self.__compute_paths_cost(best_node.solution)
-                print("Solution found - noded expanded: " + str(nodes_expanded))
-                #  return self.__fill_in_solution(best_node.solution,), cost
-                return best_node.solution, cost
+                print("Solution found - nodes expanded: " + str(nodes_expanded))
+                return self.__generate_conformant_solution(best_node)
 
             for new_con in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
                 new_node = constraintNode(new_constraint=new_con, parent=best_node)
                 if new_node.constraints in closed_nodes:
                    # print("skipping duplicate node")
                     continue
-                min_time = self.__get_max_path_time(new_node.solution)
                 new_node.solution[new_con[AGENT_INDEX]] = self.planner.compute_agent_path(
-                    new_node, new_con[AGENT_INDEX],
+                    new_node.constraints, new_con[AGENT_INDEX],
                     self.startPositions[new_con[0]],
                     self.goalPositions[new_con[0]],
-                    min_time)  # compute the path for a single agent.
+                    min_best_case)  # compute the path for a single agent.
                 new_node.cost = self.__compute_paths_cost(new_node.solution)  # compute the cost
 
                 if new_node.cost[0] < math.inf:  # If the minimum time is less than infinity..
                     self.__insert_open_node(open_nodes, new_node)
+            if min_best_case:
+                open_nodes.sort(key=lambda k: k.cost[0], reverse=True)
+            else:
+                open_nodes.sort(key=lambda k: k.cost[1], reverse=True)
 
-            open_nodes.sort(key=lambda k: k.cost, reverse=True)
+    def __generate_conformant_solution(self, solution_node):
+        """
+        Receives the node that contains a proper solution for the map and number of nodes expanded.
 
-    @staticmethod
-    def __compute_paths_cost(solution):
+        Generates a tuple consisting of:
+        1. The solution
+        2. The cost of the solution
+        3. The length of the solution (number of movements, INCLUDING STAYING STILL)
+        """
+
+        sol = self.__add_stationary_moves(solution_node.solution)
+        return sol, self.__compute_paths_cost(sol), len(sol[1][PATH_INDEX])
+
+    def __compute_paths_cost(self, solution):
         """
         A function that computes the cost for each agent to reach their goal given a solution.
         Useful for the SIC heuristic.
         """
         min_cost = 0
         max_cost = 0
+        max_time = self.__get_max_path_time(solution)
 
         for agent, path in solution.items():
             if path[1] is None:
@@ -146,7 +158,8 @@ class ConformantCbsPlanner:
 
             min_cost += path[2][0]
             max_cost += path[2][1]
-        return min_cost, max_cost
+        #return min_cost, max_cost
+        return max_time, max_time
 
     def __validate_solution(self, solution):
         """
@@ -154,9 +167,8 @@ class ConformantCbsPlanner:
         constraints: For a conflict (a1,a2,v1,v2,t1,t2), meaning agents a1 and a2 cannot both be at vertex v1 or v2 or
         the edge (v1,v2) between t1 and t2, the function will return ((a1,v1,v2,t1,t2), (a2,v1,v2,t1,t2))
         """
-        max_time = self.__get_max_path_time(solution)
 
-        filled_solution = self.__add_stationary_moves(solution, max_time)  # inserts missing time steps
+        filled_solution = self.__add_stationary_moves(solution)  # inserts missing time steps
 
         new_constraints = self.__check_vertex_conflict(filled_solution)
         if new_constraints:
@@ -237,10 +249,11 @@ class ConformantCbsPlanner:
 
         return None
 
-    def __add_stationary_moves(self, solution, max_time):
+    def __add_stationary_moves(self, solution):
         """
         Appends to each path the time steps where the agent waits at his goal.
         """
+        max_time = self.__get_max_path_time(solution)
         new_solution = {}
         for agent, path in solution.items():
             new_path = copy.deepcopy(path[PATH_INDEX])
@@ -252,7 +265,7 @@ class ConformantCbsPlanner:
                     stationary_move = ((path_min_time + time * STAY_STILL_COST,
                                         path_max_time + time * STAY_STILL_COST), last_move[1])
                     new_path.append(stationary_move)
-            new_solution[agent] = (agent, new_path, max_time)
+            new_solution[agent] = (agent, new_path, path[2])
 
         return new_solution
 
@@ -262,10 +275,7 @@ class ConformantCbsPlanner:
         travelling an edge. i.e if a path is [(0,time=0),(4,time=3)], we know that the agent was on the edge (0,4)
         at time 1 and 2 -> filled_path = [(0,time=0),((0,4),time=1),((0,4),time=2),(4,time=3)]
         """
-        max_time = len(solution[1][PATH_INDEX]) - 1
-        for agent, path in solution.items():
-            if path[COST_INDEX] > max_time:
-                max_time = path[COST_INDEX]
+        max_time = self.__get_max_path_time(solution)
 
         for agent, path in solution.items():
             filled_path = []
@@ -382,7 +392,7 @@ class ConformantCbsPlanner:
         """
 
         for agent_id, agent_start in self.startPositions.items():
-            agent_path = self.planner.compute_agent_path(root, agent_id, agent_start, self.goalPositions[agent_id])
+            agent_path = self.planner.compute_agent_path(root.constraints, agent_id, agent_start, self.goalPositions[agent_id])
             print("Found path for agent " + str(agent_id))
             if agent_path[1]:  # Solution found
                 solution[agent_id] = agent_path
