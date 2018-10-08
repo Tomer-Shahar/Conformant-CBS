@@ -7,6 +7,7 @@ Currently a naive implementation of A*
 
 import time
 import math
+import networkx
 
 # The positions of each parameter in the tuple receives from map.edges
 VERTEX_ID = 0
@@ -17,42 +18,10 @@ STAY_STILL_COST = 1  # ToDO: Change value to greater than 1. This entails findin
 
 class constraint_Astar:
 
-    def __init__(self, start_positions, goal_positions, map):
-        self.start_positions = start_positions
-        self.goal_positions = goal_positions
-        self.start_time = time.time()
+    def __init__(self, map):
         self.map = map
-        self.constraints = {}
 
-    def compute_individual_paths(self, ct_node, init_positions, constraints, min_time, time_limit=1000 * 60):
-        """
-        Computes the paths for every agent given their initial positions and constraints. Note that the goal positions
-        are stored in self.goalPositions.
-        The output is a dictionary with a path for each agent (aka a solution)
-        """
-        solution = {}
-        self.constraints = constraints
-
-        if len(constraints) == 0:
-            if not self.trivial_solution(init_positions):
-                print("Error: No trival solution found")
-                return None
-
-        for agent_id, agent_start in init_positions.items():
-            if time.time() - self.start_time > time_limit:
-                raise OutOfTimeError('Ran out of time while computing individual paths')
-            agent_path = self.compute_agent_path(ct_node, agent_id, agent_start, self.goal_positions[agent_id],
-                                                 min_time)
-            print("Found path for agent " + str(agent_id))
-            if agent_path[1]:  # Solution found
-                solution[agent_id] = agent_path
-            else:  # No solution for a particular agent
-                print("No solution for agent number " + str(agent_id))
-                return None
-
-        return solution
-
-    def compute_agent_path(self, new_CT_node, agent, start_pos, goal_pos, min_time, min_best_case=True):
+    def compute_agent_path(self, new_CT_node, agent, start_pos, goal_pos, min_best_case=True):
         """
         Computes the path for a particular agent in a given node. The node should contain the new constraint for this
         agents. Note that the agent is simply an int (the agent's id).
@@ -81,7 +50,7 @@ class constraint_Astar:
             node_tuple = best_node.create_tuple()
             open_dict.pop(node_tuple, None)
             closed_set.add(node_tuple)
-            if best_node.current_position == goal_pos and self.__min_time_reached(best_node, min_time):
+            if best_node.current_position == goal_pos: # and self.__can_stay_still(agent, best_node, new_CT_node.constraints):
                 return best_node.calc_path(agent)
 
             successors = best_node.expand(agent, new_CT_node.constraints, self.map)
@@ -96,7 +65,6 @@ class constraint_Astar:
                 else:
                    # print("Expanded a node in open list")
                     neighbor_node = open_dict[neighbor]
-                    # TODO: How to address the g value? Min cost? Max cost? Average?
 
                     if min_best_case and g_val[0] >= neighbor_node.g_val[0]:
                         continue  # No need to update node. Continue iterating successors
@@ -106,11 +74,11 @@ class constraint_Astar:
 
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.map)
 
-            open_list = sorted(open_list, key=lambda k: k.h_val, reverse=True)  # first sort by secondary key.
+            open_list.sort(key=lambda k: k.h_val, reverse=True)  # first sort by secondary key.
             if min_best_case:
-                open_list = sorted(open_list, key=lambda k: k.f_val[0], reverse=True)  # This allows tie-breaking.
+                open_list.sort(key=lambda k: k.f_val[0], reverse=True)  # This allows tie-breaking.
             else:
-                open_list = sorted(open_list, key=lambda k: k.f_val[1], reverse=True)  # This allows tie-breaking.
+                open_list.sort(key=lambda k: k.f_val[1], reverse=True)  # This allows tie-breaking.
 
        # print("No Solution!")
         return agent, None, math.inf  # no solution
@@ -157,7 +125,7 @@ class constraint_Astar:
                 return True
 
             successors = []
-            for edge_tuple in self.map.edges_weights_and_timeSteps[best_node[0]]:
+            for edge_tuple in self.map.edges_and_weights[best_node[0]]:
                 successors.append(int(edge_tuple[VERTEX_ID]))  # ToDo: how to properly express successor?
             for neighbor in successors:
                 if neighbor in closed_set:
@@ -178,21 +146,25 @@ class constraint_Astar:
             open_list = sorted(open_list, key=lambda k: k[1] + k[2], reverse=True)
         return None
 
-    def trivial_solution(self, init_positions):
+    def trivial_solution(self, init_positions, goal_positions):
         for agent_id, agent_start in init_positions.items():
-            if not self.trivial_path(agent_start, self.goal_positions[agent_id]):
+            if not self.trivial_path(agent_start, goal_positions[agent_id]):
                 #  print("No trivial path found for agent " + str(agent_id))
                 return None  # no solution
 
         return True
 
-    def __min_time_reached(self, best_node, min_time):
+    def __can_stay_still(self, agent, best_node, constraints):
         """
         A function that verifies that the agent has reached the goal at an appropriate time. Useful when an agent
         reaches the goal in, for example, 5 time units however in the solution it takes another agent 10 time units.
         Therefor we must verify what happens if this agent stands still all this time (there might be a constraint!)
         """
-        return best_node.f_val[0] >= min_time
+        for con in constraints:
+            if con[0] == agent and con[1] == best_node.current_position and con[2] >= best_node.g_val[1]:
+                return False
+
+        return True
 
     def dijkstra_solution(self, source_vertex):
         """
@@ -207,26 +179,43 @@ class constraint_Astar:
         # prev = {}
         vertices = []  # list of vertices for which we haven't yet found the shortest path
 
-        for vertex in self.map.edges_weights_and_timeSteps:
+        for vertex in self.map.edges_and_weights:
             distances[vertex] = math.inf
             vertices.append(vertex)
 
         distances[source_vertex] = 0
-        vertices = sorted(vertices, key=lambda k: distances[k], reverse=True)
+        vertices.sort(key=lambda k: distances[k], reverse=True)
+        iteration = 0
 
         while vertices:
+            iteration+=1
+            print(iteration)
             best_node = vertices.pop()
-            position = self.map.vertex_id_to_coordinate(best_node)
-            for edge in self.map.edges_weights_and_timeSteps[best_node]:  # iterate over neighbors
+            # position = self.map.vertex_id_to_coordinate(best_node)
+            for edge in self.map.edges_and_weights[best_node]:  # iterate over neighbors
                 alternate = distances[best_node] + edge[1]
                 if alternate < distances[edge[0]]:
                     distances[edge[0]] = alternate
                     # prev[edge[0]] = curr_vertex
 
-            vertices = sorted(vertices, key=lambda k: distances[k], reverse=True)
+            vertices.sort(key=lambda k: distances[k], reverse=True)
 
         return distances
 
+
+    def dijkstra_networkx(self, source_vertex):
+
+        G = networkx.Graph()
+        for vertex, edges in self.map.edges_and_weights.items():
+            for edge in edges:
+                # u = self.map.vertex_id_to_coordinate(vertex)
+                # v = self.map.vertex_id_to_coordinate(edge[0])
+                G.add_edge(vertex, edge[0], weight= edge[1])
+        start = time.time()
+        solution = networkx.single_source_dijkstra_path_length(G, source_vertex)
+        end = time.time()
+        print("Time elapsed for networkx Dijkstra: " + str(end-start))
+        return solution
 
 class singleAgentNode:
     """
@@ -250,7 +239,7 @@ class singleAgentNode:
         # vertex_ID : ( <min_time, max_time> , vertex_ID)
         neighbors = []
 
-        for edge_tuple in map.edges_weights_and_timeSteps[self.current_position]:
+        for edge_tuple in map.edges_and_weights[self.current_position]:
             # for time_val in range(int(edge_tuple[MIN_EDGE_TIME]), int(edge_tuple[MAX_EDGE_TIME])+1):
             successor = ((self.g_val[0] + edge_tuple[MIN_EDGE_TIME], self.g_val[1] + edge_tuple[MAX_EDGE_TIME]),
                          int(edge_tuple[VERTEX_ID]))  # ToDo: how to properly express successor?

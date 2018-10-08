@@ -15,7 +15,7 @@ class TestCcbsPlanner(unittest.TestCase):
         for i in range (1,18):
             for j in range(1,2):
                 test_map.map[i][j] = 1
-        test_map.generate_edges_and_timeSteps((1,1), (1,1))
+        test_map.generate_edges_and_weights((1, 1), (1, 1))
         test_map.start_positions = { 1:0, 2:17 * 20}
         test_map.goal_positions = {1:19 * test_map.width + 0, 2:17 * test_map.width + 0}
         for agent in range(1, len(test_map.start_positions)):
@@ -37,7 +37,7 @@ class TestCcbsPlanner(unittest.TestCase):
         for i in range (1,18):
             for j in range(1,2):
                 test_map.map[i][j] = 1
-        test_map.generate_edges_and_timeSteps((1,1), (1,1))
+        test_map.generate_edges_and_weights((1, 1), (1, 1))
         test_map.start_positions = { 1:0, 2:19 * test_map.width}
         test_map.goal_positions = {1:19 * test_map.width + 0, 2:0}
         for agent in range(1, len(test_map.start_positions)):

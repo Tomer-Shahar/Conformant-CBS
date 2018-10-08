@@ -2,6 +2,7 @@ import random
 import math
 from pathfinding.path_finder import constraint_Astar
 from pathfinding.maze import Maze
+import heapq
 
 
 class ccbsMap:
@@ -20,7 +21,7 @@ class ccbsMap:
         if map_file_path:
             self.map_file_path = map_file_path
         self.map = []
-        self.edges_weights_and_timeSteps = None
+        self.edges_and_weights = None
         self.start_positions = {}
         self.goal_positions = {}
         self.heuristic_table = None
@@ -36,13 +37,12 @@ class ccbsMap:
         new_map.width = width
         new_map.height = height
         solvable = False
-        solver = None
         while not solvable:
             new_map.map = ccbsMap.__generate_map(height, width)
-            new_map.generate_edges_and_timeSteps(min_time_range, max_time_range, is_eight_connected)
+            new_map.generate_edges_and_weights(min_time_range, max_time_range, is_eight_connected)
             new_map.__generate_agents(agent_num)
-            solver = constraint_Astar(new_map.start_positions, new_map.goal_positions, new_map)
-            solvable = solver.trivial_solution(new_map.start_positions)
+            solver = constraint_Astar(new_map)
+            solvable = solver.trivial_solution(new_map.start_positions, new_map.goal_positions)
         new_map.fill_heuristic_table()
         return new_map
 
@@ -51,7 +51,7 @@ class ccbsMap:
         maze = Maze.generate(width, height)._to_str_matrix()
         return maze
 
-    def parse_file(self, agent_num=3, minTimeRange=(1, 1), maxTimeRange=(1, 1)):
+    def parse_file(self, agent_num=3, min_time_range=(1, 1), max_time_range=(1, 1)):
         """
         The main function, parses the map text file and turns it into a manageable object that contains the actual map,
         the vertices/edges, the weights and the time steps.
@@ -59,7 +59,7 @@ class ccbsMap:
         with open(self.map_file_path) as map_text:
             if self.map_file_path[-4:] == ".map":  # It's a moving-ai map
                 self.__extract_moving_ai_map(map_text)
-                self.generate_edges_and_timeSteps(minTimeRange, maxTimeRange)
+                self.generate_edges_and_weights(min_time_range, max_time_range)
                 self.__generate_agents(agent_num)
             else:
                 self.__extract_map(map_text)  # extract map
@@ -79,14 +79,14 @@ class ccbsMap:
         curr_vertex = -1
         while curr_line[0] == 'V':
             curr_vertex += 1
-            self.edges_weights_and_timeSteps[curr_vertex] = []
+            self.edges_and_weights[curr_vertex] = []
 
             edges = curr_line.split(':')[1]
             if edges != '\n':
                 edges = edges[:-1].split('|')
                 for edge in edges:
                     edge_tuple = tuple(edge.split(','))
-                    self.edges_weights_and_timeSteps[curr_vertex].append(tuple(edge_tuple))
+                    self.edges_and_weights[curr_vertex].append(tuple(edge_tuple))
 
             curr_line = map_text.readline()
 
@@ -161,7 +161,7 @@ class ccbsMap:
             goal_cord = self.vertex_id_to_coordinate(goal_pos)
             return abs(start_cord[0] - goal_cord[0]) + abs(start_cord[1] - goal_cord[1])
 
-    def generate_edges_and_timeSteps(self, min_time_range, max_time_range, is_eight_connected=False):
+    def generate_edges_and_weights(self, min_time_range, max_time_range, is_eight_connected=False):
         """
         With a given map, generates all the edges and assigns semi-random time ranges.
 
@@ -174,24 +174,15 @@ class ccbsMap:
         (0,0) (0,1) (0,2) ...
         (1,0) (1,1) (1,2) ...
         (2,0) (2,1) (2,2) ...
-
-
-        self.map = [[0, 0, 1, 0, 0],
-                    [1, 0, 1, 1, 0],
-                    [1, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 0],
-                    [0, 1, 0, 1, 0]]  # ToDo: remove these lines!
-        self.width = 5
-        self.height = 5
         """
         curr_vertex = -1
-        self.edges_weights_and_timeSteps = {}
+        self.edges_and_weights = {}
         for row in range(self.height):
             for col in range(self.width):
                 curr_vertex += 1
                 if self.map[row][col] == 1:  # current index is a wall.
                     continue
-                self.edges_weights_and_timeSteps[curr_vertex] = []
+                self.edges_and_weights[curr_vertex] = []
                 if is_eight_connected:
                     for i in range(-1, 2):
                         for j in range(-1, 2):
@@ -201,20 +192,20 @@ class ccbsMap:
                                 continue
                             if self.map[row + i][col + j] == 0:
                                 edge = self.__generate_edge((row, col), i, j, min_time_range, max_time_range)
-                                self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                                self.edges_and_weights[curr_vertex].append(edge)
                 else:  # 4-connected
                     if row > 0 and self.map[row - 1][col] == 0:
                         edge = self.__generate_edge((row, col), -1, 0, min_time_range, max_time_range)
-                        self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                        self.edges_and_weights[curr_vertex].append(edge)
                     if col > 0 and self.map[row][col - 1] == 0:
                         edge = self.__generate_edge((row, col), 0, -1, min_time_range, max_time_range)
-                        self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                        self.edges_and_weights[curr_vertex].append(edge)
                     if col < self.width - 1 and self.map[row][col + 1] == 0:
                         edge = self.__generate_edge((row, col), 0, 1, min_time_range, max_time_range)
-                        self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                        self.edges_and_weights[curr_vertex].append(edge)
                     if row < self.height - 1 and self.map[row + 1][col] == 0:
                         edge = self.__generate_edge((row, col), 1, 0, min_time_range, max_time_range)
-                        self.edges_weights_and_timeSteps[curr_vertex].append(edge)
+                        self.edges_and_weights[curr_vertex].append(edge)
 
     def __generate_edge(self, coordinate, i, j, min_time_range, max_time_range):
 
@@ -283,15 +274,8 @@ class ccbsMap:
 
     def fill_heuristic_table(self):
 
-        solver = constraint_Astar(self.start_positions, self.goal_positions, self)
+        solver = constraint_Astar(self)
         self.heuristic_table = {}
         for agent, goal in self.goal_positions.items():
-            dist_to_goal = solver.dijkstra_solution(goal)
-            clean_distance_dict = {}
-
-            # There is no reason to keep the infinite distances (which might be many), since we know the map is
-            # solvable for each agent.
-            for vertex, dist in dist_to_goal.items():
-                if dist != math.inf:
-                    clean_distance_dict[vertex] = dist
-            self.heuristic_table[goal] = clean_distance_dict
+            solution = solver.dijkstra_networkx(goal)
+            self.heuristic_table[goal] = solution
