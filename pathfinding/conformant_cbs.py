@@ -61,19 +61,19 @@ class ConformantCbsPlanner:
 
     """
 
-    def __init__(self, conformed_map):
+    def __init__(self, conformed_problem):
 
-        self.map = conformed_map.map
-        self.edges_and_weights = conformed_map.edges_and_weights
+        self.map = conformed_problem.map
+        self.edges_and_weights = conformed_problem.edges_and_weights
         self.paths = {}
         self.closed = {}
-        self.startPositions = conformed_map.start_positions
-        self.goalPositions = conformed_map.goal_positions
+        self.startPositions = conformed_problem.start_positions
+        self.goalPositions = conformed_problem.goal_positions
         self.constraints = set()  # ToDo: Which data structure to use for the constraints?
         self.start_time = 0
-        self.planner = constraint_Astar(conformed_map)
+        self.planner = constraint_Astar(conformed_problem)
 
-    def find_solution(self, min_best_case=True, time_limit=5 * 60 * 1000):
+    def find_solution(self, min_best_case=True, time_limit=5 * 60 * 1000, sum_of_costs=False):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -89,7 +89,7 @@ class ConformantCbsPlanner:
         self.compute_all_paths(root)
         if not root.solution:
             return None
-        root.cost = self.__compute_paths_cost(root.solution)
+        root.cost = self.__compute_paths_cost(root.solution, sum_of_costs)
         print("Trivial solution found. Cost is between " + str(root.cost[0]) + " and " + str(root.cost[1]))
 
         open_nodes = [root]  # initialize the list with root
@@ -109,19 +109,18 @@ class ConformantCbsPlanner:
 
             if not new_constraints:  # Meaning that new_constraints is null, i.e there are no new constraints. Solved!
                 print("Solution found - nodes expanded: " + str(nodes_expanded))
-                return self.__generate_conformant_solution(best_node)
+                return self.__generate_conformant_solution(best_node, sum_of_costs)
 
             for new_con in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
                 new_node = constraintNode(new_constraint=new_con, parent=best_node)
                 if new_node.constraints in closed_nodes:
-                   # print("skipping duplicate node")
                     continue
                 new_node.solution[new_con[AGENT_INDEX]] = self.planner.compute_agent_path(
                     new_node.constraints, new_con[AGENT_INDEX],
                     self.startPositions[new_con[0]],
                     self.goalPositions[new_con[0]],
                     min_best_case)  # compute the path for a single agent.
-                new_node.cost = self.__compute_paths_cost(new_node.solution)  # compute the cost
+                new_node.cost = self.__compute_paths_cost(new_node.solution, sum_of_costs)  # compute the cost
 
                 if new_node.cost[0] < math.inf:  # If the minimum time is less than infinity..
                     self.__insert_open_node(open_nodes, new_node)
@@ -130,7 +129,7 @@ class ConformantCbsPlanner:
             else:
                 open_nodes.sort(key=lambda k: k.cost[1], reverse=True)
 
-    def __generate_conformant_solution(self, solution_node):
+    def __generate_conformant_solution(self, solution_node, sum_of_costs=False):
         """
         Receives the node that contains a proper solution for the map and number of nodes expanded.
 
@@ -141,24 +140,25 @@ class ConformantCbsPlanner:
         """
 
         sol = self.__add_stationary_moves(solution_node.solution)
-        return sol, self.__compute_paths_cost(sol), len(sol[1][PATH_INDEX])
+        return sol, self.__compute_paths_cost(sol, sum_of_costs), len(sol[1][PATH_INDEX])
 
-    def __compute_paths_cost(self, solution):
+    def __compute_paths_cost(self, solution, SIC=False):
         """
-        A function that computes the cost for each agent to reach their goal given a solution.
-        Useful for the SIC heuristic.
+        A function that computes the cost for a given solution. Can return either the SIC or simply the maximum time
+        of any path in the solution.
         """
-        min_cost = 0
-        max_cost = 0
+        if SIC:
+            min_cost = 0
+            max_cost = 0
+            for agent, path in solution.items():
+                if path[1] is None:
+                    return math.inf, math.inf
+
+                min_cost += path[2][0]
+                max_cost += path[2][1]
+            return min_cost, max_cost
+
         max_time = self.__get_max_path_time(solution)
-
-        for agent, path in solution.items():
-            if path[1] is None:
-                return math.inf, math.inf
-
-            min_cost += path[2][0]
-            max_cost += path[2][1]
-        #return min_cost, max_cost
         return max_time, max_time
 
     def __validate_solution(self, solution):
