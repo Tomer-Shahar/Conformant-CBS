@@ -22,12 +22,13 @@ def run_map(ccbs_map):
     print("Finding solution..")
     ccbs_planner = ConformantCbsPlanner(ccbs_map)
     start = time.time()
-    solution = ccbs_planner.find_solution(time_limit=10000000)
+    solution = ccbs_planner.find_solution(time_limit=15)
     total = (time.time() - start)
     print("Solution found. Time Elapsed: " + str(total) + " seconds")
     print_solution(solution, ccbs_map)
 
 
+total_start = time.time()
 print("----------- Small custom map ---------------")
 test_map = ccbsMap('../maps/test_map.map')
 
@@ -51,10 +52,11 @@ complex_map = ccbsMap('../maps/Archipelago.map')
 start = time.time()
 
 print("Parsing map..")
-complex_map.parse_file(agent_num=1)
+complex_map.parse_file(agent_num=3)
 print("Filling heuristic table")
 complex_map.fill_heuristic_table()
 
 run_map(complex_map)
 
 print("Test finished!")
+print("Total time elapsed: " + str(time.time()-total_start))

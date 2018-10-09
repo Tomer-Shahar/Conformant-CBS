@@ -16,12 +16,12 @@ MAX_EDGE_TIME = 2
 STAY_STILL_COST = 1  # ToDO: Change value to greater than 1. This entails finding a more efficient way to stay still
 
 
-class constraint_Astar:
+class ConstraintAstar:
 
-    def __init__(self, map):
-        self.map = map
+    def __init__(self, ccbs_map):
+        self.map = ccbs_map
 
-    def compute_agent_path(self, new_CT_node, agent, start_pos, goal_pos, min_best_case=True):
+    def compute_agent_path(self, new_ct_node, agent, start_pos, goal_pos, min_best_case=True):
         """
         Computes the path for a particular agent in a given node. The node should contain the new constraint for this
         agents. Note that the agent is simply an int (the agent's id).
@@ -37,9 +37,7 @@ class constraint_Astar:
         open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
         closed_set = set()
 
-        start_node = singleAgentNode(start_pos, None, (0, 0), self.map, goal_pos)
-        #start_node.h_val = self.map.calc_heuristic(start_pos, goal_pos)
-        #start_node.f_val = (start_node.h_val, start_node.h_val)
+        start_node = SingleAgentNode(start_pos, None, (0, 0), self.map, goal_pos)
         self.__add_node_to_open(open_list, open_dict, start_node)
         expanded = -1
         while open_list:
@@ -50,20 +48,19 @@ class constraint_Astar:
             node_tuple = best_node.create_tuple()
             open_dict.pop(node_tuple, None)
             closed_set.add(node_tuple)
-            if best_node.current_position == goal_pos: # and self.__can_stay_still(agent, best_node, new_CT_node.constraints):
+            if best_node.current_position == goal_pos:  # and self.can_stay_still(agent, best_node, new_CT_node.constraints):
                 return best_node.calc_path(agent)
 
-            successors = best_node.expand(agent, new_CT_node.constraints, self.map)
+            successors = best_node.expand(agent, new_ct_node.constraints, self.map)
             for neighbor in successors:
                 if neighbor in closed_set:
                     continue
                 g_val = neighbor[0]
                 if neighbor not in open_dict:
-                    neighbor_node = singleAgentNode\
+                    neighbor_node = SingleAgentNode \
                         (neighbor[1], best_node, (neighbor[0][0], neighbor[0][1]), self.map, goal_pos)
                     self.__add_node_to_open(open_list, open_dict, neighbor_node)
                 else:
-                   # print("Expanded a node in open list")
                     neighbor_node = open_dict[neighbor]
 
                     if min_best_case and g_val[0] >= neighbor_node.g_val[0]:
@@ -80,7 +77,7 @@ class constraint_Astar:
             else:
                 open_list.sort(key=lambda k: k.f_val[1], reverse=True)  # This allows tie-breaking.
 
-       # print("No Solution!")
+        # print("No Solution!")
         return agent, None, math.inf  # no solution
 
     def set_start_time(self, start_time):
@@ -175,49 +172,21 @@ class constraint_Astar:
         For now we will use the minimum time taken to pass an edge as the weight, in order to keep the heuristic
         admissible.
         """
-        distances = {}
-        # prev = {}
-        vertices = []  # list of vertices for which we haven't yet found the shortest path
 
-        for vertex in self.map.edges_and_weights:
-            distances[vertex] = math.inf
-            vertices.append(vertex)
-
-        distances[source_vertex] = 0
-        vertices.sort(key=lambda k: distances[k], reverse=True)
-        iteration = 0
-
-        while vertices:
-            iteration+=1
-            print(iteration)
-            best_node = vertices.pop()
-            # position = self.map.vertex_id_to_coordinate(best_node)
-            for edge in self.map.edges_and_weights[best_node]:  # iterate over neighbors
-                alternate = distances[best_node] + edge[1]
-                if alternate < distances[edge[0]]:
-                    distances[edge[0]] = alternate
-                    # prev[edge[0]] = curr_vertex
-
-            vertices.sort(key=lambda k: distances[k], reverse=True)
-
-        return distances
-
-
-    def dijkstra_networkx(self, source_vertex):
-
-        G = networkx.Graph()
+        graph = networkx.Graph()
         for vertex, edges in self.map.edges_and_weights.items():
             for edge in edges:
                 # u = self.map.vertex_id_to_coordinate(vertex)
                 # v = self.map.vertex_id_to_coordinate(edge[0])
-                G.add_edge(vertex, edge[0], weight= edge[1])
+                graph.add_edge(vertex, edge[0], weight=edge[1])
         start = time.time()
-        solution = networkx.single_source_dijkstra_path_length(G, source_vertex)
+        solution = networkx.single_source_dijkstra_path_length(graph, source_vertex)
         end = time.time()
-        print("Time elapsed for networkx Dijkstra: " + str(end-start))
+        print("Time elapsed for networkx Dijkstra: " + str(end - start))
         return solution
 
-class singleAgentNode:
+
+class SingleAgentNode:
     """
     The class that represents the nodes being created during the search for a single agent.
     """

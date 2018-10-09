@@ -1,6 +1,6 @@
 import random
 import math
-from pathfinding.path_finder import constraint_Astar
+from pathfinding.path_finder import ConstraintAstar
 from pathfinding.maze import Maze
 import heapq
 
@@ -41,7 +41,7 @@ class ccbsMap:
             new_map.map = ccbsMap.__generate_map(height, width)
             new_map.generate_edges_and_weights(min_time_range, max_time_range, is_eight_connected)
             new_map.__generate_agents(agent_num)
-            solver = constraint_Astar(new_map)
+            solver = ConstraintAstar(new_map)
             solvable = solver.trivial_solution(new_map.start_positions, new_map.goal_positions)
         new_map.fill_heuristic_table()
         return new_map
@@ -51,7 +51,7 @@ class ccbsMap:
         maze = Maze.generate(width, height)._to_str_matrix()
         return maze
 
-    def parse_file(self, agent_num=3, min_time_range=(1, 1), max_time_range=(1, 1)):
+    def parse_file(self, agent_num=3, min_time_range=(1, 1), max_time_range=(1, 1), is_eight_connected=False):
         """
         The main function, parses the map text file and turns it into a manageable object that contains the actual map,
         the vertices/edges, the weights and the time steps.
@@ -59,7 +59,7 @@ class ccbsMap:
         with open(self.map_file_path) as map_text:
             if self.map_file_path[-4:] == ".map":  # It's a moving-ai map
                 self.__extract_moving_ai_map(map_text)
-                self.generate_edges_and_weights(min_time_range, max_time_range)
+                self.generate_edges_and_weights(min_time_range, max_time_range, is_eight_connected)
                 self.__generate_agents(agent_num)
             else:
                 self.__extract_map(map_text)  # extract map
@@ -155,7 +155,10 @@ class ccbsMap:
         """
 
         if self.heuristic_table:
-            return self.heuristic_table[goal_pos][start_pos]
+            if start_pos in self.heuristic_table[goal_pos]:
+                return self.heuristic_table[goal_pos][start_pos]
+            else:
+                return math.inf
         else:  # Useful for the first run (find trivial solution)
             start_cord = self.vertex_id_to_coordinate(start_pos)
             goal_cord = self.vertex_id_to_coordinate(goal_pos)
@@ -274,8 +277,8 @@ class ccbsMap:
 
     def fill_heuristic_table(self):
 
-        solver = constraint_Astar(self)
+        solver = ConstraintAstar(self)
         self.heuristic_table = {}
         for agent, goal in self.goal_positions.items():
-            solution = solver.dijkstra_networkx(goal)
+            solution = solver.dijkstra_solution(goal)
             self.heuristic_table[goal] = solution

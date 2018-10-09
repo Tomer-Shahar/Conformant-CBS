@@ -34,7 +34,7 @@ Written by: Tomer Shahar, AI search lab, department of Software & Information Sy
 import time
 import math
 import copy
-from pathfinding.path_finder import constraint_Astar
+from pathfinding.path_finder import ConstraintAstar
 
 AGENT_INDEX = 0
 PATH_INDEX = 1
@@ -71,7 +71,7 @@ class ConformantCbsPlanner:
         self.goalPositions = conformed_map.goal_positions
         self.constraints = set()  # ToDo: Which data structure to use for the constraints?
         self.start_time = 0
-        self.planner = constraint_Astar(conformed_map)
+        self.planner = ConstraintAstar(conformed_map)
 
     def find_solution(self, time_limit=5 * 60 * 1000):
         """
@@ -102,8 +102,8 @@ class ConformantCbsPlanner:
             best_node = self.__get_best_node(open_nodes)
             self.__insert_into_closed_list(closed_nodes, best_node)
             nodes_expanded += 1
-            if nodes_expanded % 50 == 1 and nodes_expanded > 1:
-                print("Nodes expanded: " + str(nodes_expanded))
+            if nodes_expanded % 50 == 0 and nodes_expanded > 1:
+                print(" Constraint nodes expanded: " + str(nodes_expanded))
             # print("Validating node number " + str(nodes_expanded))
             new_constraints = self.__validate_solution(best_node.solution)
 
