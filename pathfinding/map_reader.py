@@ -1,11 +1,10 @@
 import random
-import math
-from pathfinding.path_finder import ConstraintAstar
+from pathfinding.path_finder import constraintAstar
 from pathfinding.maze import Maze
-import heapq
+import math
 
 
-class ccbsMap:
+class conformant_problem:
     """
     Rudimentary class that converts a ccbsMap text file into a proper object that can be used by the solver.
     """
@@ -14,12 +13,10 @@ class ccbsMap:
         """
         map_file_path - the path to the map file
         map - a 2 dimensional array representing the map
-        edges_weights_and_timeSteps - a dictionary representing the edges. Key - vertex id, value - list of tuples,
+        edges_and_weights - a dictionary representing the edges. Key - vertex id, value - list of tuples,
         each tuple is of the form (u,cost,t1,t2) where u is the other vertex that comprises the edge, cost is the
         weight, t1 is the minimal time to traverse the edge and t2 is the maximum time.
         """
-        if map_file_path:
-            self.map_file_path = map_file_path
         self.map = []
         self.edges_and_weights = None
         self.start_positions = {}
@@ -27,21 +24,28 @@ class ccbsMap:
         self.heuristic_table = None
         self.width = -1
         self.height = -1
+        if map_file_path:
+            self.map_file_path = map_file_path
+            with open(self.map_file_path) as map_text:
+                if self.map_file_path[-4:] == ".map":  # It's a moving-ai map
+                    self.__extract_moving_ai_map(map_text)
+                else:
+                    self.__extract_map(map_text)  # extract ccbs map
 
     @staticmethod
     def generate_rectangle_map(height, width, min_time_range, max_time_range, agent_num, is_eight_connected):
         """
         Generates a map according to the given input. Returns a ccbsMap object
         """
-        new_map = ccbsMap()
+        new_map = conformant_problem()
         new_map.width = width
         new_map.height = height
         solvable = False
         while not solvable:
-            new_map.map = ccbsMap.__generate_map(height, width)
+            new_map.map = conformant_problem.__generate_map(height, width)
             new_map.generate_edges_and_weights(min_time_range, max_time_range, is_eight_connected)
-            new_map.__generate_agents(agent_num)
-            solver = ConstraintAstar(new_map)
+            new_map.generate_agents(agent_num)
+            solver = constraint_Astar(new_map)
             solvable = solver.trivial_solution(new_map.start_positions, new_map.goal_positions)
         new_map.fill_heuristic_table()
         return new_map
@@ -51,18 +55,15 @@ class ccbsMap:
         maze = Maze.generate(width, height)._to_str_matrix()
         return maze
 
-    def parse_file(self, agent_num=3, min_time_range=(1, 1), max_time_range=(1, 1), is_eight_connected=False):
+    def generate_problem_instance(self, agent_num=2, min_time_range=(1, 1), max_time_range=(1, 1), eight_connected=False):
         """
-        The main function, parses the map text file and turns it into a manageable object that contains the actual map,
-        the vertices/edges, the weights and the time steps.
+        The main function, adds to the ccbs problem the agents, vertices/edges and the weights.
         """
-        with open(self.map_file_path) as map_text:
-            if self.map_file_path[-4:] == ".map":  # It's a moving-ai map
-                self.__extract_moving_ai_map(map_text)
-                self.generate_edges_and_weights(min_time_range, max_time_range, is_eight_connected)
-                self.__generate_agents(agent_num)
-            else:
-                self.__extract_map(map_text)  # extract map
+        if self.map_file_path[-4:] == ".map":  # It's a moving-ai map
+            self.generate_edges_and_weights(min_time_range, max_time_range, eight_connected)
+            self.generate_agents(agent_num)
+        else:
+            with open(self.map_file_path) as map_text:
                 self.__extract_weights_and_time(map_text)  # extract edges, weights and traversal time
                 self.width = len(self.map[0])
                 self.__extract_agents(map_text)  # extract the agents' start and goal positions.
@@ -164,7 +165,7 @@ class ccbsMap:
             goal_cord = self.vertex_id_to_coordinate(goal_pos)
             return abs(start_cord[0] - goal_cord[0]) + abs(start_cord[1] - goal_cord[1])
 
-    def generate_edges_and_weights(self, min_time_range, max_time_range, is_eight_connected=False):
+    def generate_edges_and_weights(self, min_time_range=(1,1), max_time_range=(1,1), is_eight_connected=False):
         """
         With a given map, generates all the edges and assigns semi-random time ranges.
 
@@ -191,7 +192,7 @@ class ccbsMap:
                         for j in range(-1, 2):
                             if i == 0 and j == 0:
                                 continue
-                            if row + i < 0 or row + i == self.width or col + j < 0 or col + j == self.height:
+                            if row + i < 0 or row + i == self.height or col + j < 0 or col + j == self.width:
                                 continue
                             if self.map[row + i][col + j] == 0:
                                 edge = self.__generate_edge((row, col), i, j, min_time_range, max_time_range)
@@ -219,38 +220,34 @@ class ccbsMap:
 
         return edge
 
-    def __generate_agents(self, agent_num):
+    def generate_agents(self, agent_num):
         """
         generates a number of agents with random start and goal positions. Agents are guaranteed to not have the same
         start and goal positions.
         """
         start_set = set()
         goal_set = set()
-        try:
 
-            for agent_id in range(1, agent_num + 1):
-                y = random.randint(0, self.width - 1)
+        for agent_id in range(1, agent_num + 1):
+            x = random.randint(0, self.height - 1)
+            y = random.randint(0, self.width - 1)
+            while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
                 x = random.randint(0, self.height - 1)
-                while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
-                    x = random.randint(0, self.width - 1)
-                    y = random.randint(0, self.height - 1)
-
-                self.start_positions[agent_id] = x * self.width + y
-                start_set.add((x, y))
-
                 y = random.randint(0, self.width - 1)
+
+            self.start_positions[agent_id] = x * self.width + y
+            start_set.add((x, y))
+
+            x = random.randint(0, self.height - 1)
+            y = random.randint(0, self.width - 1)
+
+            while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
                 x = random.randint(0, self.height - 1)
+                y = random.randint(0, self.width - 1)
 
-                while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
-                    x = random.randint(0, self.width - 1)
-                    y = random.randint(0, self.height - 1)
+            self.goal_positions[agent_id] = x * self.width + y
+            goal_set.add((x, y))
 
-                self.goal_positions[agent_id] = x * self.width + y
-                goal_set.add((x, y))
-
-        except IndexError:
-            x = random.randint(0, self.width - 1)
-            y = random.randint(0, self.height - 1)
 
     def __extract_moving_ai_map(self, map_text):
         """
