@@ -80,17 +80,16 @@ class ConstraintAstar:
         # print("No Solution!")
         return agent, None, math.inf  # no solution
 
-    def set_start_time(self, start_time):
-        self.start_time = start_time
-
-    def __add_node_to_open(self, open_list, open_dict, node):
+    @staticmethod
+    def __add_node_to_open(open_list, open_dict, node):
         open_list.append(node)
         key_tuple = node.create_tuple()
         open_dict[key_tuple] = node
 
         return node
 
-    def __update_node(self, neighbor_node, prev_node, g_val, goal_pos, map):
+    @staticmethod
+    def __update_node(neighbor_node, prev_node, g_val, goal_pos, map):
         neighbor_node.prev_node = prev_node
         neighbor_node.g_val = g_val
         neighbor_node.h_val = map.calc_heuristic(neighbor_node.current_position, goal_pos)
@@ -151,7 +150,8 @@ class ConstraintAstar:
 
         return True
 
-    def __can_stay_still(self, agent, best_node, constraints):
+    @staticmethod
+    def __can_stay_still(agent, best_node, constraints):
         """
         A function that verifies that the agent has reached the goal at an appropriate time. Useful when an agent
         reaches the goal in, for example, 5 time units however in the solution it takes another agent 10 time units.
@@ -176,14 +176,8 @@ class ConstraintAstar:
         graph = networkx.Graph()
         for vertex, edges in self.map.edges_and_weights.items():
             for edge in edges:
-                # u = self.map.vertex_id_to_coordinate(vertex)
-                # v = self.map.vertex_id_to_coordinate(edge[0])
                 graph.add_edge(vertex, edge[0], weight=edge[1])
-        start = time.time()
-        solution = networkx.single_source_dijkstra_path_length(graph, source_vertex)
-        end = time.time()
-        print("Time elapsed for networkx Dijkstra: " + str(end - start))
-        return solution
+        return networkx.single_source_dijkstra_path_length(graph, source_vertex)
 
 
 class SingleAgentNode:

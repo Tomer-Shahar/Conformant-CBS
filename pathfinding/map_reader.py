@@ -1,5 +1,5 @@
 import random
-from pathfinding.path_finder import constraintAstar
+from pathfinding.path_finder import ConstraintAstar
 from pathfinding.maze import Maze
 import math
 
@@ -45,7 +45,7 @@ class conformant_problem:
             new_map.map = conformant_problem.__generate_map(height, width)
             new_map.generate_edges_and_weights(min_time_range, max_time_range, is_eight_connected)
             new_map.generate_agents(agent_num)
-            solver = constraint_Astar(new_map)
+            solver = ConstraintAstar(new_map)
             solvable = solver.trivial_solution(new_map.start_positions, new_map.goal_positions)
         new_map.fill_heuristic_table()
         return new_map

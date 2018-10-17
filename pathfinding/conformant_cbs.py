@@ -84,7 +84,6 @@ class ConformantCbsPlanner:
         time_limit - Unsurprisingly, the maximum time for this function to run.
         """
         self.start_time = time.time()
-        self.planner.set_start_time(self.start_time)
         root = constraintNode()
         self.compute_all_paths(root)
         if not root.solution:
