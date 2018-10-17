@@ -273,7 +273,7 @@ class conformant_problem:
         solver = constraint_Astar(self)
         self.heuristic_table = {}
         for agent, goal in self.goal_positions.items():
-            solution = solver.dijkstra_networkx(goal)
+            solution = solver.dijkstra_solution(goal)
             self.heuristic_table[goal] = solution
 
 

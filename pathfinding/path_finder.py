@@ -173,46 +173,13 @@ class constraint_Astar:
         For now we will use the minimum time taken to pass an edge as the weight, in order to keep the heuristic
         admissible.
         """
-        distances = {}
-        # prev = {}
-        vertices = []  # list of vertices for which we haven't yet found the shortest path
-
-        for vertex in self.map.edges_and_weights:
-            distances[vertex] = math.inf
-            vertices.append(vertex)
-
-        distances[source_vertex] = 0
-        vertices.sort(key=lambda k: distances[k], reverse=True)
-        iteration = 0
-
-        while vertices:
-            iteration+=1
-            print(iteration)
-            best_node = vertices.pop()
-            # position = self.map.vertex_id_to_coordinate(best_node)
-            for edge in self.map.edges_and_weights[best_node]:  # iterate over neighbors
-                alternate = distances[best_node] + edge[1]
-                if alternate < distances[edge[0]]:
-                    distances[edge[0]] = alternate
-                    # prev[edge[0]] = curr_vertex
-
-            vertices.sort(key=lambda k: distances[k], reverse=True)
-
-        return distances
-
-
-    def dijkstra_networkx(self, source_vertex):
-
         G = networkx.Graph()
         for vertex, edges in self.map.edges_and_weights.items():
             for edge in edges:
                 # u = self.map.vertex_id_to_coordinate(vertex)
                 # v = self.map.vertex_id_to_coordinate(edge[0])
                 G.add_edge(vertex, edge[0], weight= edge[1])
-        start = time.time()
         solution = networkx.single_source_dijkstra_path_length(G, source_vertex)
-        end = time.time()
-        print("Time elapsed for networkx Dijkstra: " + str(end-start))
         return solution
 
 class singleAgentNode:
