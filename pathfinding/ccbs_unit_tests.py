@@ -187,4 +187,23 @@ class TestMapReader(unittest.TestCase):
 
 
 class TestCcbsPlanner(unittest.TestCase):
-    pass
+    """
+    Class for testing the conformant_cbs class
+    """
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
+    def test_vertex_conflict_extraction(self):
+        interval_1 = (4, 9)
+        interval_2 = (7, 13)
+        vertex = 3
+        agent_1 = 1
+        agent_2 = 2
+
+        constraint_set = ConformantCbsPlanner.extract_vertex_conflict(interval_1, interval_2, vertex, agent_1, agent_2)
+
+        self.assertTrue(constraint_set, set())

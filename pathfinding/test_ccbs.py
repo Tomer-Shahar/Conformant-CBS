@@ -15,19 +15,19 @@ def print_solution(solution, map):
     print("Solution length is  " + str(solution[2]) + "\n")
 
 
-def run_map(ccbs_map, SIC=False):
+def run_map(ccbs_map, sic_heuristic=False):
     for agent in range(1, len(ccbs_map.start_positions) + 1):
         print("Agent " + str(agent) + ": " + str(
             ccbs_map.vertex_id_to_coordinate(ccbs_map.start_positions[agent])) + ", to " + str(
             ccbs_map.vertex_id_to_coordinate(ccbs_map.goal_positions[agent])))
     print("Finding solution.")
-    if SIC:
+    if sic_heuristic:
         print("Using sum of costs measurement.")
     else:
         print("Finding shortest global time measurement.")
     ccbs_planner = ConformantCbsPlanner(ccbs_map)
     start = time.time()
-    solution = ccbs_planner.find_solution(sum_of_costs=SIC, time_limit=10000000)
+    solution = ccbs_planner.find_solution(sum_of_costs=sic_heuristic, time_limit=10000000)
     total = (time.time() - start)
     print("Solution found. Time Elapsed: " + str(total) + " seconds")
     print_solution(solution, ccbs_map)
@@ -37,7 +37,7 @@ total_start = time.time()
 print("----------- Small custom map ---------------")
 test_map = conformant_problem('../maps/test_map.map')
 
-test_map.generate_problem_instance(2, (1, 1), (1, 1))
+test_map.generate_problem_instance(2, (1, 3), (3, 5))
 test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
 test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
 test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
@@ -50,7 +50,7 @@ test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
 test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
 test_map.goal_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
 test_map.fill_heuristic_table()
-run_map(test_map, SIC=True)
+run_map(test_map, sic_heuristic=True)
 
 test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
 test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
