@@ -37,7 +37,7 @@ total_start = time.time()
 print("----------- Small custom map ---------------")
 test_map = conformant_problem('../maps/test_map.map')
 
-test_map.generate_problem_instance(2, (1, 3), (3, 5))
+test_map.generate_problem_instance(2, (1, 1), (1, 1))
 test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
 test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
 test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
