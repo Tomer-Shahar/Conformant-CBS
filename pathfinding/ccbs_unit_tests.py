@@ -191,10 +191,27 @@ class TestCcbsPlanner(unittest.TestCase):
     """
 
     def setUp(self):
-        pass
+        self.conf_problem = conformant_problem()
+        self.conf_problem.map = [[0 for i in range(20)] for j in range(20)]
+        for x in range(1, 18):
+            for y in range(1, 2):
+                self.conf_problem.map[x][y] = 1
+        self.conf_problem.width = 20
+        self.conf_problem.height = 20
+
 
     def tearDown(self):
         pass
+
+    def test_simple_two_agent_map(self):
+        
+        """ Tests a simple 20x20 map with 2 agents and non-weighted edges"""
+        self.conf_problem.generate_problem_instance(2, (1, 1), (1, 1))
+        self.conf_problem.start_positions[1] = self.conf_problem.coordinate_to_vertex_id((0, 0))
+        self.conf_problem.start_positions[2] = self.conf_problem.coordinate_to_vertex_id((17, 0))
+        self.conf_problem.goal_positions[1] = self.conf_problem.coordinate_to_vertex_id((19, 0))
+        self.conf_problem.goal_positions[2] = self.conf_problem.coordinate_to_vertex_id((17, 0))
+        self.conf_problem.fill_heuristic_table()
 
     def test_vertex_conflict_extraction(self):
         """

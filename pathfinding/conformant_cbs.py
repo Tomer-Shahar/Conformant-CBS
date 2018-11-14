@@ -17,7 +17,7 @@ constraints will be of the form:
 where each disallowed state will have the form (time,coord,[coord2]), where the optional second coord indicates that
 this is an edge constraint.
 The time for an edge constraint refers to the time at which edge traversal is finished.  Not using objects so I can
-use constraints in dictionary keys. Constraints will be ordered by time.
+use constraints in dictionary keys.
 
 This project adds two aspects to the planner:
 1) The edges are weighted.
@@ -43,7 +43,7 @@ VERTEX_INDEX = 0
 MIN_COST_INDEX = 1
 MAX_COST_INDEX = 2
 STAY_STILL_COST = 1
-asymmetric_span_con = True
+asymmetric_span_con = False
 
 
 class ConformantCbsPlanner:
