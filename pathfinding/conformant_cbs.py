@@ -39,6 +39,9 @@ from pathfinding.path_finder import ConstraintAstar
 AGENT_INDEX = 0
 PATH_INDEX = 1
 COST_INDEX = 2
+VERTEX_INDEX = 0
+MIN_COST_INDEX = 1
+MAX_COST_INDEX = 2
 STAY_STILL_COST = 1
 asymmetric_span_con = True
 
@@ -111,14 +114,15 @@ class ConformantCbsPlanner:
                 print("Solution found - nodes expanded: " + str(nodes_expanded))
                 return self.__generate_conformant_solution(best_node, sum_of_costs)
 
-            for new_con in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
-                new_node = ConstraintNode(new_constraint=new_con, parent=best_node)
+            for new_con_set in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
+                new_node = ConstraintNode(new_constraints=new_con_set, parent=best_node)
                 if new_node.constraints in closed_nodes:
                     continue
-                new_node.solution[new_con[AGENT_INDEX]] = self.planner.compute_agent_path(
-                    new_node.constraints, new_con[AGENT_INDEX],
-                    self.startPositions[new_con[0]],
-                    self.goalPositions[new_con[0]],
+                agent = next(iter(new_con_set))[AGENT_INDEX]  # Ugly line to extract agent index.
+                new_node.solution[agent] = self.planner.compute_agent_path(
+                    new_node.constraints, agent,
+                    self.startPositions[agent],
+                    self.goalPositions[agent],
                     min_best_case)  # compute the path for a single agent.
                 new_node.cost = self.__compute_paths_cost(new_node.solution, sum_of_costs)  # compute the cost
 
@@ -235,18 +239,23 @@ class ConformantCbsPlanner:
         """
 
         for agent_i, path_i in solution.items():
+            prev_i = None
             for move_i in path_i[PATH_INDEX]:
                 interval_i = move_i[0]
                 for time_step in range(interval_i[0], interval_i[1] + 1):
                     for agent_j, path_j in solution.items():
                         if agent_i == agent_j:
                             continue
+                        prev_j = None
                         for move_j in path_j[PATH_INDEX]:
                             interval_j = move_j[0]
                             if interval_j[0] > interval_i[1]:
                                 break  # the min time is greater than the max time of the given interval.
                             if move_i[1] == move_j[1] and self.overlapping(interval_i, interval_j):
-                                return self.extract_vertex_conflict(interval_i, interval_j, move_i[1], agent_i, agent_j)
+                                return self.extract_vertex_conflict(interval_i, interval_j, move_i[1], agent_i, agent_j,
+                                                                    prev_i, prev_j)
+                            prev_j = move_j[1]
+                prev_i = move_i[1]
 
         return None
 
@@ -302,18 +311,45 @@ class ConformantCbsPlanner:
 
         return solution
 
-    @staticmethod
-    def extract_vertex_conflict(interval_i, interval_j, vertex, agent_i, agent_j):
+    def extract_vertex_conflict(self, interval_i, interval_j, vertex, agent_i, agent_j, prev_i, prev_j):
         """
         Helper function. We know that at that time interval there is some conflict between two given agents on the
         given vertex. This function creates the proper tuple of constraints.
+
+        We must find out what is the traversal time for each agent. We do this by quickly searching over the edges
+        and weights dictionary. Then we create two sets of constraints, one for each agent. The constraints will depend
+        on the max time in the overlap interval and the time it took to traverse the previous vertex to the conflicted
+        one.
         """
 
-        con_time = max(interval_i[0], interval_j[0])
-        constraint_1 = (agent_i, con_time, vertex)
-        constraint_2 = (agent_j, con_time, vertex)
+        t = min(interval_i[1], interval_j[1])  # Choose the max time in the conflict interval
+        i_min, i_max, j_min, j_max = 0, 0, 0, 0  # The edge traversal times
+        agent_i_constraints = set()
+        agent_j_constraints = set()
 
-        return constraint_1, constraint_2
+        for edge in self.edges_and_weights[prev_i]:
+            if edge[VERTEX_INDEX] == vertex:
+                i_min, i_max = edge[MIN_COST_INDEX], edge[MAX_COST_INDEX]
+                break
+
+        for edge in self.edges_and_weights[prev_j]:
+            if edge[VERTEX_INDEX] == vertex:
+                j_min, j_max = edge[MIN_COST_INDEX], edge[MAX_COST_INDEX]
+                break
+
+        if prev_i == vertex:
+            i_min, i_max = 1, 1
+
+        if prev_j == vertex:
+            j_min, j_max = 1, 1
+
+        for tick in range(t-i_max, t-i_min+1):
+            agent_i_constraints.add((agent_i, vertex, tick))
+
+        for tick in range(t-j_max, t-j_min+1):
+            agent_j_constraints.add((agent_j, vertex, tick))
+
+        return agent_i_constraints, agent_j_constraints
 
     @staticmethod
     def extract_assymetric_vertex_conflict(interval_i, interval_j, vertex, agent_i, agent_j):
@@ -450,10 +486,10 @@ class ConstraintNode:
     cost - the cost of the solution. i.e the sum of the costs of each path.
     """
 
-    def __init__(self, new_constraint=None, parent=None):
+    def __init__(self, new_constraints=None, parent=None):
 
         if parent:
-            self.constraints = self.__append_constraints(parent.constraints, new_constraint)
+            self.constraints = self.__append_constraints(parent.constraints, new_constraints)
             self.solution = copy.deepcopy(parent.solution)
         else:
             self.constraints = frozenset()
@@ -463,12 +499,12 @@ class ConstraintNode:
         self.cost = math.inf  # Default value higher than any possible int
 
     @staticmethod
-    def __append_constraints(parent_constraints, new_constraint):
+    def __append_constraints(parent_constraints, new_constraints):
         """
         Adds new constraints to the parent constraints.
         """
         con_set = set(copy.deepcopy(parent_constraints))
-        con_set.add(new_constraint)
+        con_set.update(new_constraints)
         new_constraints = frozenset(con_set)
         return new_constraints
 

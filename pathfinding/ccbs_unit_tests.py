@@ -185,7 +185,6 @@ class TestMapReader(unittest.TestCase):
         self.assertTrue(table[8][10] == 2)
         self.assertTrue(table[8][11] == 3)
 
-
 class TestCcbsPlanner(unittest.TestCase):
     """
     Class for testing the conformant_cbs class
@@ -198,12 +197,25 @@ class TestCcbsPlanner(unittest.TestCase):
         pass
 
     def test_vertex_conflict_extraction(self):
-        interval_1 = (4, 9)
-        interval_2 = (7, 13)
-        vertex = 3
+        """
+        Tests whether the extract vertex conflict function works properly. Basically, two agents (1 and 2) are moving
+        towards vertex 3 from vertices 1 and 2 respectively. The overlap time is 4-6.
+        """
+        interval_1 = (3, 6)
+        interval_2 = (4, 10)
+        v_1 = 1
+        v_2 = 2
+        v = 3
         agent_1 = 1
         agent_2 = 2
+        planner = ConformantCbsPlanner(conformant_problem.generate_rectangle_map(5, 5, (1, 1), (2, 2), 2, False))
 
-        constraint_set = ConformantCbsPlanner.extract_vertex_conflict(interval_1, interval_2, vertex, agent_1, agent_2)
+        planner.edges_and_weights[1] = [(3, 3, 6)]
+        planner.edges_and_weights[2] = [(3, 4, 10)]
+        con_sets = planner.extract_vertex_conflict(interval_1, interval_2, v, agent_1, agent_2, v_1, v_2)
 
-        self.assertTrue(constraint_set, set())
+        agent_1_cons = {(1, 3, 0), (1, 3, 1), (1, 3, 2), (1, 3, 3)}
+        agent_2_cons = {(2, 3, -4), (2, 3, -3), (2, 3, -2), (2, 3, -1), (2, 3, 0), (2, 3, 1), (2, 3, 2)}
+
+        self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
+

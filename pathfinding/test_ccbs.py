@@ -2,12 +2,12 @@ from pathfinding.map_reader import conformant_problem
 from pathfinding.conformant_cbs import *
 
 
-def print_solution(solution, map):
+def print_solution(solution, conformant_map):
     print("")
     for agent, path in solution[0].items():
         print("Path for agent_" + str(agent) + ": ")
         for movement in path[1]:
-            print(map.vertex_id_to_coordinate(movement[1]), end="")
+            print(conformant_map.vertex_id_to_coordinate(movement[1]), end="")
             if path[1][-1] != movement:
                 print(" --> ", end="")
         print()
@@ -37,7 +37,7 @@ total_start = time.time()
 print("----------- Small custom map ---------------")
 test_map = conformant_problem('../maps/test_map.map')
 
-test_map.generate_problem_instance(2, (1, 3), (3, 5))
+test_map.generate_problem_instance(2, (1, 1), (1, 1))
 test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
 test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
 test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
