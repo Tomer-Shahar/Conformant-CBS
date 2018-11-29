@@ -13,7 +13,9 @@ particular space-time position.  The search over the conflict tree continues
 until a set of collision free paths are found.
 
 constraints will be of the form:
-((robot_ids),(disallowed states,...))
+(agent_ID, conflict_node, time) <--- vertex constraint
+(agent_ID, (prev_node, conflict_node), time) <--- edge constraint
+
 where each disallowed state will have the form (time,coord,[coord2]), where the optional second coord indicates that
 this is an edge constraint.
 The time for an edge constraint refers to the time at which edge traversal is finished.  Not using objects so I can
@@ -134,9 +136,7 @@ class ConformantCbsPlanner:
                 open_nodes.sort(key=lambda k: k.cost[1], reverse=True)
 
     def __generate_conformant_solution(self, solution_node, sum_of_costs=False):
-        """
-        Receives the node that contains a proper solution for the map and number of nodes expanded.
-
+        """Receives the node that contains a proper solution for the map and number of nodes expanded.
         Generates a tuple consisting of:
         1. The solution
         2. The cost of the solution
@@ -147,8 +147,7 @@ class ConformantCbsPlanner:
         return sol, self.__compute_paths_cost(sol, sum_of_costs), len(sol[1][PATH_INDEX])
 
     def __compute_paths_cost(self, solution, sic_heuristic=False):
-        """
-        A function that computes the cost for a given solution. Can return either the SIC or simply the maximum time
+        """Computes the cost for a given solution. Can return either the SIC or simply the maximum time
         of any path in the solution.
         """
         if sic_heuristic:
@@ -166,10 +165,10 @@ class ConformantCbsPlanner:
         return max_time, max_time
 
     def __validate_solution(self, solution):
-        """
-        Given a solution, this function will validate it, i.e checking if any conflicts arise. If there are, returns two
-        constraints: For a conflict (a1,a2,v1,v2,t1,t2), meaning agents a1 and a2 cannot both be at vertex v1 or v2 or
-        the edge (v1,v2) between t1 and t2, the function will return ((a1,v1,v2,t1,t2), (a2,v1,v2,t1,t2))
+        """Given a solution, this function will validate it.
+        i.e checking if any conflicts arise. If there are, returns two constraints: For a conflict (a1,a2,v1,v2,t1,t2),
+        meaning agents a1 and a2 cannot both be at vertex v1 or v2 or the edge (v1,v2) between t1 and t2, the function
+        will return ((a1,v1,v2,t1,t2), (a2,v1,v2,t1,t2))
         """
 
         filled_solution = self.__add_stationary_moves(solution)  # inserts missing time steps
@@ -179,8 +178,11 @@ class ConformantCbsPlanner:
             return new_constraints
 
         # Check for the trickier edge conflicts
-        new_edge_constraints = self.__check_edge_conflict(filled_solution, asymmetric_span_con)
-        return new_edge_constraints
+        new_edge_swap_constraints = self.check_edge_swap_conflict(filled_solution, asymmetric_span_con)
+        if new_edge_swap_constraints:
+            return new_edge_swap_constraints
+
+        return self.check_edge_chase_conflict(filled_solution)
 
     @staticmethod
     def __get_max_path_time(solution):
@@ -252,8 +254,8 @@ class ConformantCbsPlanner:
                             if interval_j[0] > interval_i[1]:
                                 break  # the min time is greater than the max time of the given interval.
                             if move_i[1] == move_j[1] and self.overlapping(interval_i, interval_j):
-                                return self.extract_vertex_conflict(interval_i, interval_j, move_i[1], agent_i, agent_j,
-                                                                    prev_i, prev_j)
+                                return self.extract_vertex_conflict_constraints(interval_i, interval_j, move_i[1],
+                                                                                agent_i, agent_j, prev_i, prev_j)
                             prev_j = move_j[1]
                 prev_i = move_i[1]
 
@@ -311,7 +313,7 @@ class ConformantCbsPlanner:
 
         return solution
 
-    def extract_vertex_conflict(self, interval_i, interval_j, vertex, agent_i, agent_j, prev_i, prev_j):
+    def extract_vertex_conflict_constraints(self, interval_i, interval_j, vertex, agent_i, agent_j, prev_i, prev_j):
         """
         Helper function. We know that at that time interval there is some conflict between two given agents on the
         given vertex. This function creates the proper tuple of constraints.
@@ -320,12 +322,18 @@ class ConformantCbsPlanner:
         and weights dictionary. Then we create two sets of constraints, one for each agent. The constraints will depend
         on the max time in the overlap interval and the time it took to traverse the previous vertex to the conflicted
         one.
-        """
 
-        t = min(interval_i[1], interval_j[1])  # Choose the max time in the conflict interval
+        Interval example:     ______________
+                        _____|_\_\_\_\_|<---- The time we want to isolate - Maximal time of overlap.
+
+            We want to ensure that each agent won't somehow be at vertex V at time-tick 't' by adding several constraints
+            regarding the edge used to reach vertex V.
+
+            Constraints will be of the form (agent, (prev_node, conflict_node), time)
+        """
+        t = self.__pick_t(interval_i, interval_j)
         i_min, i_max, j_min, j_max = 0, 0, 0, 0  # The edge traversal times
-        agent_i_constraints = set()
-        agent_j_constraints = set()
+        agent_i_constraints, agent_j_constraints = set(), set()
 
         for edge in self.edges_and_weights[prev_i]:
             if edge[VERTEX_INDEX] == vertex:
@@ -337,22 +345,22 @@ class ConformantCbsPlanner:
                 j_min, j_max = edge[MIN_COST_INDEX], edge[MAX_COST_INDEX]
                 break
 
-        if prev_i == vertex:
-            i_min, i_max = 1, 1
+        if prev_i == vertex:  # Agent was standing still.
+            agent_i_constraints.add((agent_i, (prev_i, vertex), t))
+        else:
+            for tick in range(t-i_max, t-i_min+1):
+                agent_i_constraints.add((agent_i, (prev_i, vertex), tick))
 
-        if prev_j == vertex:
-            j_min, j_max = 1, 1
-
-        for tick in range(t-i_max, t-i_min+1):
-            agent_i_constraints.add((agent_i, vertex, tick))
-
-        for tick in range(t-j_max, t-j_min+1):
-            agent_j_constraints.add((agent_j, vertex, tick))
+        if prev_j == vertex:  # Agent was standing still.
+            agent_j_constraints.add((agent_j, (prev_j, vertex), t))
+        else:
+            for tick in range(t-j_max, t-j_min+1):
+                agent_j_constraints.add((agent_j, (prev_j, vertex), tick))
 
         return agent_i_constraints, agent_j_constraints
 
     @staticmethod
-    def extract_assymetric_vertex_conflict(interval_i, interval_j, vertex, agent_i, agent_j):
+    def extract_asymmetric_vertex_conflict(interval_i, interval_j, vertex, agent_i, agent_j):
         """
         Helper function. We know that at that time interval there is some conflict between two given agents on the
         given vertex. This function creates the proper tuple of constraints.
@@ -375,49 +383,65 @@ class ConformantCbsPlanner:
 
             return constraint_1, constraint_2
 
-    def __check_edge_conflict(self, filled_solution, asymmetric_span_con):
-        """
-        Checks for edge conflicts by creating a path represented by tuples, where each tuple contains the edge being
+    def check_edge_swap_conflict(self, filled_solution, asymmetric_span_con):
+        """ Checks for edge conflicts by creating a path represented by tuples, where each tuple contains the edge being
         traversed and the (start time, end time). All of the edges traversed are inserted into a dictionary mapping
         edges to times being traversed and the agent traversing it. If the traversal times overlap, there is a conflict
-        and it will be returned.
+        and it will be returned. Note that for a conflict to arise the time intervals must be "strongly overlapping",
+        i.e (16,17) and (17,18) don't count, however (17,18) and (17,18) do conflict. This is because in an edge
+        conflict, if it was a swap type conflict it would be discovered earlier during the vertex conflict check.
         """
 
         tuple_solution = self.__create_movement_tuples(filled_solution)
+        # A dictionary containing the different edges being traversed in the solution and the times and agents
+        # traversing them.
         positions = {}
 
         for agent, path in tuple_solution.items():
             for move in path[PATH_INDEX]:
                 if move[0] not in positions:
-                    positions[move[0]] = set()
-                    positions[move[0]].add((agent, move[1]))
+                    # positions[move[0]] = set()
+                    # positions[move[0]].add((agent, move[1]))
+                    positions[move[0]] = {(agent, move[1])}
                 else:
+                    positions[move[0]].add((agent, move[1]))
                     for traversal in positions[move[0]]:
-                        if traversal[0] != agent and self.overlapping(move[1], traversal[1]):
-                            return self.extract_edge_conflict(traversal[0], agent, traversal[1], move[1], move[0],
-                                                              asymmetric_span_con)
+                        if traversal[0] != agent and self.strong_overlapping(move[1], traversal[1]):
+                            return self.extract_edge_conflict(traversal[0], agent, traversal[1], move[1], move[0])
         return None
 
-    @staticmethod
-    def extract_edge_conflict(agent_1, agent_2, time_1, time_2, edge, asymmetric_span_con):
+    def extract_edge_conflict(self, agent_i, agent_j, interval_i, interval_j, conflict_edge):
         """
         We know there's a conflict at some edge, and agent1 cannot begin traversing it at time 1 and agent 2 cannot
         begin traversing it at time 2.
 
-        returns the appropriate constraints.
+        returns the appropriate set of constraints: (agent_ID, (prev_node, conflict_node), time)
         """
-        min_constraint_time = max(time_1[0], time_2[0])
-        max_constraint_time = min(time_1[1], time_2[1])
+        edge_min, edge_max = 0, 0  # The edge traversal times
+        agent_i_constraints = set()
+        agent_j_constraints = set()
 
-        con_1 = agent_1, min_constraint_time, edge
-        con_2 = agent_2, min_constraint_time, edge
+        for edge in self.edges_and_weights[conflict_edge[0]]:
+            if edge[VERTEX_INDEX] == conflict_edge[1]:
+                edge_min, edge_max = edge[MIN_COST_INDEX], edge[MAX_COST_INDEX]
+                break
+        # The actual times the agents will OCCUPY the edge.
+        i_arrival = interval_i[0] - edge_min + 1
+        i_exit = interval_i[1] - 1
+        j_arrival = interval_j[0] - edge_min + 1
+        j_exit = interval_j[1] - 1
 
-        return con_1, con_2
+        t = self.__pick_t((i_arrival, i_exit), (j_arrival, j_exit))
+
+        for tick in range(t-edge_max + 1, t-edge_min+2):
+            agent_i_constraints.add((agent_i, (conflict_edge[0], conflict_edge[1]), tick))
+            agent_j_constraints.add((agent_j, (conflict_edge[0], conflict_edge[1]), tick))
+
+        return agent_i_constraints, agent_j_constraints
 
     @staticmethod
     def overlapping(time_1, time_2):
-        """
-        Helper function - returns true if the time intervals in 'time_1' and 'time_2' overlap.
+        """ Returns true if the time intervals in 'time_1' and 'time_2' overlap.
 
         1: A<-- a<-->b -->B
         2: a<-- A -->b<---B>
@@ -425,11 +449,28 @@ class ConformantCbsPlanner:
         4: a<-- A<--->B --->b
         5: A<-->B
            a<-->b
+        ===> A <= a <= B or a <= A <= b
+        """
+
+        if (time_1[0] <= time_2[0] <= time_1[1]) or (time_2[0] <= time_1[0] <= time_2[1]):
+            return True
+
+        return False
+
+    @staticmethod
+    def strong_overlapping(time_1, time_2):
+        """ Returns true if the time intervals in 'time_1' and 'time_2' overlap strongly
+        A strong overlap means that the times are fully overlapping, not just a singular common tick at the end.
+        Basically change the '<=' to '<'
+
+        1: A<-- a<-->b -->B
+        2: a<-- A -->b<---B>
+        3: A<-- a<--- B --->b
+        4: a<-- A<--->B --->b
         ===> A < a < B or a < A < b
         """
 
-        if (time_1[0] <= time_2[0] <= time_1[1]) or \
-                (time_2[0] <= time_1[0] <= time_2[1]):
+        if (time_1[0] <= time_2[0] < time_1[1]) or (time_2[0] <= time_1[0] < time_2[1]):
             return True
 
         return False
@@ -473,6 +514,25 @@ class ConformantCbsPlanner:
     def __insert_into_closed_list(closed_nodes, new_node):
 
         closed_nodes.add(new_node.constraints)
+
+    def check_edge_chase_conflict(self, filled_solution):
+        """ Return "Edge Chase" type conflicts
+        :param filled_solution:
+        :return:
+        """
+        return None
+
+    @staticmethod
+    def __pick_t(interval_i, interval_j):
+        """
+        Returns the time tick to constrain in the conflict interval. For example if the intervals are (4,17) and (8,22),
+        the conflicting interval will be (8,17).
+        :param interval_i: Agent i's interval for occupying a resource
+        :param interval_j: Agent j's interval for occupying a resource
+        :return: The time tick to constraints. Currently returns the maximum time of the conflict interval.
+        """
+
+        return min(interval_i[1], interval_j[1])  # Choose the minimum between the max times in the conflict interval
 
 
 class ConstraintNode:

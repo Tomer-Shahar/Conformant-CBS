@@ -1,4 +1,4 @@
-from pathfinding.map_reader import conformant_problem
+from pathfinding.map_reader import ConformantProblem
 from pathfinding.conformant_cbs import *
 
 
@@ -35,9 +35,10 @@ def run_map(ccbs_map, sic_heuristic=False):
 
 total_start = time.time()
 print("----------- Small custom map ---------------")
-test_map = conformant_problem('../maps/test_map.map')
+test_map = ConformantProblem('../maps/test_map.map')
 
 test_map.generate_problem_instance(2, (1, 1), (1, 1))
+
 test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
 test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
 test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
@@ -61,12 +62,12 @@ test_map.fill_heuristic_table()
 run_map(test_map)
 
 print("\n----------- Larger random map ---------------")
-rando_map = conformant_problem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=3, is_eight_connected=False)
+rando_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=3, is_eight_connected=False)
 run_map(rando_map)
 
 print("------------------- Large moving-ai map ----------------------")
 
-complex_map = conformant_problem('../maps/Archipelago.map')
+complex_map = ConformantProblem('../maps/Archipelago.map')
 print("Parsing map..")
 complex_map.generate_problem_instance(agent_num=2)
 print("Filling heuristic table")

@@ -21,18 +21,19 @@ class ConstraintAstar:
     def __init__(self, ccbs_map):
         self.map = ccbs_map
 
+    """
+    Computes the path for a particular agent in a given node. The node should contain the new constraint for this
+    agents. Note that the agent is simply an int (the agent's id).
+
+    At the beginning, a quick check is performed to verify whether a solution can potentially exist. That is,
+    there is some sort of path for the agent without verifying the constraints.
+
+    returns a tuple containing (agent_id, cost, [ path list])
+
+    *** Currently naive implementation (basic A* with constraints)****
+    """
+
     def compute_agent_path(self, constraints, agent, start_pos, goal_pos, min_best_case=True):
-        """
-        Computes the path for a particular agent in a given node. The node should contain the new constraint for this
-        agents. Note that the agent is simply an int (the agent's id).
-
-        At the beginning, a quick check is performed to verify whether a solution can potentially exist. That is,
-        there is some sort of path for the agent without verifying the constraints.
-
-        returns a tuple containing (agent_id, cost, [ path list])
-
-        *** Currently naive implementation (basic A* with constraints)****
-        """
         open_list = []  # Todo: Use a more efficient data structure like tree or something
         open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
         closed_set = set()
@@ -154,12 +155,14 @@ class ConstraintAstar:
     def __can_stay_still(agent, best_node, constraints):
         """
         A function that verifies that the agent has reached the goal at an appropriate time. Useful when an agent
-        reaches the goal in, for example, 5 time units however in the solution it takes another agent 10 time units.
+        reaches the goal in, for example, 5-8 time units however in the solution it takes another agent 10-15 time units.
         Therefor we must verify what happens if this agent stands still all this time (there might be a constraint!)
         """
-        for con in constraints:
-            if con[0] == agent and con[1] >= best_node.g_val[1] and con[2] == best_node.current_position:
-                return False
+        for con in constraints:  # ToDo: Iterate over all constraints or send the max time to stand?
+
+            stay_still_edge = best_node.current_position, best_node.current_position
+            if con[0] == agent and con[1] == stay_still_edge and best_node.g_val[0] <= con[2]:
+                return False  # ToDO: Just update the current node to be at the constraint time?
 
         return True
 
@@ -193,16 +196,16 @@ class SingleAgentNode:
         self.g_val = time_span  # The time to reach the node.
         self.f_val = self.g_val[0] + self.h_val, self.g_val[1] + self.h_val  # heuristic val + cost of predecessor
 
-    def expand(self, agent, constraints, map):
-        """
-        The function that creates all the possible vertices an agent can go to from the current node. For example,
-        if a tuple from the map would be (5,1,3) and the current time is t0, the agent can be at vertex 5 at times
-        t0+1, t0+2 or t0+3.
-        """
+    """
+    The function that creates all the possible vertices an agent can go to from the current node. For example,
+    if a tuple from the map would be (5,1,3) and the current time vector is t0, the agent can be at vertex 5 at times
+    t0+1, t0+2 or t0+3.
+    """
+    def expand(self, agent, constraints, search_map):
         # vertex_ID : ( <min_time, max_time> , vertex_ID)
         neighbors = []
 
-        for edge_tuple in map.edges_and_weights[self.current_position]:
+        for edge_tuple in search_map.edges_and_weights[self.current_position]:
             # for time_val in range(int(edge_tuple[MIN_EDGE_TIME]), int(edge_tuple[MAX_EDGE_TIME])+1):
             successor = ((self.g_val[0] + edge_tuple[MIN_EDGE_TIME], self.g_val[1] + edge_tuple[MAX_EDGE_TIME]),
                          int(edge_tuple[VERTEX_ID]))  # ToDo: how to properly express successor?
@@ -236,19 +239,24 @@ class SingleAgentNode:
         """
         return self.g_val, self.current_position
 
-    def __legal_move(self, agent, successor, vertex_constraints):
+    def __legal_move(self, agent, successor, constraints):
 
         """
         A function that checks if a certain movement is legal. First we check for vertex constraints and then edge
         constraints. The first loop checks for the time range that the agent might be at the next vertex.
         """
+        successor_min_time = successor[0][0]
+        successor_max_time = successor[0][1]
+        current_min_time = self.g_val[0]
 
-        for time_interval in range(successor[0][0], successor[0][1] + 1):
-            if (agent, time_interval, successor[1]) in vertex_constraints:
+        for time_interval in range(successor_min_time, successor_max_time + 1):
+            if (agent, successor[1], time_interval) in constraints:
                 return False
-        for time_interval in range(self.g_val[0], successor[0][1] + 1):  # Edge constraint
-            edge = min(self.current_position, successor[1]), max(self.current_position, successor[1])
-            if (agent, time_interval, edge) in vertex_constraints:
+
+        for time_interval in range(current_min_time, successor_max_time + 1):  # Edge constraint
+            edge = self.current_position, successor[1]
+
+            if (agent, edge, time_interval) in constraints:
                 return False
 
         return True

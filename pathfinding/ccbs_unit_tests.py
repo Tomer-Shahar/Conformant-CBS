@@ -2,7 +2,7 @@
 Unit tests for Conformant-CBS
 """
 
-from pathfinding.map_reader import conformant_problem
+from pathfinding.map_reader import ConformantProblem
 from pathfinding.conformant_cbs import *
 from pathfinding.path_finder import *
 import unittest
@@ -12,7 +12,7 @@ import random
 class TestMapReader(unittest.TestCase):
 
     def setUp(self):
-        self.conf_problem = conformant_problem()
+        self.conf_problem = ConformantProblem()
         self.conf_problem.map = [[0, 1, 1, 0],
                                  [0, 1, 0, 0],
                                  [0, 0, 0, 0]]
@@ -185,13 +185,14 @@ class TestMapReader(unittest.TestCase):
         self.assertTrue(table[8][10] == 2)
         self.assertTrue(table[8][11] == 3)
 
+
 class TestCcbsPlanner(unittest.TestCase):
     """
     Class for testing the conformant_cbs class
     """
 
     def setUp(self):
-        self.conf_problem = conformant_problem()
+        self.conf_problem = ConformantProblem()
         self.conf_problem.map = [[0 for i in range(20)] for j in range(20)]
         for x in range(1, 18):
             for y in range(1, 2):
@@ -199,19 +200,22 @@ class TestCcbsPlanner(unittest.TestCase):
         self.conf_problem.width = 20
         self.conf_problem.height = 20
 
-
     def tearDown(self):
         pass
 
-    def test_simple_two_agent_map(self):
+    def test_simple_4_connected_two_agent_map(self):
         
         """ Tests a simple 20x20 map with 2 agents and non-weighted edges"""
-        self.conf_problem.generate_problem_instance(2, (1, 1), (1, 1))
+        self.conf_problem.generate_edges_and_weights()
         self.conf_problem.start_positions[1] = self.conf_problem.coordinate_to_vertex_id((0, 0))
         self.conf_problem.start_positions[2] = self.conf_problem.coordinate_to_vertex_id((17, 0))
         self.conf_problem.goal_positions[1] = self.conf_problem.coordinate_to_vertex_id((19, 0))
         self.conf_problem.goal_positions[2] = self.conf_problem.coordinate_to_vertex_id((17, 0))
         self.conf_problem.fill_heuristic_table()
+
+        ccbs_planner = ConformantCbsPlanner(self.conf_problem)
+        solution = ccbs_planner.find_solution(min_best_case=True, time_limit=20, sum_of_costs=True)
+        self.assertEqual(solution[2], 24)
 
     def test_vertex_conflict_extraction(self):
         """
@@ -225,14 +229,38 @@ class TestCcbsPlanner(unittest.TestCase):
         v = 3
         agent_1 = 1
         agent_2 = 2
-        planner = ConformantCbsPlanner(conformant_problem.generate_rectangle_map(5, 5, (1, 1), (2, 2), 2, False))
+        planner = ConformantCbsPlanner(ConformantProblem.generate_rectangle_map(5, 5, (1, 1), (2, 2), 2, False))
 
         planner.edges_and_weights[1] = [(3, 3, 6)]
         planner.edges_and_weights[2] = [(3, 4, 10)]
-        con_sets = planner.extract_vertex_conflict(interval_1, interval_2, v, agent_1, agent_2, v_1, v_2)
+        con_sets = planner.extract_vertex_conflict_constraints(interval_1, interval_2, v, agent_1, agent_2, v_1, v_2)
 
-        agent_1_cons = {(1, 3, 0), (1, 3, 1), (1, 3, 2), (1, 3, 3)}
-        agent_2_cons = {(2, 3, -4), (2, 3, -3), (2, 3, -2), (2, 3, -1), (2, 3, 0), (2, 3, 1), (2, 3, 2)}
+        agent_1_cons = {(1, (1, 3), 0), (1, (1, 3), 1), (1, (1, 3), 2), (1, (1, 3), 3)}
+        agent_2_cons = {(2, (2, 3), -4), (2, (2, 3), -3), (2, (2, 3), -2), (2, (2, 3), -1), (2, (2, 3), 0),
+                        (2, (2, 3), 1), (2, (2, 3), 2)}
+
+        self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
+
+    def test_edge_swap_conflict_extraction(self):
+        """
+        Tests whether the extract edge conflict function works properly. Basically, two agents (1 and 2) are travelling
+        and will eventually swap paths.
+        """
+
+        self.CCBS_planner = ConformantCbsPlanner(self.conf_problem)
+        agent_1 = 1
+        agent_2 = 2
+        interval_1 = (12, 20)
+        interval_2 = (8, 18)
+        edge = (5, 6)
+        self.CCBS_planner.edges_and_weights = {5: {(6, 5, 10)}}
+        agent_1_cons = set()
+        agent_2_cons = set()
+        for i in range(8, 14):
+            agent_1_cons.add((1, edge, i))
+            agent_2_cons.add((2, edge, i))
+
+        con_sets = self.CCBS_planner.extract_edge_conflict(agent_1, agent_2, interval_1, interval_2, edge)
 
         self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
 
