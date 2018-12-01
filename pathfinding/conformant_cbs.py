@@ -178,7 +178,7 @@ class ConformantCbsPlanner:
             return new_constraints
 
         # Check for the trickier edge conflicts
-        new_edge_swap_constraints = self.check_edge_swap_conflict(filled_solution, asymmetric_span_con)
+        new_edge_swap_constraints = self.check_edge_swap_conflict(filled_solution)
         if new_edge_swap_constraints:
             return new_edge_swap_constraints
 
@@ -313,27 +313,23 @@ class ConformantCbsPlanner:
 
         return solution
 
+    # noinspection PyUnreachableCode
     def extract_vertex_conflict_constraints(self, interval_i, interval_j, vertex, agent_i, agent_j, prev_i, prev_j):
         """
         Helper function. We know that at that time interval there is some conflict between two given agents on the
         given vertex. This function creates the proper tuple of constraints.
 
-        We must find out what is the traversal time for each agent. We do this by quickly searching over the edges
-        and weights dictionary. Then we create two sets of constraints, one for each agent. The constraints will depend
-        on the max time in the overlap interval and the time it took to traverse the previous vertex to the conflicted
-        one.
-
         Interval example:     ______________
                         _____|_\_\_\_\_|<---- The time we want to isolate - Maximal time of overlap.
 
-            We want to ensure that each agent won't somehow be at vertex V at time-tick 't' by adding several constraints
-            regarding the edge used to reach vertex V.
-
-            Constraints will be of the form (agent, (prev_node, conflict_node), time)
+            Constraints will be of the form (agent, conflict_node, time)
         """
         t = self.__pick_t(interval_i, interval_j)
+        return {(agent_i, vertex, t)}, {(agent_j, vertex, t)}
+
+        """    
         i_min, i_max, j_min, j_max = 0, 0, 0, 0  # The edge traversal times
-        agent_i_constraints, agent_j_constraints = set(), set()
+        
 
         for edge in self.edges_and_weights[prev_i]:
             if edge[VERTEX_INDEX] == vertex:
@@ -346,18 +342,19 @@ class ConformantCbsPlanner:
                 break
 
         if prev_i == vertex:  # Agent was standing still.
-            agent_i_constraints.add((agent_i, (prev_i, vertex), t))
+            agent_i_constraints.add((agent_i, vertex, t))
         else:
             for tick in range(t-i_max, t-i_min+1):
-                agent_i_constraints.add((agent_i, (prev_i, vertex), tick))
+                agent_i_constraints.add((agent_i, vertex, tick))
 
         if prev_j == vertex:  # Agent was standing still.
-            agent_j_constraints.add((agent_j, (prev_j, vertex), t))
+            agent_j_constraints.add((agent_j, vertex, t))
         else:
             for tick in range(t-j_max, t-j_min+1):
-                agent_j_constraints.add((agent_j, (prev_j, vertex), tick))
+                agent_j_constraints.add((agent_j, vertex, tick))
 
         return agent_i_constraints, agent_j_constraints
+        """
 
     @staticmethod
     def extract_asymmetric_vertex_conflict(interval_i, interval_j, vertex, agent_i, agent_j):
@@ -383,7 +380,7 @@ class ConformantCbsPlanner:
 
             return constraint_1, constraint_2
 
-    def check_edge_swap_conflict(self, filled_solution, asymmetric_span_con):
+    def check_edge_swap_conflict(self, filled_solution):
         """ Checks for edge conflicts by creating a path represented by tuples, where each tuple contains the edge being
         traversed and the (start time, end time). All of the edges traversed are inserted into a dictionary mapping
         edges to times being traversed and the agent traversing it. If the traversal times overlap, there is a conflict
@@ -425,6 +422,7 @@ class ConformantCbsPlanner:
             if edge[VERTEX_INDEX] == conflict_edge[1]:
                 edge_min, edge_max = edge[MIN_COST_INDEX], edge[MAX_COST_INDEX]
                 break
+
         # The actual times the agents will OCCUPY the edge.
         i_arrival = interval_i[0] - edge_min + 1
         i_exit = interval_i[1] - 1
@@ -433,9 +431,12 @@ class ConformantCbsPlanner:
 
         t = self.__pick_t((i_arrival, i_exit), (j_arrival, j_exit))
 
+        if edge_min == edge_max == 1:
+            return {(agent_i, conflict_edge, t+1)}, {(agent_j, conflict_edge, t+1)}
+
         for tick in range(t-edge_max + 1, t-edge_min+2):
-            agent_i_constraints.add((agent_i, (conflict_edge[0], conflict_edge[1]), tick))
-            agent_j_constraints.add((agent_j, (conflict_edge[0], conflict_edge[1]), tick))
+            agent_i_constraints.add((agent_i, conflict_edge, tick))
+            agent_j_constraints.add((agent_j, conflict_edge, tick))
 
         return agent_i_constraints, agent_j_constraints
 

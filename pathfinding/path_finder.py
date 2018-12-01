@@ -160,9 +160,8 @@ class ConstraintAstar:
         """
         for con in constraints:  # ToDo: Iterate over all constraints or send the max time to stand?
 
-            stay_still_edge = best_node.current_position, best_node.current_position
-            if con[0] == agent and con[1] == stay_still_edge and best_node.g_val[0] <= con[2]:
-                return False  # ToDO: Just update the current node to be at the constraint time?
+            if con[0] == agent and con[1] == best_node.current_position and best_node.g_val[0] <= con[2]:
+                return False
 
         return True
 
@@ -202,19 +201,17 @@ class SingleAgentNode:
     t0+1, t0+2 or t0+3.
     """
     def expand(self, agent, constraints, search_map):
-        # vertex_ID : ( <min_time, max_time> , vertex_ID)
         neighbors = []
 
         for edge_tuple in search_map.edges_and_weights[self.current_position]:
-            # for time_val in range(int(edge_tuple[MIN_EDGE_TIME]), int(edge_tuple[MAX_EDGE_TIME])+1):
-            successor = ((self.g_val[0] + edge_tuple[MIN_EDGE_TIME], self.g_val[1] + edge_tuple[MAX_EDGE_TIME]),
-                         int(edge_tuple[VERTEX_ID]))  # ToDo: how to properly express successor?
+            successor_time = (self.g_val[0] + edge_tuple[MIN_EDGE_TIME], self.g_val[1] + edge_tuple[MAX_EDGE_TIME])
+            vertex_id = int(edge_tuple[VERTEX_ID])
+            successor = (successor_time, vertex_id)
             if self.__legal_move(agent, successor, constraints):
                 neighbors.append(successor)
 
-        stay_still = ((self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST),
-                      self.current_position)  # Add the option of not moving.
-        if self.__legal_move(agent, stay_still, constraints):
+        stay_still = ((self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST), self.current_position)
+        if self.__legal_move(agent, stay_still, constraints): # Add the option of not moving.
             neighbors.append(stay_still)
 
         return neighbors
@@ -224,7 +221,6 @@ class SingleAgentNode:
         returns the path calculated from the node by traversing the previous nodes.
         """
         path = []
-        #  path.append((self.agent, self.current_position))
         curr_node = self
         while curr_node:
             move = (curr_node.g_val, curr_node.current_position)
@@ -253,10 +249,14 @@ class SingleAgentNode:
             if (agent, successor[1], time_interval) in constraints:
                 return False
 
-        for time_interval in range(current_min_time, successor_max_time + 1):  # Edge constraint
-            edge = self.current_position, successor[1]
+        edge = self.current_position, successor[1]
 
+        for time_interval in range(current_min_time+1, successor_max_time - 1):  # Edge constraint
             if (agent, edge, time_interval) in constraints:
+                return False
+
+        if successor_min_time == successor_max_time:  # instantaneous traversal
+            if (agent, edge, current_min_time + successor_min_time) in constraints:
                 return False
 
         return True
