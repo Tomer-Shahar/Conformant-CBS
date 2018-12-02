@@ -35,7 +35,8 @@ class ConformantProblem:
                     self.__extract_map(map_text)  # extract ccbs map
 
     @staticmethod
-    def generate_rectangle_map(height, width, min_time_range, max_time_range, agent_num, is_eight_connected):
+    def generate_rectangle_map(height, width, min_time_range=(1, 1), max_time_range=(1, 1),
+                               agent_num=2, is_eight_connected=False):
         """
         Generates a map according to the given input. Returns a ccbsMap object
         """
@@ -230,26 +231,27 @@ class ConformantProblem:
         start_set = set()
         goal_set = set()
 
+        width = len(self.map[0])
+        height = len(self.map)
         for agent_id in range(1, agent_num + 1):
-            x = random.randint(0, self.height - 1)
-            y = random.randint(0, self.width - 1)
+            x = random.randint(0, height - 1)
+            y = random.randint(0, width - 1)
             while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
-                x = random.randint(0, self.height - 1)
-                y = random.randint(0, self.width - 1)
+                x = random.randint(0, height - 1)
+                y = random.randint(0, width - 1)
 
-            self.start_positions[agent_id] = x * self.width + y
+            self.start_positions[agent_id] = x + width * y
             start_set.add((x, y))
 
-            x = random.randint(0, self.height - 1)
-            y = random.randint(0, self.width - 1)
+            x = random.randint(0, height - 1)
+            y = random.randint(0, width - 1)
 
             while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
-                x = random.randint(0, self.height - 1)
-                y = random.randint(0, self.width - 1)
+                x = random.randint(0, height - 1)
+                y = random.randint(0, width - 1)
 
-            self.goal_positions[agent_id] = x * self.width + y
+            self.goal_positions[agent_id] = x + width * y
             goal_set.add((x, y))
-
 
     def __extract_moving_ai_map(self, map_text):
         """
@@ -263,6 +265,8 @@ class ConformantProblem:
         self.width = int(curr_line.split(' ')[1][:-1])
         curr_line = map_text.readline()
         for line in map_text:
+            if line == '\n':
+                break
             row = []
             for char in line:
                 if char == '.':

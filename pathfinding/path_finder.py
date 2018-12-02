@@ -44,8 +44,8 @@ class ConstraintAstar:
         while open_list:
             best_node = open_list.pop()  # removes from open_list
             expanded += 1
-            if expanded % 1000 == 0 and expanded > 1:
-                print("Nodes expanded: " + str(expanded))
+          #  if expanded % 1000 == 0 and expanded > 1:
+          #      print("Nodes expanded: " + str(expanded))
             node_tuple = best_node.create_tuple()
             open_dict.pop(node_tuple, None)
             closed_set.add(node_tuple)
@@ -207,11 +207,11 @@ class SingleAgentNode:
             successor_time = (self.g_val[0] + edge_tuple[MIN_EDGE_TIME], self.g_val[1] + edge_tuple[MAX_EDGE_TIME])
             vertex_id = int(edge_tuple[VERTEX_ID])
             successor = (successor_time, vertex_id)
-            if self.__legal_move(agent, successor, constraints):
+            if self.legal_move(agent, successor, constraints):
                 neighbors.append(successor)
 
         stay_still = ((self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST), self.current_position)
-        if self.__legal_move(agent, stay_still, constraints): # Add the option of not moving.
+        if self.legal_move(agent, stay_still, constraints): # Add the option of not moving.
             neighbors.append(stay_still)
 
         return neighbors
@@ -235,7 +235,7 @@ class SingleAgentNode:
         """
         return self.g_val, self.current_position
 
-    def __legal_move(self, agent, successor, constraints):
+    def legal_move(self, agent, successor, constraints):
 
         """
         A function that checks if a certain movement is legal. First we check for vertex constraints and then edge
@@ -249,14 +249,14 @@ class SingleAgentNode:
             if (agent, successor[1], time_interval) in constraints:
                 return False
 
-        edge = self.current_position, successor[1]
+        edge = min(self.current_position, successor[1]), max(self.current_position, successor[1])
 
         for time_interval in range(current_min_time+1, successor_max_time - 1):  # Edge constraint
             if (agent, edge, time_interval) in constraints:
                 return False
 
         if successor_min_time == successor_max_time:  # instantaneous traversal
-            if (agent, edge, current_min_time + successor_min_time) in constraints:
+            if (agent, edge, successor_max_time) in constraints:
                 return False
 
         return True

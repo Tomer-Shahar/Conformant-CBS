@@ -120,12 +120,12 @@ class TestMapReader(unittest.TestCase):
 
         self.conf_problem.generate_agents(3)
         self.assertTrue(len(self.conf_problem.start_positions) == 3)
-        goalSet = set()
+        goal_set = set()
         for agent, goal_pos in self.conf_problem.goal_positions.items():
-            goalSet.add(goal_pos)
+            goal_set.add(goal_pos)
 
         for agent, pos in self.conf_problem.start_positions.items():
-            self.assertTrue(pos not in goalSet)
+            self.assertTrue(pos not in goal_set)
 
     def test_heuristic_table(self):
         """Tests that the heuristic table is properly filled on a 4-connected and 8-connected map"""
@@ -200,6 +200,9 @@ class TestCcbsPlanner(unittest.TestCase):
         self.conf_problem.width = 20
         self.conf_problem.height = 20
 
+        self.CCBS_planner = ConformantCbsPlanner(self.conf_problem)
+        self.path_finder = ConstraintAstar(self.conf_problem)
+
     def tearDown(self):
         pass
 
@@ -229,25 +232,23 @@ class TestCcbsPlanner(unittest.TestCase):
         v = 3
         agent_1 = 1
         agent_2 = 2
-        planner = ConformantCbsPlanner(ConformantProblem.generate_rectangle_map(5, 5, (1, 1), (2, 2), 2, False))
+        planner = ConformantCbsPlanner(ConformantProblem.generate_rectangle_map(width=5, height=5))
 
-        planner.edges_and_weights[1] = [(3, 3, 6)]
-        planner.edges_and_weights[2] = [(3, 4, 10)]
+        planner.edges_and_weights[v_1] = [(v, 3, 6)]
+        planner.edges_and_weights[v_2] = [(v, 4, 10)]
         con_sets = planner.extract_vertex_conflict_constraints(interval_1, interval_2, v, agent_1, agent_2, v_1, v_2)
 
-        agent_1_cons = {(1, (1, 3), 0), (1, (1, 3), 1), (1, (1, 3), 2), (1, (1, 3), 3)}
-        agent_2_cons = {(2, (2, 3), -4), (2, (2, 3), -3), (2, (2, 3), -2), (2, (2, 3), -1), (2, (2, 3), 0),
-                        (2, (2, 3), 1), (2, (2, 3), 2)}
+        agent_1_cons = {(agent_1, v, 6)}
+        agent_2_cons = {(agent_2, v, 6)}
 
         self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
 
-    def test_edge_swap_conflict_extraction(self):
+    def test_edge_swap_conflict_extraction_with_time_range(self):
         """
         Tests whether the extract edge conflict function works properly. Basically, two agents (1 and 2) are travelling
-        and will eventually swap paths.
+        and will eventually swap paths. The conflicted edge has a time range of 5-10 to pass it.
         """
 
-        self.CCBS_planner = ConformantCbsPlanner(self.conf_problem)
         agent_1 = 1
         agent_2 = 2
         interval_1 = (12, 20)
@@ -257,10 +258,36 @@ class TestCcbsPlanner(unittest.TestCase):
         agent_1_cons = set()
         agent_2_cons = set()
         for i in range(8, 14):
-            agent_1_cons.add((1, edge, i))
-            agent_2_cons.add((2, edge, i))
+            agent_1_cons.add((agent_1, edge, i))
+            agent_2_cons.add((agent_2, edge, i))
 
         con_sets = self.CCBS_planner.extract_edge_conflict(agent_1, agent_2, interval_1, interval_2, edge)
 
         self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
 
+    def test_edge_swap_conflict_extraction_without_time_range(self):
+        """
+        Tests whether the extract edge conflict function works properly. Basically, two agents (1 and 2) are travelling
+        and will eventually swap paths. The conflicted edge has a traversal time of 1.
+        """
+        agent_1 = 1
+        agent_2 = 2
+        interval_1 = (17, 18)
+        interval_2 = (17, 18)
+        edge = (340, 360)
+        self.CCBS_planner.edges_and_weights = {340: {(360, 1, 1)}}
+        agent_1_cons = {(agent_1, edge, 18)}  # ToDo: Should the time be 17 or 18?
+        agent_2_cons = {(agent_2, edge, 18)}
+
+        con_sets = self.CCBS_planner.extract_edge_conflict(agent_1, agent_2, interval_1, interval_2, edge)
+
+        self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
+
+    def test_illegal_moves(self):
+        agent = 1
+        edge = (340, 360)
+        self.CCBS_planner.edges_and_weights = {340: {(360, 1, 1), (320, 1, 1)}}
+        constraints = {(1, edge, 18)}
+        self.single_agent_node = SingleAgentNode(340, 320, (17, 17), self.conf_problem, 400)
+        successor = ((18, 18), 360)
+        self.assertFalse(self.single_agent_node.legal_move(agent, successor, constraints))

@@ -1,5 +1,6 @@
 from pathfinding.map_reader import ConformantProblem
 from pathfinding.conformant_cbs import *
+import os
 
 
 def print_solution(solution, conformant_map):
@@ -33,6 +34,33 @@ def run_map(ccbs_map, sic_heuristic=False):
     print_solution(solution, ccbs_map)
 
 
+def print_map(conf_problem):
+    if os.name == 'nt':
+        print('The map being run:')
+        grid = copy.deepcopy(conf_problem.map)
+
+        for agent, position in conf_problem.start_positions.items():
+            coord = conf_problem.vertex_id_to_coordinate(position)
+            grid[coord[0]][coord[1]] = chr(ord('A') - 1 + agent) + ' '
+
+        for agent, position in conf_problem.goal_positions.items():
+            coord = conf_problem.vertex_id_to_coordinate(position)
+            grid[coord[0]][coord[1]] = str(agent) + ' '
+
+        for row in grid:
+            for cell in row:
+                if cell == 1:
+                    print("■ ", end="")
+                elif cell == 0:
+                    print("□ ", end="")
+                else:
+                    print(cell, end="")
+            print("")
+        print("--------------------------------------------")
+    else:
+        pass
+
+
 total_start = time.time()
 print("----------- Small custom map ---------------")
 test_map = ConformantProblem('../maps/test_map.map')
@@ -44,36 +72,30 @@ test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
 test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
 test_map.goal_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
 test_map.fill_heuristic_table()
-run_map(test_map)
 
-test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
-test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
-test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
-test_map.goal_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
-test_map.fill_heuristic_table()
+print_map(test_map)
 run_map(test_map, sic_heuristic=True)
+run_map(test_map, sic_heuristic=False)
 
-test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
-test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
-test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
-test_map.goal_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
-test_map.fill_heuristic_table()
+print("\n----------- Larger random map: 12x12 ---------------")
+random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=3, is_eight_connected=False)
+print_map(random_map)
+run_map(random_map, sic_heuristic=True)
 
-run_map(test_map)
+print("\n----------- Extra Larger random map: 24x24 ---------------")
+random_map = ConformantProblem.generate_rectangle_map(24, 24, (1, 1), (1, 1), agent_num=4, is_eight_connected=False)
+print_map(random_map)
+run_map(random_map, sic_heuristic=True)
 
-print("\n----------- Larger random map ---------------")
-rando_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=3, is_eight_connected=False)
-run_map(rando_map)
-
-print("------------------- Large moving-ai map ----------------------")
+print("-------------- Large moving-ai map -------------------")
 
 complex_map = ConformantProblem('../maps/Archipelago.map')
 print("Parsing map..")
-complex_map.generate_problem_instance(agent_num=2)
+complex_map.generate_problem_instance(agent_num=5)
 print("Filling heuristic table")
 complex_map.fill_heuristic_table()
 
 run_map(complex_map)
 
 print("Test finished!")
-print("Total time elapsed: " + str(time.time()-total_start))
+print("Total time elapsed: " + str(time.time() - total_start))

@@ -79,7 +79,7 @@ class ConformantCbsPlanner:
         self.start_time = 0
         self.planner = ConstraintAstar(conformed_problem)
 
-    def find_solution(self, min_best_case=True, time_limit=5 * 60 * 1000, sum_of_costs=False):
+    def find_solution(self, min_best_case=True, time_limit=5 * 60 * 1000, sum_of_costs=True):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -87,6 +87,8 @@ class ConformantCbsPlanner:
 
         root - the root node. Contains no constraints.
         open - the open list.
+        sum_of_costs - How to count the solution cost. If it's true, the solution cost is the  sum of all individual
+        paths. Otherwise the cost is the longest path in the solution.
         time_limit - Unsurprisingly, the maximum time for this function to run.
         """
         self.start_time = time.time()
@@ -108,7 +110,7 @@ class ConformantCbsPlanner:
             self.__insert_into_closed_list(closed_nodes, best_node)
             nodes_expanded += 1
             if nodes_expanded % 50 == 0 and nodes_expanded > 1:
-                print(" Constraint nodes expanded: " + str(nodes_expanded))
+                print("Constraint nodes expanded: " + str(nodes_expanded))
             # print("Validating node number " + str(nodes_expanded))
             new_constraints = self.__validate_solution(best_node.solution)
 
@@ -146,7 +148,7 @@ class ConformantCbsPlanner:
         sol = self.__add_stationary_moves(solution_node.solution)
         return sol, self.__compute_paths_cost(sol, sum_of_costs), len(sol[1][PATH_INDEX])
 
-    def __compute_paths_cost(self, solution, sic_heuristic=False):
+    def __compute_paths_cost(self, solution, sic_heuristic=True):
         """Computes the cost for a given solution. Can return either the SIC or simply the maximum time
         of any path in the solution.
         """
@@ -413,6 +415,9 @@ class ConformantCbsPlanner:
         begin traversing it at time 2.
 
         returns the appropriate set of constraints: (agent_ID, (prev_node, conflict_node), time)
+
+        Note: In the case of an edge with a traversal time of 1, theoretically, the agent does not spend any time on it
+        and arrives at the end of the edge instantly at 1 time tick. We must address these kind of edges differently.
         """
         edge_min, edge_max = 0, 0  # The edge traversal times
         agent_i_constraints = set()
@@ -424,12 +429,12 @@ class ConformantCbsPlanner:
                 break
 
         # The actual times the agents will OCCUPY the edge.
-        i_arrival = interval_i[0] - edge_min + 1
-        i_exit = interval_i[1] - 1
-        j_arrival = interval_j[0] - edge_min + 1
-        j_exit = interval_j[1] - 1
+        i_begin_occupation = interval_i[0] - edge_min + 1
+        i_end_occupation = interval_i[1] - 1
+        j_begin_occupation = interval_j[0] - edge_min + 1
+        j_end_occupation = interval_j[1] - 1
 
-        t = self.__pick_t((i_arrival, i_exit), (j_arrival, j_exit))
+        t = self.__pick_t((i_begin_occupation, i_end_occupation), (j_begin_occupation, j_end_occupation))
 
         if edge_min == edge_max == 1:
             return {(agent_i, conflict_edge, t+1)}, {(agent_j, conflict_edge, t+1)}
