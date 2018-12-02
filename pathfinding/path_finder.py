@@ -56,10 +56,9 @@ class ConstraintAstar:
             for neighbor in successors:
                 if neighbor in closed_set:
                     continue
-                g_val = neighbor[0]
+                g_val = neighbor[1]
                 if neighbor not in open_dict:
-                    neighbor_node = SingleAgentNode \
-                        (neighbor[1], best_node, (neighbor[0][0], neighbor[0][1]), self.map, goal_pos)
+                    neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.map, goal_pos)
                     self.__add_node_to_open(open_list, open_dict, neighbor_node)
                 else:
                     neighbor_node = open_dict[neighbor]
@@ -68,7 +67,7 @@ class ConstraintAstar:
                         continue  # No need to update node. Continue iterating successors
                     elif not min_best_case and g_val[1] >= neighbor_node.g_val[1]:
                         continue  # No need to update node. Continue iterating successors
-                    print("Found a faster path for node " + neighbor_node[1])
+                    print("Found a faster path for node " + neighbor_node.current_position)
 
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.map)
 
@@ -197,21 +196,21 @@ class SingleAgentNode:
 
     """
     The function that creates all the possible vertices an agent can go to from the current node. For example,
-    if a tuple from the map would be (5,1,3) and the current time vector is t0, the agent can be at vertex 5 at times
-    t0+1, t0+2 or t0+3.
+    if a tuple from the map would be ((3,4), 1, 3) and the current time vector is t0, the agent can be at vertex (3,4)
+    at times t0+1, t0+2 or t0+3.
     """
     def expand(self, agent, constraints, search_map):
         neighbors = []
 
         for edge_tuple in search_map.edges_and_weights[self.current_position]:
             successor_time = (self.g_val[0] + edge_tuple[MIN_EDGE_TIME], self.g_val[1] + edge_tuple[MAX_EDGE_TIME])
-            vertex_id = int(edge_tuple[VERTEX_ID])
-            successor = (successor_time, vertex_id)
+            vertex = edge_tuple[VERTEX_ID]
+            successor = (vertex, successor_time)
             if self.legal_move(agent, successor, constraints):
                 neighbors.append(successor)
 
-        stay_still = ((self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST), self.current_position)
-        if self.legal_move(agent, stay_still, constraints): # Add the option of not moving.
+        stay_still = (self.current_position, (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST))
+        if self.legal_move(agent, stay_still, constraints):  # Add the option of not moving.
             neighbors.append(stay_still)
 
         return neighbors
@@ -231,9 +230,9 @@ class SingleAgentNode:
     def create_tuple(self):
         """
         Converts a node object into a tuple.
-        (agent, time, vertex)
+        (vertex, time)
         """
-        return self.g_val, self.current_position
+        return self.current_position, self.g_val
 
     def legal_move(self, agent, successor, constraints):
 
@@ -241,15 +240,15 @@ class SingleAgentNode:
         A function that checks if a certain movement is legal. First we check for vertex constraints and then edge
         constraints. The first loop checks for the time range that the agent might be at the next vertex.
         """
-        successor_min_time = successor[0][0]
-        successor_max_time = successor[0][1]
+        successor_min_time = successor[1][0]
+        successor_max_time = successor[1][1]
         current_min_time = self.g_val[0]
 
         for time_interval in range(successor_min_time, successor_max_time + 1):
-            if (agent, successor[1], time_interval) in constraints:
+            if (agent, successor[0], time_interval) in constraints:
                 return False
 
-        edge = min(self.current_position, successor[1]), max(self.current_position, successor[1])
+        edge = min(self.current_position, successor[0]), max(self.current_position, successor[0])
 
         for time_interval in range(current_min_time+1, successor_max_time - 1):  # Edge constraint
             if (agent, edge, time_interval) in constraints:

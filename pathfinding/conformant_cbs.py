@@ -328,35 +328,6 @@ class ConformantCbsPlanner:
         t = self.__pick_t(interval_i, interval_j)
         return {(agent_i, vertex, t)}, {(agent_j, vertex, t)}
 
-        """    
-        i_min, i_max, j_min, j_max = 0, 0, 0, 0  # The edge traversal times
-        
-
-        for edge in self.edges_and_weights[prev_i]:
-            if edge[VERTEX_INDEX] == vertex:
-                i_min, i_max = edge[MIN_COST_INDEX], edge[MAX_COST_INDEX]
-                break
-
-        for edge in self.edges_and_weights[prev_j]:
-            if edge[VERTEX_INDEX] == vertex:
-                j_min, j_max = edge[MIN_COST_INDEX], edge[MAX_COST_INDEX]
-                break
-
-        if prev_i == vertex:  # Agent was standing still.
-            agent_i_constraints.add((agent_i, vertex, t))
-        else:
-            for tick in range(t-i_max, t-i_min+1):
-                agent_i_constraints.add((agent_i, vertex, tick))
-
-        if prev_j == vertex:  # Agent was standing still.
-            agent_j_constraints.add((agent_j, vertex, t))
-        else:
-            for tick in range(t-j_max, t-j_min+1):
-                agent_j_constraints.add((agent_j, vertex, tick))
-
-        return agent_i_constraints, agent_j_constraints
-        """
-
     @staticmethod
     def extract_asymmetric_vertex_conflict(interval_i, interval_j, vertex, agent_i, agent_j):
         """

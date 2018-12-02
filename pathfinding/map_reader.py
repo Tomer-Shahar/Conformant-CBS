@@ -179,14 +179,13 @@ class ConformantProblem:
         (1,0) (1,1) (1,2) ...
         (2,0) (2,1) (2,2) ...
         """
-        curr_vertex = -1
         self.edges_and_weights = {}
         for row in range(self.height):
             for col in range(self.width):
-                curr_vertex += 1
                 if self.map[row][col] == 1:  # current index is a wall.
                     continue
-                self.edges_and_weights[curr_vertex] = []
+                curr_node = (row, col)
+                self.edges_and_weights[(row, col)] = []
                 if is_eight_connected:
                     for i in range(-1, 2):
                         for j in range(-1, 2):
@@ -196,27 +195,28 @@ class ConformantProblem:
                                 continue
                             if self.map[row + i][col + j] == 0:
                                 edge = self.__generate_edge((row, col), i, j, min_time_range, max_time_range)
-                                self.edges_and_weights[curr_vertex].append(edge)
+                                self.edges_and_weights[curr_node].append(edge)
                 else:  # 4-connected
-                    if row > 0 and self.map[row - 1][col] == 0:
+                    if row > 0 and self.map[row - 1][col] == 0:  # moving up
                         edge = self.__generate_edge((row, col), -1, 0, min_time_range, max_time_range)
-                        self.edges_and_weights[curr_vertex].append(edge)
-                    if col > 0 and self.map[row][col - 1] == 0:
+                        self.edges_and_weights[curr_node].append(edge)
+                    if col > 0 and self.map[row][col - 1] == 0:  # moving left
                         edge = self.__generate_edge((row, col), 0, -1, min_time_range, max_time_range)
-                        self.edges_and_weights[curr_vertex].append(edge)
-                    if col < self.width - 1 and self.map[row][col + 1] == 0:
+                        self.edges_and_weights[curr_node].append(edge)
+                    if col < self.width - 1 and self.map[row][col + 1] == 0:  # moving right
                         edge = self.__generate_edge((row, col), 0, 1, min_time_range, max_time_range)
-                        self.edges_and_weights[curr_vertex].append(edge)
-                    if row < self.height - 1 and self.map[row + 1][col] == 0:
+                        self.edges_and_weights[curr_node].append(edge)
+                    if row < self.height - 1 and self.map[row + 1][col] == 0:  # moving down
                         edge = self.__generate_edge((row, col), 1, 0, min_time_range, max_time_range)
-                        self.edges_and_weights[curr_vertex].append(edge)
+                        self.edges_and_weights[curr_node].append(edge)
 
-    def __generate_edge(self, coordinate, i, j, min_time_range, max_time_range):
+    @staticmethod
+    def __generate_edge(coordinate, i, j, min_time_range, max_time_range):
 
-        vertex_id = (coordinate[0] + i) * self.width + coordinate[1] + j
         min_time = random.randint(min_time_range[0], min_time_range[1])
         max_time = random.randint(max_time_range[0], max_time_range[1])
-        edge = (vertex_id, min_time, max_time)
+        node = (coordinate[0] + i, coordinate[1] + j)
+        edge = (node, min_time, max_time)
 
         return edge
 
