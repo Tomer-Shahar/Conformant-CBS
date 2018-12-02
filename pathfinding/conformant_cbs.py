@@ -16,9 +16,8 @@ constraints will be of the form:
 (agent_ID, conflict_node, time) <--- vertex constraint
 (agent_ID, (prev_node, conflict_node), time) <--- edge constraint
 
-where each disallowed state will have the form (time,coord,[coord2]), where the optional second coord indicates that
-this is an edge constraint.
-The time for an edge constraint refers to the time at which edge traversal is finished.  Not using objects so I can
+where each disallowed state will have the form (agent, node/edge, time)
+The time for an edge constraint refers to the time at which the agent occupies the edge. Not using objects so I can
 use constraints in dictionary keys.
 
 This project adds two aspects to the planner:

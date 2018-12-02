@@ -210,10 +210,10 @@ class TestCcbsPlanner(unittest.TestCase):
         
         """ Tests a simple 20x20 map with 2 agents and non-weighted edges"""
         self.conf_problem.generate_edges_and_weights()
-        self.conf_problem.start_positions[1] = self.conf_problem.coordinate_to_vertex_id((0, 0))
-        self.conf_problem.start_positions[2] = self.conf_problem.coordinate_to_vertex_id((17, 0))
-        self.conf_problem.goal_positions[1] = self.conf_problem.coordinate_to_vertex_id((19, 0))
-        self.conf_problem.goal_positions[2] = self.conf_problem.coordinate_to_vertex_id((17, 0))
+        self.conf_problem.start_positions[1] = (0, 0)
+        self.conf_problem.start_positions[2] = (17, 0)
+        self.conf_problem.goal_positions[1] = (19, 0)
+        self.conf_problem.goal_positions[2] = (17, 0)
         self.conf_problem.fill_heuristic_table()
 
         ccbs_planner = ConformantCbsPlanner(self.conf_problem)

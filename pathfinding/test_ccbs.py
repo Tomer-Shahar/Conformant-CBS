@@ -8,7 +8,7 @@ def print_solution(solution, conformant_map):
     for agent, path in solution[0].items():
         print("Path for agent_" + str(agent) + ": ")
         for movement in path[1]:
-            print(conformant_map.vertex_id_to_coordinate(movement[1]), end="")
+            print(movement[1], end="")
             if path[1][-1] != movement:
                 print(" --> ", end="")
         print()
@@ -18,9 +18,8 @@ def print_solution(solution, conformant_map):
 
 def run_map(ccbs_map, sic_heuristic=False):
     for agent in range(1, len(ccbs_map.start_positions) + 1):
-        print("Agent " + str(agent) + ": " + str(
-            ccbs_map.vertex_id_to_coordinate(ccbs_map.start_positions[agent])) + ", to " + str(
-            ccbs_map.vertex_id_to_coordinate(ccbs_map.goal_positions[agent])))
+        print("Agent " + str(agent) + ": " + str(ccbs_map.start_positions[agent]) + ", to " +
+              str(ccbs_map.goal_positions[agent]))
     print("Finding solution.")
     if sic_heuristic:
         print("Using sum of costs measurement.")
@@ -40,12 +39,10 @@ def print_map(conf_problem):
         grid = copy.deepcopy(conf_problem.map)
 
         for agent, position in conf_problem.start_positions.items():
-            coord = conf_problem.vertex_id_to_coordinate(position)
-            grid[coord[0]][coord[1]] = chr(ord('A') - 1 + agent) + ' '
+            grid[position[0]][position[1]] = chr(ord('A') - 1 + agent) + ' '
 
         for agent, position in conf_problem.goal_positions.items():
-            coord = conf_problem.vertex_id_to_coordinate(position)
-            grid[coord[0]][coord[1]] = str(agent) + ' '
+            grid[position[0]][position[1]] = str(agent) + ' '
 
         for row in grid:
             for cell in row:
@@ -67,10 +64,10 @@ test_map = ConformantProblem('../maps/test_map.map')
 
 test_map.generate_problem_instance(2, (1, 1), (1, 1))
 
-test_map.start_positions[1] = test_map.coordinate_to_vertex_id((0, 0))
-test_map.start_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
-test_map.goal_positions[1] = test_map.coordinate_to_vertex_id((19, 0))
-test_map.goal_positions[2] = test_map.coordinate_to_vertex_id((17, 0))
+test_map.start_positions[1] = (0, 0)
+test_map.start_positions[2] = (17, 0)
+test_map.goal_positions[1] = (19, 0)
+test_map.goal_positions[2] = (17, 0)
 test_map.fill_heuristic_table()
 
 print_map(test_map)

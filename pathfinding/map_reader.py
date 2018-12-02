@@ -71,14 +71,13 @@ class ConformantProblem:
                 self.width = len(self.map[0])
                 self.__extract_agents(map_text)  # extract the agents' start and goal positions.
 
-    """
+    def __extract_weights_and_time(self, map_text):
+        """
     curr_line: the current line in the file.
     map_text: the map text file.
     return: returns the last line read from the file. Also sets self.edges_weights_and_timeSteps to be a dictionary
     containing all of the vertices and the edges protruding from them
     """
-    def __extract_weights_and_time(self, map_text):
-
         curr_line = map_text.readline()
         curr_vertex = -1
         while curr_line[0] == 'V':
@@ -164,9 +163,7 @@ class ConformantProblem:
             else:
                 return math.inf
         else:  # Useful for the first run (find trivial solution)
-            start_cord = self.vertex_id_to_coordinate(start_pos)
-            goal_cord = self.vertex_id_to_coordinate(goal_pos)
-            return abs(start_cord[0] - goal_cord[0]) + abs(start_cord[1] - goal_cord[1])
+            return abs(start_pos[0] - goal_pos[0]) + abs(start_pos[1] - goal_pos[1])
 
     def generate_edges_and_weights(self, min_time_range=(1, 1), max_time_range=(1, 1), is_eight_connected=False):
         """
@@ -240,7 +237,7 @@ class ConformantProblem:
                 x = random.randint(0, height - 1)
                 y = random.randint(0, width - 1)
 
-            self.start_positions[agent_id] = x + width * y
+            self.start_positions[agent_id] = (x, y)
             start_set.add((x, y))
 
             x = random.randint(0, height - 1)
@@ -250,7 +247,7 @@ class ConformantProblem:
                 x = random.randint(0, height - 1)
                 y = random.randint(0, width - 1)
 
-            self.goal_positions[agent_id] = x + width * y
+            self.goal_positions[agent_id] = (x, y)
             goal_set.add((x, y))
 
     def __extract_moving_ai_map(self, map_text):
