@@ -71,11 +71,11 @@ class ConstraintAstar:
 
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.map)
 
-            open_list.sort(key=lambda k: k.h_val, reverse=True)  # first sort by secondary key.
+            open_list.sort(key=lambda k: k.h_val, reverse=True)  # first sort by secondary key.  # ToDo: Reduce this!!
             if min_best_case:
-                open_list.sort(key=lambda k: k.f_val[0], reverse=True)  # This allows tie-breaking.
+                open_list.sort(key=lambda k: k.f_val[0], reverse=True)  # This allows tie-breaking. # ToDo: And this!!
             else:
-                open_list.sort(key=lambda k: k.f_val[1], reverse=True)  # This allows tie-breaking.
+                open_list.sort(key=lambda k: k.f_val[1], reverse=True)  # This allows tie-breaking. # ToDo: And this!!
 
         # print("No Solution!")
         return agent, None, math.inf  # no solution
@@ -122,7 +122,7 @@ class ConstraintAstar:
 
             successors = []
             for edge_tuple in self.map.edges_and_weights[best_node[0]]:
-                successors.append(int(edge_tuple[VERTEX_ID]))
+                successors.append(edge_tuple[VERTEX_ID])
             for neighbor in successors:
                 if neighbor in closed_set:
                     continue

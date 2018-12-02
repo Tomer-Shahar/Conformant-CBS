@@ -41,11 +41,12 @@ class ConformantProblem:
         Generates a map according to the given input. Returns a ccbsMap object
         """
         new_map = ConformantProblem()
-        new_map.width = width
-        new_map.height = height
+
         solvable = False
         while not solvable:
             new_map.map = ConformantProblem.__generate_map(height, width)
+            new_map.width = len(new_map.map[0])
+            new_map.height = len(new_map.map)
             new_map.generate_edges_and_weights(min_time_range, max_time_range, is_eight_connected)
             new_map.generate_agents(agent_num)
             solver = ConstraintAstar(new_map)
