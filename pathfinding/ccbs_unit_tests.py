@@ -212,7 +212,7 @@ class TestCcbsPlanner(unittest.TestCase):
         self.CCBS_planner.edges_and_weights[v_1] = [(v, 3, 6)]
         self.CCBS_planner.edges_and_weights[v_2] = [(v, 4, 10)]
         con_sets = self.CCBS_planner.extract_vertex_conflict_constraints(
-            interval_1, interval_2, v, agent_1, agent_2, v_1, v_2)
+            interval_1, interval_2, v, agent_1, agent_2)
 
         agent_1_cons = {(agent_1, v, 6)}
         agent_2_cons = {(agent_2, v, 6)}

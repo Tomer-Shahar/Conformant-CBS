@@ -60,9 +60,21 @@ def print_map(conf_problem):
     else:
         pass
 
+print("-------------- Large moving-ai map -------------------")
+complex_map = ConformantProblem('../maps/Archipelago.map')
+print("Parsing map..")
+complex_map.generate_problem_instance(agent_num=10)
+print("Filling heuristics table..")
+complex_map.fill_heuristic_table()
+profile.run('run_map(complex_map, print_sol=False)', sort=1)
+
+print("\n----------- Larger random map: 25x25 ---------------")
+random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=5, is_eight_connected=False)
+print_map(random_map)
+profile.run('run_map(random_map, sic_heuristic=True)', sort=1)
 
 total_start = time.time()
-"""
+
 print("----------- Small custom map ---------------")
 test_map = ConformantProblem('../maps/test_map.map')
 
@@ -77,24 +89,7 @@ test_map.fill_heuristic_table()
 print_map(test_map)
 run_map(test_map, sic_heuristic=True)
 run_map(test_map, sic_heuristic=False)
-"""
 
-print("-------------- Large moving-ai map -------------------")
-complex_map = ConformantProblem('../maps/Archipelago.map')
-print("Parsing map..")
-complex_map.generate_problem_instance(agent_num=10)
-print("Filling heuristics table..")
-complex_map.fill_heuristic_table()
-profile.run('run_map(complex_map, print_sol=False)', sort=1)
-
-#run_map(complex_map, print_sol=False)
-
-print("\n----------- Larger random map: 25x25 ---------------")
-random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=3, is_eight_connected=False)
-print_map(random_map)
-profile.run('run_map(random_map, sic_heuristic=True)', sort=1)
-
-#run_map(random_map, sic_heuristic=True)
 
 
 

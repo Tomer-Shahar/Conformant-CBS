@@ -111,7 +111,7 @@ class ConformantCbsPlanner:
             if nodes_expanded % 50 == 0 and nodes_expanded > 1:
                 print("Constraint nodes expanded: " + str(nodes_expanded))
             # print("Validating node number " + str(nodes_expanded))
-            new_constraints = self.__validate_solution(best_node.solution)
+            new_constraints = self.__validate_solution(best_node)
 
             if not new_constraints:  # Meaning that new_constraints is null, i.e there are no new constraints. Solved!
                 print("Solution found - nodes expanded: " + str(nodes_expanded))
@@ -165,17 +165,18 @@ class ConformantCbsPlanner:
         max_time = self.__get_max_path_time(solution)
         return max_time, max_time
 
-    def __validate_solution(self, solution):
+    def __validate_solution(self, node):
         """Given a solution, this function will validate it.
         i.e checking if any conflicts arise. If there are, returns two constraints: For a conflict (a1,a2,v1,v2,t1,t2),
         meaning agents a1 and a2 cannot both be at vertex v1 or v2 or the edge (v1,v2) between t1 and t2, the function
         will return ((a1,v1,v2,t1,t2), (a2,v1,v2,t1,t2))
         """
 
-        filled_solution = self.__add_stationary_moves(solution)  # inserts missing time steps
+        filled_solution = self.__add_stationary_moves(node.solution)  # inserts missing time steps
 
-        new_constraints = self.__check_vertex_conflict(filled_solution, asymmetric_span_con)
+        new_constraints = self.__check_vertex_conflict(filled_solution, node.conflicting_agents)
         if new_constraints:
+            node.add_conflicting_agents(new_constraints[0], new_constraints[1])
             return new_constraints
 
         # Check for the trickier edge conflicts
@@ -216,51 +217,46 @@ class ConformantCbsPlanner:
 
         return new_solution
 
-    @staticmethod
-    def __get_best_node(open_list):
-        """
-        this function returns the best node in the open list. I used a function since the best node might be something
-        else depending on the search type (lowest cost vs shortest time etc.)
-        """
-        return open_list.pop()
-
-    @staticmethod
-    def __insert_open_node(open_nodes, new_node):
-        """
-        Simply inserts new_node into the list open_nodes and sorts the list. I used a function for modularity's
-        sake - sometimes what is considered to be the "best node" is the lowest cost, while sometimes least conflicts
-        or shortest time.
-        """
-
-        open_nodes.append(new_node)
-
-    def __check_vertex_conflict(self, solution, asymmetric_span_con):  # ToDo: reduce runtime of this
+    def __check_vertex_conflict(self, solution, prev_agents):  # ToDo: reduce runtime of this
         """
         This function checks if at a certain time interval there might be another agent in the same vertex as the one
         given. Basically, for each agent iterate over all other agents. If another agent is at the same vertex, AND
         the time intervals overlap, extract a conflict from it.
         """
-
-        for agent_i, path_i in solution.items():
-            prev_i = None
+        constraints = self.__check_previously_conflicting_agents(solution, prev_agents)
+        if constraints:
+            print("Previous agents still collide")
+            return constraints
+        
+        for agent_i in range(1, len(solution)+1):
+            path_i = solution[agent_i]
             for move_i in path_i[PATH_INDEX]:
                 interval_i = move_i[0]
                 for time_step in range(interval_i[0], interval_i[1] + 1):
-                    for agent_j, path_j in solution.items():
-                        if agent_i == agent_j:
+                    for agent_j in range(agent_i+1, len(solution)+1):
+                        path_j = solution[agent_j]
+                        if self.__can_skip_conflict_check(agent_i, agent_j, prev_agents):
                             continue
-                        prev_j = None
                         for move_j in path_j[PATH_INDEX]:
                             interval_j = move_j[0]
                             if interval_j[0] > interval_i[1]:
                                 break  # the min time is greater than the max time of the given interval.
                             if move_i[1] == move_j[1] and self.overlapping(interval_i, interval_j):
-                                return self.extract_vertex_conflict_constraints(interval_i, interval_j, move_i[1],
-                                                                                agent_i, agent_j, prev_i, prev_j)
-                            prev_j = move_j[1]
-                prev_i = move_i[1]
-
+                                return self.extract_vertex_conflict_constraints(
+                                    interval_i, interval_j, move_i[1], agent_i, agent_j)
         return None
+
+    @staticmethod
+    def __can_skip_conflict_check(agent_i, agent_j, prev_agents):
+        """
+        Used when validating a solution. If agent i is equal to agent j, there is no need to check for a conflict.
+        """
+        if agent_i == agent_j:
+            return True
+
+        if prev_agents:
+            return (agent_i == prev_agents[0] and agent_j == prev_agents[1]) or \
+                   (agent_j == prev_agents[0] and agent_i == prev_agents[1])
 
     def __add_stationary_moves(self, solution):
         """
@@ -315,7 +311,7 @@ class ConformantCbsPlanner:
         return solution
 
     # noinspection PyUnreachableCode
-    def extract_vertex_conflict_constraints(self, interval_i, interval_j, vertex, agent_i, agent_j, prev_i, prev_j):
+    def extract_vertex_conflict_constraints(self, interval_i, interval_j, vertex, agent_i, agent_j):  # ,prev_i,prev_j):
         """
         Helper function. We know that at that time interval there is some conflict between two given agents on the
         given vertex. This function creates the proper tuple of constraints.
@@ -328,31 +324,8 @@ class ConformantCbsPlanner:
         t = self.__pick_t(interval_i, interval_j)
         return {(agent_i, vertex, t)}, {(agent_j, vertex, t)}
 
-    @staticmethod
-    def extract_asymmetric_vertex_conflict(interval_i, interval_j, vertex, agent_i, agent_j):
-        """
-        Helper function. We know that at that time interval there is some conflict between two given agents on the
-        given vertex. This function creates the proper tuple of constraints.
-        """
-        if asymmetric_span_con:
-            total_constraints_set = set()  # This set will contain all the different interval constraints
-            min_span = max(interval_i[0], interval_j[0])
-            max_span = min(interval_i[1], interval_j[1])
-            for agent_i_span in range(min_span, max_span + 1):  # time constraints for agent i
-                con_set = {(agent_i, agent_i_span, vertex)}
-                for agent_j_span in range(min_span, max_span + 1):  # time constraints for agent j
-                    con_set.add((agent_j, agent_j_span, vertex))
-                total_constraints_set.add(con_set)
-
-            return total_constraints_set
-        else:
-            con_time = max(interval_i[0], interval_j[0])
-            constraint_1 = (agent_i, con_time, vertex)
-            constraint_2 = (agent_j, con_time, vertex)
-
-            return constraint_1, constraint_2
-
     def check_edge_swap_conflict(self, filled_solution):
+
         """ Checks for edge conflicts by creating a path represented by tuples, where each tuple contains the edge being
         traversed and the (start time, end time). All of the edges traversed are inserted into a dictionary mapping
         edges to times being traversed and the agent traversing it. If the traversal times overlap, there is a conflict
@@ -413,42 +386,6 @@ class ConformantCbsPlanner:
 
         return agent_i_constraints, agent_j_constraints
 
-    @staticmethod
-    def overlapping(time_1, time_2):
-        """ Returns true if the time intervals in 'time_1' and 'time_2' overlap.
-
-        1: A<-- a<-->b -->B
-        2: a<-- A -->b<---B>
-        3: A<-- a<--- B --->b
-        4: a<-- A<--->B --->b
-        5: A<-->B
-           a<-->b
-        ===> A <= a <= B or a <= A <= b
-        """
-
-        if (time_1[0] <= time_2[0] <= time_1[1]) or (time_2[0] <= time_1[0] <= time_2[1]):
-            return True
-
-        return False
-
-    @staticmethod
-    def strong_overlapping(time_1, time_2):
-        """ Returns true if the time intervals in 'time_1' and 'time_2' overlap strongly
-        A strong overlap means that the times are fully overlapping, not just a singular common tick at the end.
-        Basically change the '<=' to '<'
-
-        1: A<-- a<-->b -->B
-        2: a<-- A -->b<---B>
-        3: A<-- a<--- B --->b
-        4: a<-- A<--->B --->b
-        ===> A < a < B or a < A < b
-        """
-
-        if (time_1[0] <= time_2[0] < time_1[1]) or (time_2[0] <= time_1[0] < time_2[1]):
-            return True
-
-        return False
-
     def get_min_max_cost(self, prev_vertex, vertex):
         """
         Returns the minimum and maximum time to traverse a given edge (source vertex and end vertex)
@@ -479,14 +416,91 @@ class ConformantCbsPlanner:
         root.solution = solution
 
     @staticmethod
+    def overlapping(time_1, time_2):
+        """ Returns true if the time intervals in 'time_1' and 'time_2' overlap.
+
+        1: A<-- a<-->b -->B
+        2: a<-- A -->b<---B>
+        3: A<-- a<--- B --->b
+        4: a<-- A<--->B --->b
+        5: A<-->B
+           a<-->b
+        ===> A <= a <= B or a <= A <= b
+        """
+
+        if (time_1[0] <= time_2[0] <= time_1[1]) or (time_2[0] <= time_1[0] <= time_2[1]):
+            return True
+
+        return False
+
+    @staticmethod
+    def __get_best_node(open_list):
+        """
+        this function returns the best node in the open list. I used a function since the best node might be something
+        else depending on the search type (lowest cost vs shortest time etc.)
+        """
+        return open_list.pop()
+
+    @staticmethod
+    def __insert_open_node(open_nodes, new_node):
+        """
+        Simply inserts new_node into the list open_nodes and sorts the list. I used a function for modularity's
+        sake - sometimes what is considered to be the "best node" is the lowest cost, while sometimes least conflicts
+        or shortest time.
+        """
+
+        open_nodes.append(new_node)
+
+    @staticmethod
+    def extract_asymmetric_vertex_conflict(interval_i, interval_j, vertex, agent_i, agent_j):
+        """
+        Helper function. We know that at that time interval there is some conflict between two given agents on the
+        given vertex. This function creates the proper tuple of constraints.
+        """
+        if asymmetric_span_con:
+            total_constraints_set = set()  # This set will contain all the different interval constraints
+            min_span = max(interval_i[0], interval_j[0])
+            max_span = min(interval_i[1], interval_j[1])
+            for agent_i_span in range(min_span, max_span + 1):  # time constraints for agent i
+                con_set = {(agent_i, agent_i_span, vertex)}
+                for agent_j_span in range(min_span, max_span + 1):  # time constraints for agent j
+                    con_set.add((agent_j, agent_j_span, vertex))
+                total_constraints_set.add(con_set)
+
+            return total_constraints_set
+        else:
+            con_time = max(interval_i[0], interval_j[0])
+            constraint_1 = (agent_i, con_time, vertex)
+            constraint_2 = (agent_j, con_time, vertex)
+
+            return constraint_1, constraint_2
+
+    @staticmethod
+    def strong_overlapping(time_1, time_2):
+        """ Returns true if the time intervals in 'time_1' and 'time_2' overlap strongly
+        A strong overlap means that the times are fully overlapping, not just a singular common tick at the end.
+        Basically change the '<=' to '<'
+
+        1: A<-- a<-->b -->B
+        2: a<-- A -->b<---B>
+        3: A<-- a<--- B --->b
+        4: a<-- A<--->B --->b
+        ===> A < a < B or a < A < b
+        """
+
+        if (time_1[0] <= time_2[0] < time_1[1]) or (time_2[0] <= time_1[0] < time_2[1]):
+            return True
+
+        return False
+
+    @staticmethod
     def __insert_into_closed_list(closed_nodes, new_node):
 
         closed_nodes.add(new_node.constraints)
 
     def check_edge_chase_conflict(self, filled_solution):
-        """ Return "Edge Chase" type conflicts
-        :param filled_solution:
-        :return:
+        """
+        Return "Edge Chase" type conflicts
         """
         return None
 
@@ -501,6 +515,32 @@ class ConformantCbsPlanner:
         """
 
         return min(interval_i[1], interval_j[1])  # Choose the minimum between the max times in the conflict interval
+
+    def __check_previously_conflicting_agents(self, solution, prev_agents):
+        """
+        We check if the agents that previously collided still collide. Emperically speaking, this is usually the case
+        and is one of the drawbacks of CBS. This attempts to speed it up.
+        :param solution: The given solution of the node
+        :param prev_agents: The previously colliding agents
+        :return: The proper constraint if one exists, otherwise "None"
+        """
+        if not prev_agents:
+            return None
+
+        agent_i = prev_agents[0]
+        agent_j = prev_agents[1]
+
+        for move_i in solution[agent_i][PATH_INDEX]:
+                interval_i = move_i[0]
+                for time_step in range(interval_i[0], interval_i[1] + 1):
+                    for move_j in solution[agent_j][PATH_INDEX]:
+                            interval_j = move_j[0]
+                            if interval_j[0] > interval_i[1]:
+                                break  # the min time is greater than the max time of the given interval.
+                            if move_i[1] == move_j[1] and self.overlapping(interval_i, interval_j):
+                                return self.extract_vertex_conflict_constraints(
+                                    interval_i, interval_j, move_i[1], agent_i, agent_j)
+        return None
 
 
 class ConstraintNode:
@@ -519,12 +559,30 @@ class ConstraintNode:
         if parent:
             self.constraints = self.__append_constraints(parent.constraints, new_constraints)
             self.solution = copy.deepcopy(parent.solution)
+            self.conflicting_agents = parent.conflicting_agents
         else:
             self.constraints = frozenset()
             self.solution = None
+            self.conflicting_agents = None
 
         self.parent = parent
         self.cost = math.inf  # Default value higher than any possible int
+
+    def add_conflicting_agents(self, con_1, con_2):
+        """
+        Receives two constraints (i.e sets) that each contain a single tuple. We simply want to assign the previously
+        conflicting agents to the "conflicting_agents" field.
+        """
+        agent_i = None
+        agent_j = None
+        for con in con_1:
+            agent_i = con[0]
+
+        for con in con_2:
+            agent_j = con[0]
+
+        self.conflicting_agents = (agent_i, agent_j)
+
 
     @staticmethod
     def __append_constraints(parent_constraints, new_constraints):
