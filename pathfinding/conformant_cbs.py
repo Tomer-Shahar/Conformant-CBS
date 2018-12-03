@@ -234,7 +234,7 @@ class ConformantCbsPlanner:
 
         open_nodes.append(new_node)
 
-    def __check_vertex_conflict(self, solution, asymmetric_span_con):
+    def __check_vertex_conflict(self, solution, asymmetric_span_con):  # ToDo: reduce runtime of this
         """
         This function checks if at a certain time interval there might be another agent in the same vertex as the one
         given. Basically, for each agent iterate over all other agents. If another agent is at the same vertex, AND
@@ -369,8 +369,6 @@ class ConformantCbsPlanner:
         for agent, path in tuple_solution.items():
             for move in path[PATH_INDEX]:
                 if move[0] not in positions:
-                    # positions[move[0]] = set()
-                    # positions[move[0]].add((agent, move[1]))
                     positions[move[0]] = {(agent, move[1])}
                 else:
                     positions[move[0]].add((agent, move[1]))
@@ -467,12 +465,6 @@ class ConformantCbsPlanner:
         are added.
         """
         solution = {}
-
-        """
-        if not self.planner.trivial_solution(self.startPositions):
-            print("Error: No trival solution found")
-            return None
-        """
 
         for agent_id, agent_start in self.startPositions.items():
             agent_path = self.planner.compute_agent_path(root.constraints, agent_id, agent_start,
