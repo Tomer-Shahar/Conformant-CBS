@@ -220,14 +220,29 @@ class ConformantCbsPlanner:
     def __check_vertex_conflict(self, solution, prev_agents):  # ToDo: reduce runtime of this
         """
         This function checks if at a certain time interval there might be another agent in the same vertex as the one
-        given. Basically, for each agent iterate over all other agents. If another agent is at the same vertex, AND
-        the time intervals overlap, extract a conflict from it.
+        given. Basically, we assume that for most cases, each node is visited by a single agent. We do not want to
+        waste time for those nodes. The function maintains a dictionary that maps each node to the agent and time step
+        it was there.
         """
         constraints = self.__check_previously_conflicting_agents(solution, prev_agents)
         if constraints:
             print("Previous agents still collide")
             return constraints
-        
+
+        visited_nodes = {}  # A dictionary containing all the nodes visited
+        for agent_i in range(1, len(solution)+1):
+            path_i = solution[agent_i]
+            for move_i in path_i[PATH_INDEX]:
+                interval_i = move_i[0]
+                if not move_i[1] in visited_nodes:
+                    visited_nodes[move_i[1]] = {(agent_i, t) for t in range(interval_i[0], interval_i[1]+1)}
+                    continue
+                else:
+                    for tick in visited_nodes[move_i[1]]:
+
+        return None
+
+    """
         for agent_i in range(1, len(solution)+1):
             path_i = solution[agent_i]
             for move_i in path_i[PATH_INDEX]:
@@ -245,6 +260,7 @@ class ConformantCbsPlanner:
                                 return self.extract_vertex_conflict_constraints(
                                     interval_i, interval_j, move_i[1], agent_i, agent_j)
         return None
+    """
 
     @staticmethod
     def __can_skip_conflict_check(agent_i, agent_j, prev_agents):

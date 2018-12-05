@@ -8,6 +8,7 @@ Currently a naive implementation of A*
 import time
 import math
 import networkx
+from pathfinding import OpenList
 
 # The positions of each parameter in the tuple receives from map.edges
 VERTEX_ID = 0
@@ -193,6 +194,7 @@ class SingleAgentNode:
         self.h_val = map.calc_heuristic(current_position, goal)
         self.g_val = time_span  # The time to reach the node.
         self.f_val = self.g_val[0] + self.h_val, self.g_val[1] + self.h_val  # heuristic val + cost of predecessor
+        self.heap_index = -1
 
     """
     The function that creates all the possible vertices an agent can go to from the current node. For example,
@@ -258,7 +260,29 @@ class SingleAgentNode:
             if (agent, edge, successor_max_time) in constraints:
                 return False
 
-        return True
+        return
+
+    def compare_to(self, other_node):
+        """ Compares between two nodes: node.compare_to(other). If node is "smaller" (i.e better), returns -1. If node
+        is larger than other, returns 1. If they are equal returns 0. """
+
+        if self.f_val < other_node.f_val:
+            return -1
+        elif self.f_val > other_node.f_val:
+            return 1
+        else:  # Equal f value. Compare g value
+            if self.g_val > other_node.g_val:
+                return -1
+            elif self.g_val < other_node.g_val:
+                return 1
+            else:
+                return 0
+
+    def set_heap_index(self, index):
+        self.heap_index = index
+
+    def get_heap_index(self):
+        return self.heap_index
 
 
 class OutOfTimeError(Exception):
