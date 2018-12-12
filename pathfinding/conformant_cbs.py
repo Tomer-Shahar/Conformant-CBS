@@ -78,7 +78,7 @@ class ConformantCbsPlanner:
         self.start_time = 0
         self.planner = ConstraintAstar(conformed_problem)
 
-    def find_solution(self, min_best_case=True, time_limit=5 * 60 * 1000, sum_of_costs=True):
+    def find_solution(self, min_best_case=True, time_limit=60, sum_of_costs=True):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -88,7 +88,7 @@ class ConformantCbsPlanner:
         open - the open list.
         sum_of_costs - How to count the solution cost. If it's true, the solution cost is the  sum of all individual
         paths. Otherwise the cost is the longest path in the solution.
-        time_limit - Unsurprisingly, the maximum time for this function to run.
+        time_limit - Unsurprisingly, the maximum time for this function to run (in seconds)
         """
         self.start_time = time.time()
         root = ConstraintNode()
@@ -180,7 +180,7 @@ class ConformantCbsPlanner:
             return new_constraints
 
         # Check for the trickier edge conflicts
-        new_edge_swap_constraints = self.check_edge_swap_conflict(filled_solution)
+        new_edge_swap_constraints = self.check_edge_swap_conflict(filled_solution, node.conflicting_agents)
         if new_edge_swap_constraints:
             return new_edge_swap_constraints
 
@@ -226,7 +226,6 @@ class ConformantCbsPlanner:
         """
         constraints = self.__check_previously_conflicting_agents(solution, prev_agents)
         if constraints:
-            print("Previous agents still collide")
             return constraints
 
         visited_nodes = {}  # A dictionary containing all the nodes visited
@@ -234,12 +233,15 @@ class ConformantCbsPlanner:
             path_i = solution[agent_i]
             for move_i in path_i[PATH_INDEX]:
                 interval_i = move_i[0]
-                if not move_i[1] in visited_nodes:
-                    visited_nodes[move_i[1]] = {(agent_i, t) for t in range(interval_i[0], interval_i[1]+1)}
+                if not move_i[1] in visited_nodes:  # First time an agent has visited this node
+                    visited_nodes[move_i[1]] = {(agent_i, interval_i)}  # Add the interval to the set.
                     continue
-                else:
-                    for tick in visited_nodes[move_i[1]]:
-
+                else:  # Some other agent HAS been to this node..
+                    for occupancy in visited_nodes[move_i[1]]:  # Iterate over the times agents have been at this node
+                        if self.overlapping(interval_i, occupancy[1]):  # There is a conflict.
+                            return self.extract_vertex_conflict_constraints(
+                                interval_i, occupancy[1], move_i[1], agent_i, occupancy[0])
+                    visited_nodes[move_i[1]].add((agent_i, interval_i))  # No conflict, add to vertex set.
         return None
 
     """
@@ -340,8 +342,7 @@ class ConformantCbsPlanner:
         t = self.__pick_t(interval_i, interval_j)
         return {(agent_i, vertex, t)}, {(agent_j, vertex, t)}
 
-    def check_edge_swap_conflict(self, filled_solution):
-
+    def check_edge_swap_conflict(self, filled_solution, prev_agents):
         """ Checks for edge conflicts by creating a path represented by tuples, where each tuple contains the edge being
         traversed and the (start time, end time). All of the edges traversed are inserted into a dictionary mapping
         edges to times being traversed and the agent traversing it. If the traversal times overlap, there is a conflict
@@ -351,6 +352,11 @@ class ConformantCbsPlanner:
         """
 
         tuple_solution = self.__create_movement_tuples(filled_solution)
+
+        constraints = self.__check_previously_conflicting_agents(filled_solution, prev_agents, tuple_solution)
+        if constraints:
+            return constraints
+
         # A dictionary containing the different edges being traversed in the solution and the times and agents
         # traversing them.
         positions = {}
@@ -532,9 +538,9 @@ class ConformantCbsPlanner:
 
         return min(interval_i[1], interval_j[1])  # Choose the minimum between the max times in the conflict interval
 
-    def __check_previously_conflicting_agents(self, solution, prev_agents):
+    def __check_previously_conflicting_agents(self, solution, prev_agents, tuple_solution=None):
         """
-        We check if the agents that previously collided still collide. Emperically speaking, this is usually the case
+        We check if the agents that previously collided still collide. Empirically speaking, this is usually the case
         and is one of the drawbacks of CBS. This attempts to speed it up.
         :param solution: The given solution of the node
         :param prev_agents: The previously colliding agents
@@ -546,7 +552,7 @@ class ConformantCbsPlanner:
         agent_i = prev_agents[0]
         agent_j = prev_agents[1]
 
-        for move_i in solution[agent_i][PATH_INDEX]:
+        for move_i in solution[agent_i][PATH_INDEX]:   # Vertex_conflict
                 interval_i = move_i[0]
                 for time_step in range(interval_i[0], interval_i[1] + 1):
                     for move_j in solution[agent_j][PATH_INDEX]:
@@ -556,6 +562,25 @@ class ConformantCbsPlanner:
                             if move_i[1] == move_j[1] and self.overlapping(interval_i, interval_j):
                                 return self.extract_vertex_conflict_constraints(
                                     interval_i, interval_j, move_i[1], agent_i, agent_j)
+
+        if not tuple_solution:
+            tuple_solution = self.__create_movement_tuples(solution)
+
+        positions = {}
+        for move in tuple_solution[agent_i][PATH_INDEX]:
+            if move[0] not in positions:
+                positions[move[0]] = {(agent_i, move[1])}
+            else:
+                positions[move[0]].add((agent_i, move[1]))
+
+        for move in tuple_solution[agent_j][PATH_INDEX]:
+            if move[0] not in positions:
+                positions[move[0]] = {(agent_j, move[1])}
+            else:
+                positions[move[0]].add((agent_j, move[1]))
+                for traversal in positions[move[0]]:
+                    if traversal[0] != agent_j and self.strong_overlapping(move[1], traversal[1]):
+                        return self.extract_edge_conflict(traversal[0], agent_j, traversal[1], move[1], move[0])
         return None
 
 

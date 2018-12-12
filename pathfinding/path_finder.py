@@ -6,6 +6,7 @@ Currently a naive implementation of A*
 """
 
 import time
+import heapq
 import math
 import networkx
 from pathfinding import OpenList
@@ -43,7 +44,7 @@ class ConstraintAstar:
         self.__add_node_to_open(open_list, open_dict, start_node)
         expanded = -1
         while open_list:
-            best_node = open_list.pop()  # removes from open_list
+            best_node = heapq.heappop(open_list)  # removes from open_list
             expanded += 1
           #  if expanded % 1000 == 0 and expanded > 1:
           #      print("Nodes expanded: " + str(expanded))
@@ -72,18 +73,22 @@ class ConstraintAstar:
 
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.map)
 
+            """
             open_list.sort(key=lambda k: k.h_val, reverse=True)  # first sort by secondary key.  # ToDo: Reduce this!!
             if min_best_case:
                 open_list.sort(key=lambda k: k.f_val[0], reverse=True)  # This allows tie-breaking. # ToDo: And this!!
             else:
                 open_list.sort(key=lambda k: k.f_val[1], reverse=True)  # This allows tie-breaking. # ToDo: And this!!
+            """
+
 
         # print("No Solution!")
         return agent, None, math.inf  # no solution
 
     @staticmethod
     def __add_node_to_open(open_list, open_dict, node):
-        open_list.append(node)
+        # open_list.append(node)
+        heapq.heappush(open_list, node)
         key_tuple = node.create_tuple()
         open_dict[key_tuple] = node
 
@@ -260,7 +265,7 @@ class SingleAgentNode:
             if (agent, edge, successor_max_time) in constraints:
                 return False
 
-        return
+        return True
 
     def compare_to(self, other_node):
         """ Compares between two nodes: node.compare_to(other). If node is "smaller" (i.e better), returns -1. If node
