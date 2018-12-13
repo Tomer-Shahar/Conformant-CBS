@@ -29,7 +29,7 @@ def run_map(ccbs_map, sic_heuristic=False, print_sol=True):
         print("Finding shortest global time measurement.")
     ccbs_planner = ConformantCbsPlanner(ccbs_map)
     start = time.time()
-    solution = ccbs_planner.find_solution(sum_of_costs=sic_heuristic, time_limit=30)
+    solution = ccbs_planner.find_solution(sum_of_costs=sic_heuristic, time_limit=120)
     total = (time.time() - start)
     print("Solution found. Time Elapsed: " + str(total) + " seconds")
     if print_sol:
@@ -78,9 +78,9 @@ def run_test_map():
 # run_test_map()
 
 print("\n----------- Larger random map: 25x25 ---------------")
-random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=4, is_eight_connected=False)
+random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=6, is_eight_connected=False)
 print_map(random_map)
-profile.run('run_map(random_map, sic_heuristic=True)', sort=1)
+profile.run('run_map(random_map, sic_heuristic=True)', sort=2)
 
 total_start = time.time()
 
@@ -89,10 +89,8 @@ print("\n----------- Extra Larger random map: 49x49 ---------------")
 random_map = ConformantProblem.generate_rectangle_map(24, 24, (1, 1), (1, 1), agent_num=4, is_eight_connected=False)
 print_map(random_map)
 run_map(random_map, sic_heuristic=True, print_sol=False)
+profile.run('run_map(random_map, sic_heuristic=True, print_sol=False)', sort=1)
 
-
-print("Test finished!")
-print("Total time elapsed: " + str(time.time() - total_start))
 
 print("-------------- Large moving-ai map -------------------")
 complex_map = ConformantProblem('../maps/Archipelago.map')
@@ -102,6 +100,8 @@ print("Filling heuristics table..")
 complex_map.fill_heuristic_table()
 profile.run('run_map(complex_map, print_sol=False)', sort=1)
 
+print("Test finished!")
+print("Total time elapsed: " + str(time.time() - total_start))
 
 
 

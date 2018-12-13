@@ -5,11 +5,9 @@ a group of constraints.
 Currently a naive implementation of A*
 """
 
-import time
-import heapq
+from pathfinding.custom_heap import OpenListHeap
 import math
 import networkx
-from pathfinding import OpenList
 
 # The positions of each parameter in the tuple receives from map.edges
 VERTEX_ID = 0
@@ -36,7 +34,7 @@ class ConstraintAstar:
     """
 
     def compute_agent_path(self, constraints, agent, start_pos, goal_pos, min_best_case=True):
-        open_list = []  # Todo: Use a more efficient data structure like tree or something
+        open_list = OpenListHeap()
         open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
         closed_set = set()
 
@@ -44,13 +42,12 @@ class ConstraintAstar:
         self.__add_node_to_open(open_list, open_dict, start_node)
         expanded = -1
         while open_list:
-            best_node = heapq.heappop(open_list)  # removes from open_list
+            best_node = open_list.pop()  # removes from open_list
             expanded += 1
           #  if expanded % 1000 == 0 and expanded > 1:
           #      print("Nodes expanded: " + str(expanded))
-            node_tuple = best_node.create_tuple()
-            open_dict.pop(node_tuple, None)
-            closed_set.add(node_tuple)
+            self.__remove_node_from_open(best_node, closed_set, open_dict)
+
             if best_node.current_position == goal_pos and self.__can_stay_still(agent, best_node, constraints):
                 return best_node.calc_path(agent)
 
@@ -80,15 +77,17 @@ class ConstraintAstar:
             else:
                 open_list.sort(key=lambda k: k.f_val[1], reverse=True)  # This allows tie-breaking. # ToDo: And this!!
             """
-
-
-        # print("No Solution!")
         return agent, None, math.inf  # no solution
 
     @staticmethod
+    def __remove_node_from_open(best_node, closed_set, open_dict):
+        node_tuple = best_node.create_tuple()
+        open_dict.pop(node_tuple, None)
+        closed_set.add(node_tuple)
+
+    @staticmethod
     def __add_node_to_open(open_list, open_dict, node):
-        # open_list.append(node)
-        heapq.heappush(open_list, node)
+        open_list.push(node)
         key_tuple = node.create_tuple()
         open_dict[key_tuple] = node
 

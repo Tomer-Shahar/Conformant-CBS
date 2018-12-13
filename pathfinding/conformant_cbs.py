@@ -599,7 +599,7 @@ class ConstraintNode:
 
         if parent:
             self.constraints = self.__append_constraints(parent.constraints, new_constraints)
-            self.solution = copy.deepcopy(parent.solution)
+            self.copy_solution(parent)
             self.conflicting_agents = parent.conflicting_agents
         else:
             self.constraints = frozenset()
@@ -608,6 +608,9 @@ class ConstraintNode:
 
         self.parent = parent
         self.cost = math.inf  # Default value higher than any possible int
+
+    def copy_solution(self, parent):
+        self.solution = copy.deepcopy(parent.solution)
 
     def add_conflicting_agents(self, con_1, con_2):
         """

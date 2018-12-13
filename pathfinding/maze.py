@@ -206,7 +206,7 @@ class Maze(object):
                 if not g(x, y):
                     continue
 
-                connections = set((N, S, E, W))
+                connections = {N, S, E, W}
                 if not g(x, y + 1): connections.remove(S)
                 if not g(x, y - 1): connections.remove(N)
                 if not g(x + 1, y): connections.remove(E)
