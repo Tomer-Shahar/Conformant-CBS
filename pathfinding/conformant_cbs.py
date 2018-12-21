@@ -36,9 +36,10 @@ import time
 import math
 import copy
 from pathfinding.path_finder import ConstraintAstar
+from pathfinding.conformant_plan import ConformantPlan
 
 AGENT_INDEX = 0
-PATH_INDEX = 1
+#PATH_INDEX = 1
 COST_INDEX = 2
 VERTEX_INDEX = 0
 MIN_COST_INDEX = 1
@@ -122,11 +123,12 @@ class ConformantCbsPlanner:
                 if new_node.constraints in closed_nodes:
                     continue
                 agent = next(iter(new_con_set))[AGENT_INDEX]  # Ugly line to extract agent index.
-                new_node.solution[agent] = self.planner.compute_agent_path(
+                new_plan = self.planner.compute_agent_path(
                     new_node.constraints, agent,
                     self.startPositions[agent],
                     self.goalPositions[agent],
                     min_best_case)  # compute the path for a single agent.
+                new_node.solution[agent] = ConformantPlan(new_plan)
                 new_node.cost = self.__compute_paths_cost(new_node.solution, sum_of_costs)  # compute the cost
 
                 if new_node.cost[0] < math.inf:  # If the minimum time is less than infinity..
@@ -145,7 +147,7 @@ class ConformantCbsPlanner:
         """
 
         sol = self.__add_stationary_moves(solution_node.solution)
-        return sol, self.__compute_paths_cost(sol, sum_of_costs), len(sol[1][PATH_INDEX])
+        return sol, self.__compute_paths_cost(sol, sum_of_costs), len(sol[1].path)
 
     def __compute_paths_cost(self, solution, sic_heuristic=True):
         """Computes the cost for a given solution. Can return either the SIC or simply the maximum time
@@ -154,12 +156,12 @@ class ConformantCbsPlanner:
         if sic_heuristic:
             min_cost = 0
             max_cost = 0
-            for agent, path in solution.items():
-                if path[1] is None:
+            for agent, plan in solution.items():
+                if plan.path is None:
                     return math.inf, math.inf
 
-                min_cost += path[2][0]
-                max_cost += path[2][1]
+                min_cost += plan.cost[0]
+                max_cost += plan.cost[1]
             return min_cost, max_cost
 
         max_time = self.__get_max_path_time(solution)
@@ -188,10 +190,10 @@ class ConformantCbsPlanner:
 
     @staticmethod
     def __get_max_path_time(solution):
-        max_time = solution[1][COST_INDEX][1]
-        for agent, path in solution.items():
-            if path[COST_INDEX][1] > max_time:
-                max_time = path[COST_INDEX][1]
+        max_time = solution[1].cost[1]
+        for agent, plan in solution.items():
+            if plan.cost[1] > max_time:
+                max_time = plan.cost[1]
         return max_time
 
     @staticmethod
@@ -204,16 +206,16 @@ class ConformantCbsPlanner:
         """
         new_solution = {}
 
-        for agent, path in solution.items():
+        for agent, plan in solution.items():
             new_path = []
-            for move in range(0, len(path[PATH_INDEX]) - 1):
-                start_vertex = min(path[PATH_INDEX][move][1], path[PATH_INDEX][move + 1][1])
-                start_time = path[PATH_INDEX][move][0][0]
-                next_vertex = max(path[PATH_INDEX][move][1], path[PATH_INDEX][move + 1][1])
-                finish_time = path[PATH_INDEX][move + 1][0][1]
+            for move in range(0, len(plan.path) - 1):
+                start_vertex = min(plan.path[move][1], plan.path[move + 1][1])
+                start_time = plan.path[move][0][0]
+                next_vertex = max(plan.path[move][1], plan.path[move + 1][1])
+                finish_time = plan.path[move + 1][0][1]
                 new_path.append(((start_vertex, next_vertex), (start_time, finish_time)))
 
-            new_solution[agent] = (agent, new_path, solution[agent][COST_INDEX])
+            new_solution[agent] = (agent, new_path, solution[agent].cost)
 
         return new_solution
 
@@ -229,9 +231,9 @@ class ConformantCbsPlanner:
             return constraints
 
         visited_nodes = {}  # A dictionary containing all the nodes visited
-        for agent_i in range(1, len(solution)+1):
-            path_i = solution[agent_i]
-            for move_i in path_i[PATH_INDEX]:
+        for agent_i in range(1, len(solution) + 1):
+            plan_i = solution[agent_i]
+            for move_i in plan_i.path:
                 interval_i = move_i[0]
                 if not move_i[1] in visited_nodes:  # First time an agent has visited this node
                     visited_nodes[move_i[1]] = {(agent_i, interval_i)}  # Add the interval to the set.
@@ -282,9 +284,10 @@ class ConformantCbsPlanner:
         """
         max_time = self.__get_max_path_time(solution)
         new_solution = {}
-        for agent, path in solution.items():
-            new_path = copy.deepcopy(path[PATH_INDEX])
-            last_move = path[PATH_INDEX][-1]
+        for agent, plan in solution.items():
+            # new_path = copy.deepcopy(path[PATH_INDEX])
+            new_path = plan.path
+            last_move = plan.path[-1]
             path_min_time = last_move[0][0]
             path_max_time = last_move[0][1]
             if path_min_time < max_time:  # The agent is gonna stay at the end at the same position.
@@ -292,7 +295,8 @@ class ConformantCbsPlanner:
                     stationary_move = ((path_min_time + time_step * STAY_STILL_COST,
                                         path_max_time + time_step * STAY_STILL_COST), last_move[1])
                     new_path.append(stationary_move)
-            new_solution[agent] = (agent, new_path, path[2])
+                plan.cost = new_path[-1][0]
+            new_solution[agent] = ConformantPlan((agent, new_path, plan.cost))
 
         return new_solution
 
@@ -304,11 +308,11 @@ class ConformantCbsPlanner:
         """
         max_time = self.__get_max_path_time(solution)
 
-        for agent, path in solution.items():
+        for agent, plan in solution.items():
             filled_path = []
-            for i in range(0, len(path[PATH_INDEX]) - 1):
-                curr_node = path[PATH_INDEX][i]
-                next_node = path[PATH_INDEX][i + 1]
+            for i in range(0, len(plan.path) - 1):
+                curr_node = plan.path[i]
+                next_node = plan.path[i + 1]
                 if curr_node[0] + 1 == next_node[0]:  # i.e they are sequential
                     filled_path.append(curr_node)
                 else:
@@ -316,7 +320,7 @@ class ConformantCbsPlanner:
                     for time_interval in range(curr_node[0] + 1, next_node[0]):
                         edge_move = (time_interval, (curr_node[1], next_node[1]))
                         filled_path.append(edge_move)
-            last_move = path[PATH_INDEX][-1]
+            last_move = plan.path[-1]
             filled_path.append(last_move)
             if last_move[0] < max_time:  # The agent is gonna stay at the end at the same position.
                 curr_time = len(filled_path)
@@ -362,7 +366,7 @@ class ConformantCbsPlanner:
         positions = {}
 
         for agent, path in tuple_solution.items():
-            for move in path[PATH_INDEX]:
+            for move in path[1]:
                 if move[0] not in positions:
                     positions[move[0]] = {(agent, move[1])}
                 else:
@@ -400,9 +404,9 @@ class ConformantCbsPlanner:
         t = self.__pick_t((i_begin_occupation, i_end_occupation), (j_begin_occupation, j_end_occupation))
 
         if edge_min == edge_max == 1:
-            return {(agent_i, conflict_edge, t+1)}, {(agent_j, conflict_edge, t+1)}
+            return {(agent_i, conflict_edge, t + 1)}, {(agent_j, conflict_edge, t + 1)}
 
-        for tick in range(t-edge_max + 1, t-edge_min+2):
+        for tick in range(t - edge_max + 1, t - edge_min + 2):
             agent_i_constraints.add((agent_i, conflict_edge, tick))
             agent_j_constraints.add((agent_j, conflict_edge, tick))
 
@@ -426,10 +430,11 @@ class ConformantCbsPlanner:
         solution = {}
 
         for agent_id, agent_start in self.startPositions.items():
-            agent_path = self.planner.compute_agent_path(root.constraints, agent_id, agent_start,
-                                                         self.goalPositions[agent_id])
+            plan = \
+                self.planner.compute_agent_path(root.constraints, agent_id, agent_start, self.goalPositions[agent_id])
+            agent_path = ConformantPlan(plan)
             print("Found path for agent " + str(agent_id))
-            if agent_path[1]:  # Solution found
+            if agent_path.path:  # Solution found
                 solution[agent_id] = agent_path
             else:  # No solution for a particular agent
                 print("No solution for agent number " + str(agent_id))
@@ -552,28 +557,28 @@ class ConformantCbsPlanner:
         agent_i = prev_agents[0]
         agent_j = prev_agents[1]
 
-        for move_i in solution[agent_i][PATH_INDEX]:   # Vertex_conflict
-                interval_i = move_i[0]
-                for time_step in range(interval_i[0], interval_i[1] + 1):
-                    for move_j in solution[agent_j][PATH_INDEX]:
-                            interval_j = move_j[0]
-                            if interval_j[0] > interval_i[1]:
-                                break  # the min time is greater than the max time of the given interval.
-                            if move_i[1] == move_j[1] and self.overlapping(interval_i, interval_j):
-                                return self.extract_vertex_conflict_constraints(
-                                    interval_i, interval_j, move_i[1], agent_i, agent_j)
+        for move_i in solution[agent_i].path:  # Vertex_conflict
+            interval_i = move_i[0]
+            for time_step in range(interval_i[0], interval_i[1] + 1):
+                for move_j in solution[agent_j].path:
+                    interval_j = move_j[0]
+                    if interval_j[0] > interval_i[1]:
+                        break  # the min time is greater than the max time of the given interval.
+                    if move_i[1] == move_j[1] and self.overlapping(interval_i, interval_j):
+                        return self.extract_vertex_conflict_constraints(
+                            interval_i, interval_j, move_i[1], agent_i, agent_j)
 
         if not tuple_solution:
             tuple_solution = self.__create_movement_tuples(solution)
 
         positions = {}
-        for move in tuple_solution[agent_i][PATH_INDEX]:
+        for move in tuple_solution[agent_i][1]:
             if move[0] not in positions:
                 positions[move[0]] = {(agent_i, move[1])}
             else:
                 positions[move[0]].add((agent_i, move[1]))
 
-        for move in tuple_solution[agent_j][PATH_INDEX]:
+        for move in tuple_solution[agent_j][1]:
             if move[0] not in positions:
                 positions[move[0]] = {(agent_j, move[1])}
             else:
@@ -610,7 +615,11 @@ class ConstraintNode:
         self.cost = math.inf  # Default value higher than any possible int
 
     def copy_solution(self, parent):
-        self.solution = copy.deepcopy(parent.solution)
+        # self.solution = copy.deepcopy(parent.solution)
+
+        self.solution = {}
+        for agent, plan in parent.solution.items():
+            self.solution[agent] = plan
 
     def add_conflicting_agents(self, con_1, con_2):
         """
@@ -626,7 +635,6 @@ class ConstraintNode:
             agent_j = con[0]
 
         self.conflicting_agents = (agent_i, agent_j)
-
 
     @staticmethod
     def __append_constraints(parent_constraints, new_constraints):

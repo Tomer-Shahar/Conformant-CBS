@@ -2,23 +2,22 @@ from pathfinding.map_reader import ConformantProblem
 from pathfinding.conformant_cbs import *
 import os
 import profile
-import pstats
 
 
-def print_solution(solution, conformant_map):
+def print_solution(solution):
     print("")
-    for agent, path in solution[0].items():
+    for agent, plan in solution[0].items():
         print("Path for agent_" + str(agent) + ": ")
-        for movement in path[1]:
+        for movement in plan.path:
             print(movement[1], end="")
-            if path[1][-1] != movement:
+            if plan.path[-1] != movement:
                 print(" --> ", end="")
         print()
     print("Solution cost is between " + str(solution[1][0]) + " and " + str(solution[1][1]))
     print("Solution length is  " + str(solution[2]) + "\n")
 
 
-def run_map(ccbs_map, sic_heuristic=False, print_sol=True):
+def run_map(ccbs_map, sic_heuristic=False, print_sol=True, time_limit=180):
     for agent in range(1, len(ccbs_map.start_positions) + 1):
         print("Agent " + str(agent) + ": " + str(ccbs_map.start_positions[agent]) + ", to " +
               str(ccbs_map.goal_positions[agent]))
@@ -29,11 +28,11 @@ def run_map(ccbs_map, sic_heuristic=False, print_sol=True):
         print("Finding shortest global time measurement.")
     ccbs_planner = ConformantCbsPlanner(ccbs_map)
     start = time.time()
-    solution = ccbs_planner.find_solution(sum_of_costs=sic_heuristic, time_limit=120)
+    solution = ccbs_planner.find_solution(sum_of_costs=sic_heuristic, time_limit=time_limit)
     total = (time.time() - start)
     print("Solution found. Time Elapsed: " + str(total) + " seconds")
     if print_sol:
-        print_solution(solution, ccbs_map)
+        print_solution(solution)
 
 
 def print_map(conf_problem):
@@ -75,12 +74,12 @@ def run_test_map():
     run_map(test_map, sic_heuristic=False)
 
 
-# run_test_map()
+profile.run('run_test_map()', sort=1)
 
 print("\n----------- Larger random map: 25x25 ---------------")
 random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=6, is_eight_connected=False)
 print_map(random_map)
-profile.run('run_map(random_map, sic_heuristic=True)', sort=2)
+profile.run('run_map(random_map, sic_heuristic=True, time_limit=10)', sort=2)
 
 total_start = time.time()
 
@@ -89,7 +88,7 @@ print("\n----------- Extra Larger random map: 49x49 ---------------")
 random_map = ConformantProblem.generate_rectangle_map(24, 24, (1, 1), (1, 1), agent_num=4, is_eight_connected=False)
 print_map(random_map)
 run_map(random_map, sic_heuristic=True, print_sol=False)
-profile.run('run_map(random_map, sic_heuristic=True, print_sol=False)', sort=1)
+profile.run('run_map(random_map, sic_heuristic=True, print_sol=False,time_limit=300)', sort=1)
 
 
 print("-------------- Large moving-ai map -------------------")
