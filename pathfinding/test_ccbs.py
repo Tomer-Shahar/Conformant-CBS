@@ -70,18 +70,44 @@ def run_test_map():
     test_map.goal_positions[2] = (17, 0)
     test_map.fill_heuristic_table()
     print_map(test_map)
-    run_map(test_map, sic_heuristic=True)
-    run_map(test_map, sic_heuristic=False)
+    run_map(test_map, sic_heuristic=True, print_sol=True)
+    run_map(test_map, sic_heuristic=False, print_sol=True)
 
 
 profile.run('run_test_map()', sort=1)
+total_start = time.time()
+
+print("-------------- Large moving-ai maps -------------------")
+
+complex_map = ConformantProblem('../maps/brc202d.map')
+print("Parsing map..")
+complex_map.generate_problem_instance(agent_num=15)
+print("Filling heuristics table..")
+complex_map.fill_heuristic_table()
+profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=2)
+
+complex_map = ConformantProblem('../maps/Archipelago.map')
+print("Parsing map..")
+complex_map.generate_problem_instance(agent_num=30)
+print("Filling heuristics table..")
+complex_map.fill_heuristic_table()
+profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=2)
+
+complex_map = ConformantProblem('../maps/ost003d.map')
+print("Parsing map..")
+complex_map.generate_problem_instance(agent_num=30)
+print("Filling heuristics table..")
+complex_map.fill_heuristic_table()
+profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=2)
+
+
+
 
 print("\n----------- Larger random map: 25x25 ---------------")
-random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (1, 1), agent_num=6, is_eight_connected=False)
+random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (3, 3), agent_num=3, is_eight_connected=False)
 print_map(random_map)
-profile.run('run_map(random_map, sic_heuristic=True, time_limit=10)', sort=2)
+profile.run('run_map(random_map, sic_heuristic=True, time_limit=120)', sort=2)
 
-total_start = time.time()
 
 
 print("\n----------- Extra Larger random map: 49x49 ---------------")
@@ -90,17 +116,9 @@ print_map(random_map)
 run_map(random_map, sic_heuristic=True, print_sol=False)
 profile.run('run_map(random_map, sic_heuristic=True, print_sol=False,time_limit=300)', sort=1)
 
-
-print("-------------- Large moving-ai map -------------------")
-complex_map = ConformantProblem('../maps/Archipelago.map')
-print("Parsing map..")
-complex_map.generate_problem_instance(agent_num=10)
-print("Filling heuristics table..")
-complex_map.fill_heuristic_table()
-profile.run('run_map(complex_map, print_sol=False)', sort=1)
-
 print("Test finished!")
 print("Total time elapsed: " + str(time.time() - total_start))
+
 
 
 

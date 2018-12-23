@@ -109,8 +109,8 @@ class ConformantCbsPlanner:
             best_node = self.__get_best_node(open_nodes)
             self.__insert_into_closed_list(closed_nodes, best_node)
             nodes_expanded += 1
-            if nodes_expanded % 50 == 0 and nodes_expanded > 1:
-                print("Constraint nodes expanded: " + str(nodes_expanded))
+           # if nodes_expanded % 50 == 0 and nodes_expanded > 1:
+            print("Constraint nodes expanded: " + str(nodes_expanded))
             # print("Validating node number " + str(nodes_expanded))
             new_constraints = self.__validate_solution(best_node)
 
@@ -147,25 +147,19 @@ class ConformantCbsPlanner:
         """
 
         sol = self.__add_stationary_moves(solution_node.solution)
-        return sol, self.__compute_paths_cost(sol, sum_of_costs), len(sol[1].path)
+        return sol, self.__compute_final_cost(sol), len(sol[1].path)
 
-    def __compute_paths_cost(self, solution, sic_heuristic=True):
-        """Computes the cost for a given solution. Can return either the SIC or simply the maximum time
-        of any path in the solution.
-        """
-        if sic_heuristic:
-            min_cost = 0
-            max_cost = 0
-            for agent, plan in solution.items():
-                if plan.path is None:
-                    return math.inf, math.inf
+    @staticmethod
+    def __compute_final_cost(solution):
+        min_cost = 0
+        max_cost = 0
+        for agent, plan in solution.items():
+            if plan.path is None:
+                return math.inf, math.inf
 
-                min_cost += plan.cost[0]
-                max_cost += plan.cost[1]
-            return min_cost, max_cost
-
-        max_time = self.__get_max_path_time(solution)
-        return max_time, max_time
+            min_cost += plan.cost[0]
+            max_cost += plan.cost[1]
+        return min_cost, max_cost
 
     def __validate_solution(self, node):
         """Given a solution, this function will validate it.
@@ -240,7 +234,7 @@ class ConformantCbsPlanner:
                     continue
                 else:  # Some other agent HAS been to this node..
                     for occupancy in visited_nodes[move_i[1]]:  # Iterate over the times agents have been at this node
-                        if self.overlapping(interval_i, occupancy[1]):  # There is a conflict.
+                        if occupancy[0] != agent_i and self.overlapping(interval_i, occupancy[1]):  # There is a conflict.
                             return self.extract_vertex_conflict_constraints(
                                 interval_i, occupancy[1], move_i[1], agent_i, occupancy[0])
                     visited_nodes[move_i[1]].add((agent_i, interval_i))  # No conflict, add to vertex set.
@@ -295,7 +289,7 @@ class ConformantCbsPlanner:
                     stationary_move = ((path_min_time + time_step * STAY_STILL_COST,
                                         path_max_time + time_step * STAY_STILL_COST), last_move[1])
                     new_path.append(stationary_move)
-                plan.cost = new_path[-1][0]
+                #plan.cost = new_path[-1][0]
             new_solution[agent] = ConformantPlan((agent, new_path, plan.cost))
 
         return new_solution
@@ -332,7 +326,6 @@ class ConformantCbsPlanner:
 
         return solution
 
-    # noinspection PyUnreachableCode
     def extract_vertex_conflict_constraints(self, interval_i, interval_j, vertex, agent_i, agent_j):  # ,prev_i,prev_j):
         """
         Helper function. We know that at that time interval there is some conflict between two given agents on the
@@ -346,6 +339,7 @@ class ConformantCbsPlanner:
         t = self.__pick_t(interval_i, interval_j)
         return {(agent_i, vertex, t)}, {(agent_j, vertex, t)}
 
+    # noinspection PyUnreachableCode
     def check_edge_swap_conflict(self, filled_solution, prev_agents):
         """ Checks for edge conflicts by creating a path represented by tuples, where each tuple contains the edge being
         traversed and the (start time, end time). All of the edges traversed are inserted into a dictionary mapping
@@ -477,6 +471,24 @@ class ConformantCbsPlanner:
         """
 
         open_nodes.append(new_node)
+
+    def __compute_paths_cost(self, solution, sic_heuristic=True):
+        """Computes the cost for a given solution. Can return either the SIC or simply the maximum time
+        of any path in the solution.
+        """
+        if sic_heuristic:
+            min_cost = 0
+            max_cost = 0
+            for agent, plan in solution.items():
+                if plan.path is None:
+                    return math.inf, math.inf
+
+                min_cost += plan.cost[0]
+                max_cost += plan.cost[1]
+            return min_cost, max_cost
+
+        max_time = self.__get_max_path_time(solution)
+        return max_time, max_time
 
     @staticmethod
     def extract_asymmetric_vertex_conflict(interval_i, interval_j, vertex, agent_i, agent_j):

@@ -193,9 +193,11 @@ class TestCcbsPlanner(unittest.TestCase):
         ccbs_planner = ConformantCbsPlanner(self.conf_problem)
         solution = ccbs_planner.find_solution(min_best_case=True, time_limit=20, sum_of_costs=True)
         self.assertEqual(solution[2], 24)
+        self.assertEqual(solution[1], (23, 23))
 
         solution = ccbs_planner.find_solution(min_best_case=True, time_limit=20, sum_of_costs=False)
         self.assertEqual(solution[2], 21)
+        self.assertEqual(solution[1], (39, 39))
 
     def test_vertex_conflict_extraction(self):
         """

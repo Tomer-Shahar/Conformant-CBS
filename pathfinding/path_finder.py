@@ -68,7 +68,7 @@ class ConstraintAstar:
                         continue  # No need to update node. Continue iterating successors
                     print("Found a faster path for node " + neighbor_node.current_position)
 
-                self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.map)
+                self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.map)  # ToDO: Is the open list updated?
 
             """
             open_list.sort(key=lambda k: k.h_val, reverse=True)  # first sort by secondary key.  # ToDo: Reduce this!!
