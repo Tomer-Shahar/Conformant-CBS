@@ -8,6 +8,7 @@ Currently a naive implementation of A*
 from pathfinding.custom_heap import OpenListHeap
 import math
 import networkx
+import time
 
 # The positions of each parameter in the tuple receives from map.edges
 VERTEX_ID = 0
@@ -33,19 +34,18 @@ class ConstraintAstar:
     *** Currently naive implementation (basic A* with constraints)****
     """
 
-    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, min_best_case=True):
+    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, min_best_case=True, time_limit=1):
         open_list = OpenListHeap()
         open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
         closed_set = set()
-
+        start_time = time.time()
         start_node = SingleAgentNode(start_pos, None, (0, 0), self.map, goal_pos)
         self.__add_node_to_open(open_list, open_dict, start_node)
-        expanded = -1
-        while open_list:
+
+        while len(open_list.internal_heap) > 0:
+            if start_time - time.time() > time_limit:
+                raise OutOfTimeError('Ran out of time :-(')
             best_node = open_list.pop()  # removes from open_list
-            expanded += 1
-          #  if expanded % 1000 == 0 and expanded > 1:
-          #      print("Nodes expanded: " + str(expanded))
             self.__remove_node_from_open(best_node, closed_set, open_dict)
 
             if best_node.current_position == goal_pos and self.__can_stay_still(agent, best_node, constraints):
@@ -69,14 +69,7 @@ class ConstraintAstar:
                     print("Found a faster path for node " + neighbor_node.current_position)
 
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.map)  # ToDO: Is the open list updated?
-
-            """
-            open_list.sort(key=lambda k: k.h_val, reverse=True)  # first sort by secondary key.  # ToDo: Reduce this!!
-            if min_best_case:
-                open_list.sort(key=lambda k: k.f_val[0], reverse=True)  # This allows tie-breaking. # ToDo: And this!!
-            else:
-                open_list.sort(key=lambda k: k.f_val[1], reverse=True)  # This allows tie-breaking. # ToDo: And this!!
-            """
+        print("No solution?")
         return agent, None, math.inf  # no solution
 
     @staticmethod
@@ -160,7 +153,7 @@ class ConstraintAstar:
         """
         A function that verifies that the agent has reached the goal at an appropriate time. Useful when an agent
         reaches the goal in, for example, 5-8 time units however in the solution it takes another agent 10-15 time units.
-        Therefor we must verify what happens if this agent stands still all this time (there might be a constraint!)
+        Therefor we must verify what happens if this agent stands still all this time (there might be a conflict!)
         """
         for con in constraints:  # ToDo: Iterate over all constraints or send the max time to stand?
 
@@ -182,7 +175,7 @@ class ConstraintAstar:
         graph = networkx.Graph()
         for vertex, edges in self.map.edges_and_weights.items():
             for edge in edges:
-                graph.add_edge(vertex, edge[0], weight=edge[1])
+                graph.add_edge(vertex, edge[0], weight=edge[1][0])
         return networkx.single_source_dijkstra_path_length(graph, source_vertex)
 
 
@@ -192,13 +185,12 @@ class SingleAgentNode:
     """
 
     def __init__(self, current_position, prev_node, time_span, map, goal):
-        # self.agent = agent
         self.current_position = current_position
         self.prev_node = prev_node
         self.h_val = map.calc_heuristic(current_position, goal)
         self.g_val = time_span  # The time to reach the node.
         self.f_val = self.g_val[0] + self.h_val, self.g_val[1] + self.h_val  # heuristic val + cost of predecessor
-        self.heap_index = -1
+        #self.heap_index = -1
 
     """
     The function that creates all the possible vertices an agent can go to from the current node. For example,
@@ -209,7 +201,7 @@ class SingleAgentNode:
         neighbors = []
 
         for edge_tuple in search_map.edges_and_weights[self.current_position]:
-            successor_time = (self.g_val[0] + edge_tuple[MIN_EDGE_TIME], self.g_val[1] + edge_tuple[MAX_EDGE_TIME])
+            successor_time = (self.g_val[0] + edge_tuple[1][0], self.g_val[1] + edge_tuple[1][1])
             vertex = edge_tuple[VERTEX_ID]
             successor = (vertex, successor_time)
             if self.legal_move(agent, successor, constraints):

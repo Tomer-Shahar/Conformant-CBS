@@ -1,12 +1,19 @@
+import copy
+
 from pathfinding.map_reader import ConformantProblem
 from pathfinding.conformant_cbs import *
 import os
 import profile
+import random
+
+seed = 123
+random.seed(seed)
+print(f'The seed is {seed}')
 
 
 def print_solution(solution):
-    print("")
-    for agent, plan in solution[0].items():
+    print()
+    for agent, plan in solution.paths.items():
         print("Path for agent_" + str(agent) + ": ")
         for movement in plan.path:
             print(movement[1], end="")
@@ -74,41 +81,35 @@ def run_test_map():
     run_map(test_map, sic_heuristic=False, print_sol=True)
 
 
-profile.run('run_test_map()', sort=1)
+# profile.run('run_test_map()', sort=1)
 total_start = time.time()
 
 print("-------------- Large moving-ai maps -------------------")
-
-complex_map = ConformantProblem('../maps/brc202d.map')
-print("Parsing map..")
-complex_map.generate_problem_instance(agent_num=15)
+complex_map = ConformantProblem('../maps/ost003d.map')
+print("Parsing (round, slightly narrow) map..")
+complex_map.generate_problem_instance(agent_num=30)
 print("Filling heuristics table..")
 complex_map.fill_heuristic_table()
 profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=2)
 
 complex_map = ConformantProblem('../maps/Archipelago.map')
-print("Parsing map..")
-complex_map.generate_problem_instance(agent_num=30)
+print("Parsing(spacious) map..")
+complex_map.generate_problem_instance(agent_num=35)
 print("Filling heuristics table..")
 complex_map.fill_heuristic_table()
 profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=2)
 
-complex_map = ConformantProblem('../maps/ost003d.map')
-print("Parsing map..")
-complex_map.generate_problem_instance(agent_num=30)
+complex_map = ConformantProblem('../maps/brc202d.map')
+print("Parsing (fairly narrow with long corridors) map..")
+complex_map.generate_problem_instance(agent_num=15)
 print("Filling heuristics table..")
 complex_map.fill_heuristic_table()
 profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=2)
-
-
-
 
 print("\n----------- Larger random map: 25x25 ---------------")
-random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (3, 3), agent_num=3, is_eight_connected=False)
+random_map = ConformantProblem.generate_rectangle_map(12, 12, (1, 1), (3, 3), agent_num=4, is_eight_connected=False)
 print_map(random_map)
 profile.run('run_map(random_map, sic_heuristic=True, time_limit=120)', sort=2)
-
-
 
 print("\n----------- Extra Larger random map: 49x49 ---------------")
 random_map = ConformantProblem.generate_rectangle_map(24, 24, (1, 1), (1, 1), agent_num=4, is_eight_connected=False)
@@ -118,8 +119,3 @@ profile.run('run_map(random_map, sic_heuristic=True, print_sol=False,time_limit=
 
 print("Test finished!")
 print("Total time elapsed: " + str(time.time() - total_start))
-
-
-
-
-

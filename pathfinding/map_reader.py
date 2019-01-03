@@ -217,7 +217,7 @@ class ConformantProblem:
         min_time = random.randint(min_time_range[0], min_time_range[1])
         max_time = random.randint(max_time_range[0], max_time_range[1])
         node = (coordinate[0] + i, coordinate[1] + j)
-        edge = (node, min_time, max_time)
+        edge = (node, (min_time, max_time))
 
         return edge
 
