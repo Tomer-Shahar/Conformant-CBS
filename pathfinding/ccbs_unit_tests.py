@@ -5,7 +5,7 @@ Unit tests for Conformant-CBS
 from pathfinding.map_reader import ConformantProblem
 from pathfinding.conformant_solution import ConformantSolution
 from pathfinding.conformant_cbs import *
-from pathfinding.path_finder import *
+from pathfinding.constraint_A_star import *
 import unittest
 import random
 
@@ -242,6 +242,35 @@ class TestConformantSolution(unittest.TestCase):
         self.assertEqual(self.conformant_sol.tuple_solution, expected_movement)
 
 
+class TestLowLevelSolver(unittest.TestCase):
+    """ Class for testing the low level solver. """
+
+    def setUp(self):
+        pass
+
+    def test_large_map_with_goal_constraint(self):
+        """
+        Tests a large map where the agent begins at the goal, but has a constraint much later on.
+        Ideally, the solution should be found quick since the agent can just stay there and move one step when need be
+        """
+        large_map = ConformantProblem()
+        large_map.map = [[0 for i in range(50)] for j in range(50)]
+        large_map.width = 50
+        large_map.height = 50
+        large_map.generate_edges_and_weights()
+        start_goal = (25, 25)
+        large_map.start_positions = {1: start_goal}
+        large_map.goal_positions = {1: start_goal}
+        solver = ConstraintAstar(large_map)
+        con_time = 100
+        goal_con = {(1, start_goal, con_time)}
+        large_map.fill_heuristic_table()
+        time_lim = 2
+        plan = solver.compute_agent_path(goal_con, 1, start_goal, start_goal, time_limit=time_lim)
+
+        self.assertEqual(plan[2], (con_time+1, con_time+1))
+
+
 class TestCcbsPlanner(unittest.TestCase):
     """
     Class for testing the conformant_cbs class
@@ -364,3 +393,4 @@ class TestCcbsPlanner(unittest.TestCase):
         solution.compute_solution_cost(sum_of_costs=True)
         self.assertEqual(solution.cost, (39, 39))
         self.assertEqual(solution.length, 21)
+

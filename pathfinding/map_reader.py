@@ -1,5 +1,5 @@
 import random
-from pathfinding.path_finder import ConstraintAstar
+from pathfinding.constraint_A_star import ConstraintAstar
 from pathfinding.maze import Maze
 import math
 

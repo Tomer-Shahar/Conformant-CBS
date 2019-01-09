@@ -6,21 +6,24 @@ Currently a naive implementation of A*
 """
 
 from pathfinding.custom_heap import OpenListHeap
+from pathfinding.time_error import OutOfTimeError
 import math
 import networkx
 import time
 
 # The positions of each parameter in the tuple receives from map.edges
 VERTEX_ID = 0
-MIN_EDGE_TIME = 1
-MAX_EDGE_TIME = 2
-STAY_STILL_COST = 1  # ToDO: Change value to greater than 1. This entails finding a more efficient way to stay still
+STAY_STILL_COST = 1
 
 
 class ConstraintAstar:
 
     def __init__(self, ccbs_map):
-        self.map = ccbs_map
+        self.grid_map = ccbs_map
+        self.open_list = OpenListHeap()
+        self.open_dict = {}
+        self.closed_set = set()
+        self.agent = 1
 
     """
     Computes the path for a particular agent in a given node. The node should contain the new constraint for this
@@ -34,63 +37,62 @@ class ConstraintAstar:
     *** Currently naive implementation (basic A* with constraints)****
     """
 
-    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, min_best_case=True, time_limit=1):
-        open_list = OpenListHeap()
-        open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
-        closed_set = set()
+    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, min_best_case=True, time_limit=2):
+        self.open_list = OpenListHeap()
+        self.open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
+        self.closed_set = set()
+        self.agent = agent
         start_time = time.time()
-        start_node = SingleAgentNode(start_pos, None, (0, 0), self.map, goal_pos)
-        self.__add_node_to_open(open_list, open_dict, start_node)
+        start_node = SingleAgentNode(start_pos, None, (0, 0), self.grid_map, goal_pos)
+        self.__add_node_to_open(start_node)
 
-        while len(open_list.internal_heap) > 0:
-            if start_time - time.time() > time_limit:
+        while len(self.open_list.internal_heap) > 0:
+            if time.time() - start_time > time_limit:
                 raise OutOfTimeError('Ran out of time :-(')
-            best_node = open_list.pop()  # removes from open_list
-            self.__remove_node_from_open(best_node, closed_set, open_dict)
+            best_node = self.open_list.pop()  # removes from open_list
+            self.__remove_node_from_open(best_node)
 
             if best_node.current_position == goal_pos and self.__can_stay_still(agent, best_node, constraints):
                 return best_node.calc_path(agent)
 
-            successors = best_node.expand(agent, constraints, self.map)
+            successors = best_node.expand(agent, constraints, self.grid_map)
             for neighbor in successors:
-                if neighbor in closed_set:
+                if neighbor in self.closed_set:
                     continue
                 g_val = neighbor[1]
-                if neighbor not in open_dict:
-                    neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.map, goal_pos)
-                    self.__add_node_to_open(open_list, open_dict, neighbor_node)
+                if neighbor not in self.open_dict:
+                    neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.grid_map, goal_pos)
+                    self.__add_node_to_open(neighbor_node)
                 else:
-                    neighbor_node = open_dict[neighbor]
+                    neighbor_node = self.open_dict[neighbor]
 
                     if min_best_case and g_val[0] >= neighbor_node.g_val[0]:
                         continue  # No need to update node. Continue iterating successors
                     elif not min_best_case and g_val[1] >= neighbor_node.g_val[1]:
                         continue  # No need to update node. Continue iterating successors
                     print("Found a faster path for node " + neighbor_node.current_position)
-
-                self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.map)  # ToDO: Is the open list updated?
+                # ToDO: Is the open list updated?
+                self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.grid_map)
         print("No solution?")
         return agent, None, math.inf  # no solution
 
-    @staticmethod
-    def __remove_node_from_open(best_node, closed_set, open_dict):
-        node_tuple = best_node.create_tuple()
-        open_dict.pop(node_tuple, None)
-        closed_set.add(node_tuple)
+    def __remove_node_from_open(self, node):
+        node_tuple = node.create_tuple()
+        self.open_dict.pop(node_tuple, None)
+        self.closed_set.add(node_tuple)
 
-    @staticmethod
-    def __add_node_to_open(open_list, open_dict, node):
-        open_list.push(node)
+    def __add_node_to_open(self, node):
+        self.open_list.push(node)
         key_tuple = node.create_tuple()
-        open_dict[key_tuple] = node
+        self.open_dict[key_tuple] = node
 
         return node
 
     @staticmethod
-    def __update_node(neighbor_node, prev_node, g_val, goal_pos, map):
+    def __update_node(neighbor_node, prev_node, g_val, goal_pos, grid_map):
         neighbor_node.prev_node = prev_node
         neighbor_node.g_val = g_val
-        neighbor_node.h_val = map.calc_heuristic(neighbor_node.current_position, goal_pos)
+        neighbor_node.h_val = grid_map.calc_heuristic(neighbor_node.current_position, goal_pos)
         neighbor_node.f_val = g_val[0] + neighbor_node.h_val, g_val[1] + neighbor_node.h_val
 
     def trivial_path(self, start_pos, goal_pos):
@@ -107,7 +109,7 @@ class ConstraintAstar:
         closed_set = set()
 
         g_val = 0
-        h_val = self.map.calc_heuristic(start_pos, goal_pos)
+        h_val = self.grid_map.calc_heuristic(start_pos, goal_pos)
         start_node = (start_pos, g_val, h_val)
         open_list.append(start_node)
         open_dict[start_pos] = start_node
@@ -119,14 +121,14 @@ class ConstraintAstar:
                 return True
 
             successors = []
-            for edge_tuple in self.map.edges_and_weights[best_node[0]]:
+            for edge_tuple in self.grid_map.edges_and_weights[best_node[0]]:
                 successors.append(edge_tuple[VERTEX_ID])
             for neighbor in successors:
                 if neighbor in closed_set:
                     continue
                 g_val = best_node[1] + 1
                 if neighbor not in open_dict:
-                    h_val = self.map.calc_heuristic(neighbor, goal_pos)
+                    h_val = self.grid_map.calc_heuristic(neighbor, goal_pos)
                     neighbor_node = (neighbor, g_val, h_val)
                     open_list.append(neighbor_node)
                     open_dict[neighbor] = neighbor_node
@@ -148,19 +150,24 @@ class ConstraintAstar:
 
         return True
 
-    @staticmethod
-    def __can_stay_still(agent, best_node, constraints):
+    def __can_stay_still(self, agent, best_node, constraints):
         """
         A function that verifies that the agent has reached the goal at an appropriate time. Useful when an agent
-        reaches the goal in, for example, 5-8 time units however in the solution it takes another agent 10-15 time units.
+        reaches the goal in, for example, 5-8 time units however in the solution it takes another agent 10-15 time
+        units.
         Therefor we must verify what happens if this agent stands still all this time (there might be a conflict!)
         """
+        can_stay = True
+        agent_cons = set()
         for con in constraints:  # ToDo: Iterate over all constraints or send the max time to stand?
-
             if con[0] == agent and con[1] == best_node.current_position and best_node.g_val[0] <= con[2]:
-                return False
+                agent_cons.add(con)
+                can_stay = False
 
-        return True
+        if not can_stay:
+            self.add_stay_still_node(best_node, agent_cons)
+
+        return can_stay
 
     def dijkstra_solution(self, source_vertex):
         """
@@ -173,10 +180,32 @@ class ConstraintAstar:
         """
 
         graph = networkx.Graph()
-        for vertex, edges in self.map.edges_and_weights.items():
+        for vertex, edges in self.grid_map.edges_and_weights.items():
             for edge in edges:
                 graph.add_edge(vertex, edge[0], weight=edge[1][0])
         return networkx.single_source_dijkstra_path_length(graph, source_vertex)
+
+    def add_stay_still_node(self, goal_node, agent_cons):
+        """
+        Adds to the open list the option of just staying at the current node.
+        Iterate through all time ticks
+        :param agent_cons: All constraints for the goal node.
+        :param goal_node: The node that is located at the goal position but might not be able to stay there.
+        """
+        curr_node = goal_node
+        min_time = min(con[2] for con in agent_cons)
+        for tick in range(goal_node.g_val[0], min_time):
+            new_time = curr_node.g_val[0] + STAY_STILL_COST, curr_node.g_val[1] + STAY_STILL_COST
+            goal = goal_node.current_position
+            if (self.agent, goal, new_time[0]) not in agent_cons:  # Safe to add!
+                new_node = SingleAgentNode(goal, curr_node, new_time, self.grid_map, goal)
+                curr_node = new_node
+            else:  # Curr node was the best we got.
+                if not curr_node.create_tuple() in self.closed_set:
+                    self.__add_node_to_open(curr_node)
+                    return
+        if not curr_node.create_tuple() in self.closed_set:
+            self.__add_node_to_open(curr_node)
 
 
 class SingleAgentNode:
@@ -184,13 +213,12 @@ class SingleAgentNode:
     The class that represents the nodes being created during the search for a single agent.
     """
 
-    def __init__(self, current_position, prev_node, time_span, map, goal):
+    def __init__(self, current_position, prev_node, time_span, grid_map, goal):
         self.current_position = current_position
         self.prev_node = prev_node
-        self.h_val = map.calc_heuristic(current_position, goal)
+        self.h_val = grid_map.calc_heuristic(current_position, goal)
         self.g_val = time_span  # The time to reach the node.
         self.f_val = self.g_val[0] + self.h_val, self.g_val[1] + self.h_val  # heuristic val + cost of predecessor
-        #self.heap_index = -1
 
     """
     The function that creates all the possible vertices an agent can go to from the current node. For example,
@@ -257,33 +285,3 @@ class SingleAgentNode:
                 return False
 
         return True
-
-    def compare_to(self, other_node):
-        """ Compares between two nodes: node.compare_to(other). If node is "smaller" (i.e better), returns -1. If node
-        is larger than other, returns 1. If they are equal returns 0. """
-
-        if self.f_val < other_node.f_val:
-            return -1
-        elif self.f_val > other_node.f_val:
-            return 1
-        else:  # Equal f value. Compare g value
-            if self.g_val > other_node.g_val:
-                return -1
-            elif self.g_val < other_node.g_val:
-                return 1
-            else:
-                return 0
-
-    def set_heap_index(self, index):
-        self.heap_index = index
-
-    def get_heap_index(self):
-        return self.heap_index
-
-
-class OutOfTimeError(Exception):
-    def __init__(self, value=None):
-        self.value = value
-
-    def __str__(self):
-        return repr(self.value)

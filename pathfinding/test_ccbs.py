@@ -20,8 +20,8 @@ def print_solution(solution):
             if plan.path[-1] != movement:
                 print(" --> ", end="")
         print()
-    print("Solution cost is between " + str(solution[1][0]) + " and " + str(solution[1][1]))
-    print("Solution length is  " + str(solution[2]) + "\n")
+    print("Solution cost is between " + str(solution.cost[0]) + " and " + str(solution.cost[1]))
+    print("Solution length is  " + str(solution.length) + "\n")
 
 
 def run_map(ccbs_map, sic_heuristic=False, print_sol=True, time_limit=180):
@@ -87,7 +87,7 @@ total_start = time.time()
 print("-------------- Large moving-ai maps -------------------")
 complex_map = ConformantProblem('../maps/ost003d.map')
 print("Parsing (round, slightly narrow) map..")
-complex_map.generate_problem_instance(agent_num=30)
+complex_map.generate_problem_instance(agent_num=15)
 print("Filling heuristics table..")
 complex_map.fill_heuristic_table()
 profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=2)

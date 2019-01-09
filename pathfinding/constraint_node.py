@@ -8,9 +8,10 @@ class ConstraintNode:
     this node. We do not need to save all of the constraints, as they can be extrapolated from the parent nodes by
     traversing the path from the current node to the root.
 
-    solution - a dictionary mapping agent ID to the path.
+    solution - a ConformantSolution object.
     parent - a pointer to the previous node.
-    cost - the cost of the solution. i.e the sum of the costs of each path.
+    conflicting_agents - the agents that conflicted previously (most likely to conflict again)
+    open_conflicts - a set containing all known conflicts currently. Used in the low-level solver.
     """
 
     def __init__(self, new_constraints=None, parent=None):
@@ -19,10 +20,12 @@ class ConstraintNode:
             self.constraints = self.__append_constraints(parent.constraints, new_constraints)
             self.copy_solution(parent)
             self.conflicting_agents = parent.conflicting_agents
+            self.open_conflicts = parent.open_conflicts
         else:
             self.constraints = frozenset()
             self.solution = ConformantSolution()
             self.conflicting_agents = None
+            self.open_conflicts = set()
 
         self.parent = parent
         # self.cost = math.inf  # Default value higher than any possible int
