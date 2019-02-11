@@ -87,10 +87,12 @@ class ConformantCbsPlanner:
         self.start_time = time.time()
         root = ConstraintNode()
         self.compute_all_paths_and_conflicts(root)
+        root.parent = ConstraintNode()
         if not root.solution:
             return None
         root.solution.compute_solution_cost()
         print("Root solution found. Cost is between "+str(root.solution.cost[0]) + " and " + str(root.solution.cost[1]))
+        print("Number of initial conflicts: " + str(len(root.open_conflicts)))
 
         open_nodes = [root]  # initialize the list with root
         nodes_expanded = 0
@@ -120,7 +122,8 @@ class ConformantCbsPlanner:
                     new_node.constraints, agent,
                     self.startPositions[agent],
                     self.goalPositions[agent],
-                    min_best_case, time_limit=500)  # compute the path for a single agent.
+                    new_node.open_conflicts,
+                    min_best_case, time_limit=5)  # compute the path for a single agent.
                 new_node.solution.paths[agent] = ConformantPlan(agent, new_plan, cost)
                 new_node.solution.compute_solution_cost(sum_of_costs)  # compute the cost
 
@@ -291,7 +294,7 @@ class ConformantCbsPlanner:
 
         for agent_id, agent_start in self.startPositions.items():
             agent, plan, cost = self.planner.compute_agent_path(
-                root.constraints, agent_id, agent_start, self.goalPositions[agent_id])
+                root.constraints, agent_id, agent_start, self.goalPositions[agent_id], root.open_conflicts)
             agent_path = ConformantPlan(agent, plan, cost)
             if agent_path.path:  # Solution found
                 root.solution.paths[agent_id] = agent_path

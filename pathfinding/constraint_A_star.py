@@ -29,21 +29,19 @@ class ConstraintAstar:
     Computes the path for a particular agent in a given node. The node should contain the new constraint for this
     agents. Note that the agent is simply an int (the agent's id).
 
-    At the beginning, a quick check is performed to verify whether a solution can potentially exist. That is,
-    there is some sort of path for the agent without verifying the constraints.
-
     returns a tuple containing (agent_id, cost, [ path list])
 
     *** Currently naive implementation (basic A* with constraints)****
     """
 
-    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, min_best_case=True, time_limit=2):
+    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table, min_best_case=True, time_limit=2):
+
         self.open_list = OpenListHeap()
         self.open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
         self.closed_set = set()
         self.agent = agent
         start_time = time.time()
-        start_node = SingleAgentNode(start_pos, None, (0, 0), self.grid_map, goal_pos)
+        start_node = SingleAgentNode(start_pos, None, (0, 0), self.grid_map, goal_pos, conflicts_created=0)
         self.__add_node_to_open(start_node)
 
         while len(self.open_list.internal_heap) > 0:
@@ -55,13 +53,13 @@ class ConstraintAstar:
             if best_node.current_position == goal_pos and self.__can_stay_still(agent, best_node, constraints):
                 return best_node.calc_path(agent)
 
-            successors = best_node.expand(agent, constraints, self.grid_map)
+            successors = best_node.expand(agent, constraints, conf_table, self.grid_map)
             for neighbor in successors:
                 if neighbor in self.closed_set:
                     continue
                 g_val = neighbor[1]
                 if neighbor not in self.open_dict:
-                    neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.grid_map, goal_pos)
+                    neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.grid_map, goal_pos, conflicts_created=0)
                     self.__add_node_to_open(neighbor_node)
                 else:
                     neighbor_node = self.open_dict[neighbor]
@@ -82,18 +80,18 @@ class ConstraintAstar:
         self.closed_set.add(node_tuple)
 
     def __add_node_to_open(self, node):
-        self.open_list.push(node)
+        self.open_list.push(node, node.f_val[0], node.h_val, 0)
         key_tuple = node.create_tuple()
         self.open_dict[key_tuple] = node
 
         return node
 
-    @staticmethod
-    def __update_node(neighbor_node, prev_node, g_val, goal_pos, grid_map):
+    def __update_node(self, neighbor_node, prev_node, g_val, goal_pos, grid_map):
         neighbor_node.prev_node = prev_node
         neighbor_node.g_val = g_val
         neighbor_node.h_val = grid_map.calc_heuristic(neighbor_node.current_position, goal_pos)
         neighbor_node.f_val = g_val[0] + neighbor_node.h_val, g_val[1] + neighbor_node.h_val
+        self.open_list.heapify()
 
     def trivial_path(self, start_pos, goal_pos):
         """
@@ -164,8 +162,8 @@ class ConstraintAstar:
                 agent_cons.add(con)
                 can_stay = False
 
-        if not can_stay:
-            self.add_stay_still_node(best_node, agent_cons)
+        #if not can_stay:
+            #self.add_stay_still_node(best_node, agent_cons)
 
         return can_stay
 
@@ -213,30 +211,31 @@ class SingleAgentNode:
     The class that represents the nodes being created during the search for a single agent.
     """
 
-    def __init__(self, current_position, prev_node, time_span, grid_map, goal):
+    def __init__(self, current_position, prev_node, time_span, grid_map, goal, conflicts_created):
         self.current_position = current_position
         self.prev_node = prev_node
         self.h_val = grid_map.calc_heuristic(current_position, goal)
         self.g_val = time_span  # The time to reach the node.
         self.f_val = self.g_val[0] + self.h_val, self.g_val[1] + self.h_val  # heuristic val + cost of predecessor
+        self.conflicts_created = conflicts_created
 
     """
     The function that creates all the possible vertices an agent can go to from the current node. For example,
     if a tuple from the map would be ((3,4), 1, 3) and the current time vector is t0, the agent can be at vertex (3,4)
     at times t0+1, t0+2 or t0+3.
     """
-    def expand(self, agent, constraints, search_map):
+    def expand(self, agent, constraints, conflict_table, search_map):
         neighbors = []
 
         for edge_tuple in search_map.edges_and_weights[self.current_position]:
             successor_time = (self.g_val[0] + edge_tuple[1][0], self.g_val[1] + edge_tuple[1][1])
             vertex = edge_tuple[VERTEX_ID]
             successor = (vertex, successor_time)
-            if self.legal_move(agent, successor, constraints):
+            if self.legal_move(agent, successor, constraints, conflict_table)[0]:
                 neighbors.append(successor)
 
         stay_still = (self.current_position, (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST))
-        if self.legal_move(agent, stay_still, constraints):  # Add the option of not moving.
+        if self.legal_move(agent, stay_still, constraints, conflict_table)[0]:  # Add the option of not moving.
             neighbors.append(stay_still)
 
         return neighbors
@@ -260,7 +259,7 @@ class SingleAgentNode:
         """
         return self.current_position, self.g_val
 
-    def legal_move(self, agent, successor, constraints):
+    def legal_move(self, agent, successor, constraints, open_conflicts):
 
         """
         A function that checks if a certain movement is legal. First we check for vertex constraints and then edge
@@ -269,19 +268,26 @@ class SingleAgentNode:
         successor_min_time = successor[1][0]
         successor_max_time = successor[1][1]
         current_min_time = self.g_val[0]
+        conflicts_created = 0
 
-        for time_interval in range(successor_min_time, successor_max_time + 1):
+        for time_interval in range(successor_min_time, successor_max_time + 1):  # Todo: iterate over constraint sets
             if (agent, successor[0], time_interval) in constraints:
-                return False
+                return False, -1
+            elif (agent, successor[0], time_interval) in open_conflicts:
+                conflicts_created += 1
 
         edge = min(self.current_position, successor[0]), max(self.current_position, successor[0])
 
         for time_interval in range(current_min_time+1, successor_max_time - 1):  # Edge constraint
             if (agent, edge, time_interval) in constraints:
-                return False
+                return False, -1
+            elif (agent, successor[0], time_interval) in open_conflicts:
+                conflicts_created += 1
 
         if successor_min_time == successor_max_time:  # instantaneous traversal
             if (agent, edge, successor_max_time) in constraints:
-                return False
+                return False, -1
+            elif (agent, successor[0], successor_max_time) in open_conflicts:
+                conflicts_created += 1
 
-        return True
+        return True, conflicts_created

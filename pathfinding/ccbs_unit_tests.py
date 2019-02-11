@@ -6,6 +6,7 @@ from pathfinding.map_reader import ConformantProblem
 from pathfinding.conformant_solution import ConformantSolution
 from pathfinding.conformant_cbs import *
 from pathfinding.constraint_A_star import *
+from pathfinding.operator_decomposition_a_star import *
 import unittest
 import random
 
@@ -265,8 +266,8 @@ class TestLowLevelSolver(unittest.TestCase):
         con_time = 100
         goal_con = {(1, start_goal, con_time)}
         large_map.fill_heuristic_table()
-        time_lim = 2
-        plan = solver.compute_agent_path(goal_con, 1, start_goal, start_goal, time_limit=time_lim)
+        time_lim = 5
+        plan = solver.compute_agent_path(goal_con, 1, start_goal, start_goal, set(), time_limit=time_lim)
 
         self.assertEqual(plan[2], (con_time+1, con_time+1))
 
@@ -369,9 +370,9 @@ class TestCcbsPlanner(unittest.TestCase):
         edge = (v_1, v_2)
         self.CCBS_planner.edges_and_weights = {v_1: {(v_2, (1, 1)), ((16, 0), (1, 1))}}
         constraints = {(1, edge, 18)}
-        self.single_agent_node = SingleAgentNode(v_1, (16, 0), (17, 17), self.conf_problem, (19, 0))
+        self.single_agent_node = SingleAgentNode(v_1, (16, 0), (17, 17), self.conf_problem, (19, 0), 0)
         successor = (v_2, (18, 18))
-        self.assertFalse(self.single_agent_node.legal_move(agent, successor, constraints))
+        self.assertFalse(self.single_agent_node.legal_move(agent, successor, constraints, set())[0])
 
     def test_simple_4_connected_two_agent_map(self):
 
@@ -394,3 +395,64 @@ class TestCcbsPlanner(unittest.TestCase):
         self.assertEqual(solution.cost, (39, 39))
         self.assertEqual(solution.length, 21)
 
+
+class TestODAPlanner(unittest.TestCase):
+    """
+    Class for testing the conformant_cbs class
+    """
+
+    def setUp(self):
+        self.conf_problem = ConformantProblem()
+        self.conf_problem.map = [[0 for i in range(20)] for j in range(20)]
+        for x in range(1, 18):
+            for y in range(1, 2):
+                self.conf_problem.map[x][y] = 1
+        self.conf_problem.width = 20
+        self.conf_problem.height = 20
+        self.conf_problem.generate_edges_and_weights()
+
+        self.mini_conf_problem = ConformantProblem()
+        self.mini_conf_problem.map = [[0, 0],
+                                      [0, 0]]
+        self.mini_conf_problem.width = 2
+        self.mini_conf_problem.height = 2
+        self.mini_conf_problem.edges_and_weights = {
+            (0, 0): [((0, 1), (1, 1)), ((1, 0), (1, 1))],
+            (0, 1): [((0, 0), (1, 1)), ((1, 1), (1, 1))],
+            (1, 0): [((0, 0), (1, 1)), ((1, 1), (1, 1))],
+            (1, 1): [((1, 0), (1, 1)), ((0, 1), (1, 1))]}
+
+    def tearDown(self):
+        pass
+
+    def test_simple_4_connected_two_agent_map(self):
+
+        self.path_finder = ODAStar(self.mini_conf_problem)
+
+        self.mini_conf_problem.start_positions[1] = (0, 0)
+        self.mini_conf_problem.start_positions[2] = (0, 1)
+        self.mini_conf_problem.goal_positions[1] = (1, 1)
+        self.mini_conf_problem.goal_positions[2] = (1, 0)
+        self.mini_conf_problem.fill_heuristic_table()
+
+        solution = self.path_finder.create_solution(time_limit=300, objective='min_best_case', sic=True)
+        self.assertEqual(solution[1], 4)
+
+        """ Tests a simple 20x20 map with 2 agents and non-weighted edges"""
+        self.path_finder = ODAStar(self.conf_problem)
+        self.conf_problem.generate_edges_and_weights()
+        self.conf_problem.start_positions[1] = (0, 0)
+        self.conf_problem.start_positions[2] = (17, 0)
+        self.conf_problem.goal_positions[1] = (19, 0)
+        self.conf_problem.goal_positions[2] = (17, 0)
+        self.conf_problem.fill_heuristic_table()
+
+        solution = self.path_finder.create_solution(time_limit=300, objective='min_best_case', sic=True)
+        self.assertEqual(solution.cost, (23, 23))  # Only agent 1 moves
+        self.assertEqual(solution.length, 24)
+
+        solution = self.path_finder.create_solution(time_limit=300, objective='min_worse_case', sic=False)
+        self.assertEqual(solution.cost, (20, 20))  # Both agents move simultaneously
+        solution.compute_solution_cost(sum_of_costs=True)
+        self.assertEqual(solution.cost, (39, 39))
+        self.assertEqual(solution.length, 21)
