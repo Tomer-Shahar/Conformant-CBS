@@ -33,7 +33,7 @@ class Experiments:
         #self.run_corridor_map(rep_num, num_of_agents)
         #self.run_maze_map(rep_num, num_of_agents)
         self.run_circular_map(rep_num, num_of_agents)
-        self.run_blank_map(rep_num, num_of_agents)
+        #self.run_blank_map(rep_num, num_of_agents)
 
     def run_blank_map(self, rep_num, agent_num):
         results_file = self.file_prefix + 'small_open_map_results.csv'
