@@ -42,7 +42,7 @@ class Experiments:
         random.seed(seed)
         blank_problem = ConformantProblem(map_file)
         blank_problem.generate_problem_instance(self.uncertainty)
-        print(f"--- STARTED BLANK MAP | SEED: {seed}--- | UNCERTAINTY: {self.uncertainty} ---")
+        print(f"--- STARTED BLANK MAP | SEED: {seed} | UNCERTAINTY: {self.uncertainty} ---")
         self.run_and_log_same_instance_experiment(blank_problem, results_file, agent_num, rep_num, seed)
 
     def run_maze_map(self, rep_num, agent_num):
@@ -50,7 +50,7 @@ class Experiments:
         seed = random.randrange(sys.maxsize)
         random.seed(seed)
         maze = ConformantProblem.generate_rectangle_map(12, 12, self.uncertainty)
-        print(f"--- STARTED MAZE MAP | SEED: {seed}--- | UNCERTAINTY: {self.uncertainty} ---")
+        print(f"--- STARTED MAZE MAP | SEED: {seed} | UNCERTAINTY: {self.uncertainty} ---")
 
         self.run_and_log_same_instance_experiment(maze, results_file, agent_num, rep_num, seed)
 
@@ -61,7 +61,7 @@ class Experiments:
         random.seed(seed)
         large_map = ConformantProblem(map_file)
         large_map.generate_problem_instance(self.uncertainty)
-        print(f"--- STARTED LARGE OPEN MAP | SEED: {seed}--- | UNCERTAINTY: {self.uncertainty} ---")
+        print(f"--- STARTED LARGE OPEN MAP | SEED: {seed} | UNCERTAINTY: {self.uncertainty} ---")
 
         self.run_and_log_same_instance_experiment(large_map, results_file, agent_num, rep_num, seed)
 
@@ -86,10 +86,10 @@ class Experiments:
         self.run_and_log_same_instance_experiment(circular_map, results_file, agent_num, rep_num, seed)
 
     def run_and_log_same_instance_experiment(self, conf_problem, results_file, agent_num, rep_num, map_seed):
-        with open(os.path.join(self.output_folder, results_file), 'w+') as map_result_file:
-            map_result_file.write('Experiment Number,Map Seed,Number of Agents, Agents Seed, Uncertainty,Timeout,'
-                                  'CBS Time,ODA Queue Time, CCBS Min Cost, CCBS Max Cost, ODA Min Cost, ODA Max Cost,'
-                                  ' CCBS nodes expanded, ODA nodes expanded\n')
+        #with open(os.path.join(self.output_folder, results_file), 'w+') as map_result_file:
+        #    map_result_file.write('Experiment Number,Map Seed,Number of Agents, Agents Seed, Uncertainty,Timeout,'
+        #                          'CBS Time,ODA Queue Time, CCBS Min Cost, CCBS Max Cost, ODA Min Cost, ODA Max Cost,'
+        #                          ' CCBS nodes expanded, ODA nodes expanded\n')
 
         ccbs_total_time = 0
         oda_queue_total_time = 0
@@ -103,7 +103,7 @@ class Experiments:
         ccbs_cost = [0, 0]
         oda_queue_cost = [0, 0]
 
-        for i in range(rep_num):
+        for i in range(17, rep_num):
             agent_seed = random.randrange(sys.maxsize)
             random.seed(agent_seed)
             conf_problem.generate_agents(agent_num)

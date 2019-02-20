@@ -26,6 +26,7 @@ class ODAStar:
         self.closed_set = set()
         self.open_list = OpenListHeap()
         self.objective = 'min_best_case'
+        self.max_nodes = 115000 + 340000
 
     def create_solution(self, time_limit=300, objective='min_best_case', sic=True, min_time_policy=True ):
         """
@@ -46,7 +47,11 @@ class ODAStar:
         self.__add_node_to_open(start_node, objective)
         while len(self.open_list.internal_heap) > 0:
             if time.time() - start_time > time_limit:
+                print(f"ODA timed out. Nodes expanded: {len(self.closed_set)}")
+                print(f'Number of nodes in open: {len(self.open_dict)}')
                 raise OutOfTimeError('Ran out of time :-(')
+            if len(self.open_dict) + len(self.closed_set) > self.max_nodes:
+                raise OutOfTimeError('Expanded too many nodes - Exit prior to memory error :-(')
             best_node = self.open_list.pop()  # removes from open_list
             self.__remove_node_from_open(best_node)
 
