@@ -32,8 +32,8 @@ class Experiments:
 
         #self.run_corridor_map(rep_num, num_of_agents)
         #self.run_maze_map(rep_num, num_of_agents)
-        #self.run_circular_map(rep_num, num_of_agents)
-        self.run_blank_map(rep_num, num_of_agents)
+        self.run_circular_map(rep_num, num_of_agents)
+        #self.run_blank_map(rep_num, num_of_agents)
 
     def run_blank_map(self, rep_num, agent_num):
         results_file = self.file_prefix + 'small_open_map_results.csv'
@@ -212,9 +212,11 @@ class Experiments:
 
         return ccbs_ratio, oda_queue_ratio
 
-
-exp = Experiments('.\\..\\experiments')
-for uncertainty_val in range(1, 10, 1):
+if os.name == 'nt':
+    exp = Experiments('.\\..\\experiments')
+else:
+    exp = Experiments('./../experiments')
+for uncertainty_val in range(0, 10, 1):
     for num_of_agents in range(15, 30, 2):
         exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=300, rep_num=30)
 
