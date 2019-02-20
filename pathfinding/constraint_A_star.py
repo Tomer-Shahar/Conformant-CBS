@@ -34,7 +34,7 @@ class ConstraintAstar:
     *** Currently naive implementation (basic A* with constraints)****
     """
 
-    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table, min_best_case=True, time_limit=2):
+    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table, min_best_case=True, time_limit=200000):
 
         self.open_list = OpenListHeap()
         self.open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
@@ -68,7 +68,7 @@ class ConstraintAstar:
                         continue  # No need to update node. Continue iterating successors
                     elif not min_best_case and g_val[1] >= neighbor_node.g_val[1]:
                         continue  # No need to update node. Continue iterating successors
-                    print("Found a faster path for node " + neighbor_node.current_position)
+                    #print("Found a faster path for node " + neighbor_node.current_position)
                 # ToDO: Is the open list updated?
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.grid_map)
         print("No solution?")
@@ -91,7 +91,7 @@ class ConstraintAstar:
         neighbor_node.g_val = g_val
         neighbor_node.h_val = grid_map.calc_heuristic(neighbor_node.current_position, goal_pos)
         neighbor_node.f_val = g_val[0] + neighbor_node.h_val, g_val[1] + neighbor_node.h_val
-        self.open_list.heapify()
+        #  self.open_list.heapify() ToDO: Use heapify??
 
     def trivial_path(self, start_pos, goal_pos):
         """
@@ -196,7 +196,7 @@ class ConstraintAstar:
             new_time = curr_node.g_val[0] + STAY_STILL_COST, curr_node.g_val[1] + STAY_STILL_COST
             goal = goal_node.current_position
             if (self.agent, goal, new_time[0]) not in agent_cons:  # Safe to add!
-                new_node = SingleAgentNode(goal, curr_node, new_time, self.grid_map, goal)
+                new_node = SingleAgentNode(goal, curr_node, new_time, self.grid_map, goal, conflicts_created=0)
                 curr_node = new_node
             else:  # Curr node was the best we got.
                 if not curr_node.create_tuple() in self.closed_set:
@@ -278,7 +278,7 @@ class SingleAgentNode:
 
         edge = min(self.current_position, successor[0]), max(self.current_position, successor[0])
 
-        for time_interval in range(current_min_time+1, successor_max_time - 1):  # Edge constraint
+        for time_interval in range(current_min_time, successor_max_time):  # Edge constraint
             if (agent, edge, time_interval) in constraints:
                 return False, -1
             elif (agent, successor[0], time_interval) in open_conflicts:

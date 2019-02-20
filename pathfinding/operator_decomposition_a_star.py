@@ -27,10 +27,12 @@ class ODAStar:
         self.open_list = OpenListHeap()
         self.objective = 'min_best_case'
 
-    def create_solution(self, time_limit=300, objective='min_best_case', sic=True):
+    def create_solution(self, time_limit=300, objective='min_best_case', sic=True, min_time_policy=True ):
         """
         Computes a solution for the given conformant problem. Returns a tuple
         solution, cost
+        :param min_time_policy: How to choose the next agent to move. If true, chooses the agent with the minimal
+        current time. Otherwise, just do it in a serial fashion.
         :param sic: If to compute the state's g value as the sum of all costs, or the max cost (makespan)
         :param time_limit: Max time for search, in seconds. Default is 5 minutes.
         :param objective: What we want to minimize
@@ -49,29 +51,31 @@ class ODAStar:
             self.__remove_node_from_open(best_node)
 
             if self.is_goal_node(best_node):
-                return best_node.calc_solution()
+                return best_node.calc_solution(self.startPositions, sic) + (len(self.closed_set),)
 
-            successors = best_node.expand(self.grid_map, sic)
+            successors = best_node.expand(self.grid_map, sic, min_time_policy)
 
             for neighbor in successors:
-                if neighbor in self.closed_set:  # Has been expanded.
-                    continue
-
                 neighbor_tuple = neighbor.create_tuple()
+
+                if neighbor_tuple in self.closed_set:  # Has been expanded.
+                    continue
                 if neighbor_tuple not in self.open_dict:  # Reached for the first time.
                     self.__add_node_to_open(neighbor, objective)
                 else:  # We might need to update the node.
                     old_node = self.open_dict[neighbor_tuple]  # Node wac reached before
                     if self.is_new_node_better(neighbor, old_node, objective):
                         self.__update_node(neighbor, old_node)
-                        print("found better way")
 
         return None, math.inf  # no solution
 
     def is_goal_node(self, node):
         """
         Checks if a given node is a goal node. A node can only be a goal node if all agents have moved, and each agent
-        is in their respective goal locations.
+        is in their respective goal locations. We must additionally make sure that all agents are at the goal node at a
+        global minimum time. This is to detect collisions that occur when an agent waits at the goal node for a long
+        time and later on will collide with some other agent crossing it.
+
         :param node: The given node to check
         :return: True if it's a goal state, otherwise false
         """
@@ -81,6 +85,17 @@ class ODAStar:
                 return False
 
         return True
+
+    @staticmethod
+    def get_min_max_time(node):
+
+        max_time = -1
+        for agent, position in node.curr_positions.items():
+
+            if position['time'][0] > max_time:
+                max_time = position['time'][0]
+
+        return max_time
 
     def __remove_node_from_open(self, node):
         node_tuple = node.create_tuple()
@@ -110,6 +125,7 @@ class ODAStar:
         old_node.g_val = new_node.g_val
         old_node.h_val = new_node.h_val
         old_node.f_val = new_node.f_val
+        # ToDo: Use heapify?
 
     def is_new_node_better(self, new_node, old_node, objective):
         """

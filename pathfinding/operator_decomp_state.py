@@ -3,6 +3,7 @@ The class that represents a state in the Operator-Decomposition A* algorithm.
 Each state consists of a dictionary of each agents current location and time interval, and a pointer to the previous
 state for backtracking.
 """
+import math
 
 STAY_STILL_COST = 1
 
@@ -33,10 +34,12 @@ class ODState:
         self.g_val = g_val  # The time range to reach the node.
         self.f_val = self.g_val[0] + self.h_val, self.g_val[1] + self.h_val  # heuristic val + cost of predecessor
 
-    def expand(self, grid_map, sic=True):
+    def expand(self, grid_map, sic=True, min_time_policy=True):
         """
         Generates all child nodes of the state. This is different than regular A*, since it expands only according to
         the current agent that makes a move. The current moving agent depends on the last one that moved.
+        :param min_time_policy: Determines if to choose the next agent to move in a serial fashion or choose the agent
+        with the lowest minimum time.
         :param sic: How to compute the g value of newly generated states. If sic equals true, use the sum of individual
         costs metric. Otherwise the g value is simply the maximum time between all agents.
         :param grid_map: the map being searched. Used for iterating over edges
@@ -44,32 +47,113 @@ class ODState:
         """
         successors = []
 
-        agent_to_move = self.get_next_agent()
+        agent_to_move = self.get_next_agent(min_time_policy)
         curr_location = self.curr_positions[agent_to_move]['location']
         curr_time = self.curr_positions[agent_to_move]['time']
         for edge_tuple in grid_map.edges_and_weights[curr_location]:
             vertex = edge_tuple[0]
-            operator = Operation(agent_to_move, curr_location, vertex, curr_time, edge_tuple[1])
+            operator = self.create_movement_op(agent_to_move, curr_location, vertex, curr_time, edge_tuple[1])
             if self.legal_move(operator):
                 new_positions = self.copy_and_update_positions(agent_to_move, operator)
-                successor_g_val = self.compute_successor_g_val(edge_tuple, sic)  # ToDO: Verify this
+                move_cost = self.compute_move_cost(operator, edge_tuple[1])
+                successor_g_val = self.compute_successor_g_val(move_cost, sic)  # ToDO: Verify this
                 successor = ODState(new_positions, self.goals, self, operator, successor_g_val, grid_map)
                 successors.append(successor)
-
-        stay_still = Operation(agent_to_move, curr_location, curr_location,
-                               curr_time, (STAY_STILL_COST, STAY_STILL_COST))
+        # INCREASE THE AGENT TIME WHEN STAYING STILL AT GOAL, BUT DO NOT INCREASE G VALUE! THIS IS TO DISCOVER
+        # CONFLICTS. MAKE SURE THAT THE AGENT TIME DOES NOT AFFECT G VALUE
+        stay_still = self.create_stay_still_op(agent_to_move, curr_location, curr_time)
         if self.legal_move(stay_still):  # Add the option of not moving.
-            successors.append(ODState(self.curr_positions, self.goals, self, stay_still, stay_still.time, grid_map))
+            stay_still_g_val = self.compute_successor_stay_g_val(agent_to_move, curr_location)
+            new_positions = self.copy_and_update_positions(agent_to_move, stay_still)
+            successors.append(ODState(new_positions, self.goals, self, stay_still, stay_still_g_val, grid_map))
 
         return successors
 
-    def calc_solution(self):
+    def compute_successor_stay_g_val(self, agent_to_stay, curr_location):
+        """
+        Computes the g val of the successor node, where the successor resulted in waiting.
+        Returns the parents' g_val plus the cost of moving. Usually the cost is 1, except in the case where the agent is
+        staying still at the goal location and then it's 0.
+        :param agent_to_stay: The agent that is staying still
+        :param curr_location: Current location.
+        :return: The proper g_val of the successor.
+        """
+        if curr_location == self.goals[agent_to_stay]:
+            stay_still_g_val = self.compute_successor_g_val((0, 0))
+        else:
+            stay_still_g_val = self.compute_successor_g_val((STAY_STILL_COST, STAY_STILL_COST))
+
+        return stay_still_g_val
+
+    def compute_move_cost(self, operator, move_cost):
+        """
+        Computes the proper move cost for a given operator. This is useful when the agent stayed for a long time in its
+        goal location and then moved.
+        :param operator: Given operator.
+        :param move_cost: The cost of the edge being traversed. This will be added to a possible wait "penalty"
+        :return: The real cost of the move, to be used to calculate a proper g value.
+        """
+        wait_time = self.calc_wait_time(operator.agent)
+        wait_time *= STAY_STILL_COST
+
+        return move_cost[0] + wait_time, move_cost[1] + wait_time
+
+    @staticmethod
+    def create_movement_op(agent_to_move, curr_location, next_location, curr_time, move_time):
+        """
+        Creates an operation for moving. This function is needed, in case the agent is currently at its goal location
+        and is moving. For example, if the agent has stayed at the goal vertex for 5 time steps (meaning a cost of 0
+         since waiting at the goal has a cost of 0) and suddenly moves, we add 5 time steps to the cost.
+        :param agent_to_move: The agent that's moving
+        :param curr_location: Current location
+        :param next_location: Next location
+        :param curr_time: Current time for the agent
+        :param move_time: Time to traverse the edge.
+        :return: The appropriate operator
+        """
+        return Operation(agent_to_move, curr_location, next_location, curr_time, move_time)
+
+    def calc_wait_time(self, agent_to_move):
+        """
+        Calculates how much time the given agent has been waiting at its goal state.
+        :param agent_to_move:
+        :return: Number of waiting time steps.
+        """
+        curr_node = self
+        goal_node = self.goals[agent_to_move]
+        wait_time = 0
+        while curr_node.prev_op and curr_node.curr_positions[agent_to_move]['location'] == goal_node:
+            if curr_node.prev_op.agent != agent_to_move:
+                curr_node = curr_node.prev_node
+                continue
+
+            if curr_node.prev_op and curr_node.prev_op.edge == (goal_node, goal_node):
+                wait_time += 1
+
+            curr_node = curr_node.prev_node
+
+        return wait_time
+
+    def create_stay_still_op(self, agent_to_move, curr_location, curr_time):
+        """
+        Creates an operation for staying still. This function is needed, since if an agent is staying at its goal, we
+        consider the cost to be 0. This is the case in most maps, where the agent reaches the goal before other agents
+        and the cost shouldn't increase. HOWEVER, if the agent DOES move later, the cumulative cost is added.
+        :param agent_to_move: The agent that will stay still
+        :param curr_location: The current location
+        :param curr_time: Current time.
+        :return: An appropriate operator
+        """
+
+        return Operation(agent_to_move, curr_location, curr_location, curr_time, (STAY_STILL_COST, STAY_STILL_COST))
+
+    def calc_solution(self, start_positions, sic):
 
         curr_node = self
         paths = {}
         for agent in self.curr_positions:
             paths[agent] = []
-        while curr_node:
+        while curr_node.prev_op:
             vertex = curr_node.prev_op.edge[1]
             agent = curr_node.prev_op.agent
             agent_time = curr_node.curr_positions[agent]['time']
@@ -77,16 +161,48 @@ class ODState:
 
             curr_node = curr_node.prev_node
 
-        return paths, self.g_val
+        for agent, start in start_positions.items():
+            paths[agent].insert(0, (start, (0, 0)))
 
-    def get_next_agent(self):
+        sol_cost = self.comp_sol_cost(paths, sic)
+        return paths, sol_cost
+
+    def comp_sol_cost(self, paths, sic):
         """
-        :return: The next agent that needs to move.
+        Computes final solution cost according to the sic heuristic.
         """
-        if self.prev_op:
-            return (self.prev_op.agent % len(self.curr_positions)) + 1
+        if sic:
+            return self.g_val
         else:
-            return 1
+            total_min_cost = 0
+            total_max_cost = 0
+            for agent, path in paths.items():
+                agent_cost = self.compute_path_cost(self.goals[agent], path)
+                total_min_cost += agent_cost[0]
+                total_max_cost += agent_cost[1]
+
+            return total_min_cost, total_max_cost
+
+    @staticmethod
+    def compute_path_cost(goal, path):
+        """
+        Computes the cost of a single path. Necessary for when an agent just stays at same location in the end.
+        Basically subtract 1 from the time of the path for every time step the agent just waited at the goal.
+        :param goal: The agent's goal.
+        :param path: Some agents' path.
+        :return: The minimum and maximum cost of the path.
+        """
+
+        path_min_cost = path[-1][1][0]
+        path_max_cost = path[-1][1][1]
+        for i in reversed(range(len(path)-1)):
+            if path[i][0] != goal:
+                break
+
+            path_min_cost -= 1
+            path_max_cost -= 1
+
+        return path_min_cost, path_max_cost
 
     def legal_move(self, new_op):
         """
@@ -117,25 +233,22 @@ class ODState:
             if last_op and curr_node.creates_edge_conflict(last_op, new_op):
                 return False
 
-            if last_op and new_op.time[1] < last_op.time[0]:
+            if last_op and last_op.time[1] < new_op.time[0]:
                 safe_agents.add(last_op.agent)
                 if len(safe_agents) == len(self.curr_positions):
                     return True
-            else:
-                curr_node = curr_node.prev_node
+            curr_node = curr_node.prev_node
 
         return True
 
     def creates_edge_conflict(self, curr_op, new_op):
         """
-
         :param curr_op: The current operation, that was already done
         :param new_op: The new operation that is being validated
         :return: True if it creates an edge conflict, otherwise false
         """
         for agent, position in self.curr_positions.items():
-            if agent != new_op.agent and \
-                    self.overlapping(new_op.time, self.prev_op.time) and \
+            if agent != new_op.agent and self.overlapping(new_op.time, self.prev_op.time) and \
                     new_op.normalize_edge() == curr_op.normalize_edge():
                 return True
         return False
@@ -172,28 +285,54 @@ class ODState:
 
         return False
 
+    def get_next_agent(self, min_time_policy):
+        """
+        :return: The next agent that needs to move.
+        """
+        if min_time_policy:
+            earliest_agent = 1
+            min_time = math.inf
+            for agent, position in self.curr_positions.items():
+                if position['time'][0] < min_time:
+                    min_time = position['time'][0]
+                    earliest_agent = agent
+
+            return earliest_agent
+        else:
+            if self.prev_op:
+                return (self.prev_op.agent % len(self.curr_positions)) + 1
+            else:
+                return 1
+
     @staticmethod
     def calc_heuristic(curr_positions, goals, grid_map):
 
         heuristic_sum = 0
 
-        for agent, state in goals.items():
-            heuristic_sum += grid_map.calc_heuristic(curr_positions[agent]['location'], state)
+        for agent, goal in goals.items():
+            heuristic_sum += grid_map.calc_heuristic(curr_positions[agent]['location'], goal)
 
         return heuristic_sum
 
     def create_tuple(self):
         """
         Converts the node to a tuple that can be used as a key in a dictionary. The key consists of a tuple for every
-        agent and its location. For example if agent a is at location (x,y) and agent b is at location (v,t), the key
-        would be ( (a,(x,y), (b,(v,t) )
+        agent and its location + time. For example if agent a is at location (x,y) at time (t1,t2) and agent b is at
+        location (v,t) at time (t3, t4), the key would be ( (a,(x,y), (t1, t2)), (b,(v,t), (t3, t4)).
+        We also add the last agent that moved, 0 for root node.
+        -- This is mainly important for nodes where an agent stays still and then doesn't --
         :return: A tuple representing the state.
         """
         key_tuple = ()
         for agent, position in self.curr_positions.items():
-            key_tuple = key_tuple + (agent, position['location'])
+            key_tuple = key_tuple + (agent, position['location'], position['time'])
 
         return key_tuple
+
+        if self.prev_op:
+            return key_tuple + (self.prev_op.agent, )
+        else:
+            return key_tuple + (0, )
 
     def copy_and_update_positions(self, agent_to_move, op):
         """
@@ -212,9 +351,9 @@ class ODState:
 
         return new_positions
 
-    def compute_successor_g_val(self, edge_tuple, sic=True):
-        if sic:
-            return self.g_val[0] + edge_tuple[1][0], self.g_val[1] + edge_tuple[1][1]
+    def compute_successor_g_val(self, move_cost, sic=True):
+        if sic:  # Simply add the cost of moving to the current g value.
+            return self.g_val[0] + move_cost[0], self.g_val[1] + move_cost[1]
         else:
             max_time = -1
             max_min_time = -1

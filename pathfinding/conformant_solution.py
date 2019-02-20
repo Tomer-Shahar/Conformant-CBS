@@ -15,6 +15,7 @@ class ConformantSolution:
         self.length = math.inf
         self.paths = {}
         self.tuple_solution = None
+        self.nodes_expanded = 0
 
     def copy_solution(self, other_sol):
 

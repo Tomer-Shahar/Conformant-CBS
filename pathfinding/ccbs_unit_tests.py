@@ -71,20 +71,14 @@ class TestMapReader(unittest.TestCase):
     def test_edge_weights(self):
         """Tests if the weights of the edges are in the range given."""
 
-        min_a = random.randint(1, 3)
-        min_b = random.randint(4, 6)
-        min_range = min_a, min_b
+        uncertainty = random.randint(0, 10)
 
-        max_a = random.randint(7, 10)
-        max_b = random.randint(11, 15)
-        max_range = max_a, max_b
-
-        self.conf_problem.generate_edges_and_weights(min_range, max_range)
+        self.conf_problem.generate_edges_and_weights(uncertainty)
 
         for vertex, edgeList in self.conf_problem.edges_and_weights.items():
             for edge in edgeList:
-                self.assertTrue(min_a <= edge[1][0] <= min_b)
-                self.assertTrue(max_a <= edge[1][1] <= max_b)
+                self.assertTrue(1 <= edge[1][0] <= edge[1][1])
+                self.assertTrue(edge[1][0] <= edge[1][1] <= 1+uncertainty)
 
     def test_agent_generation(self):
         """Tests that the generate_agents function works properly"""
@@ -160,6 +154,32 @@ class TestMapReader(unittest.TestCase):
         self.assertTrue(table[(2, 0)][(2, 1)] == 1)
         self.assertTrue(table[(2, 0)][(2, 2)] == 2)
         self.assertTrue(table[(2, 0)][(2, 3)] == 3)
+
+    def test_edge_weight_generation(self):
+        """
+        Tests that the function that generates edge weights always produces the same weight for edge (u,v) as edge
+        (v,u).
+        """
+        blank_map = ConformantProblem()
+        blank_map.map = [[0 for i in range(50)] for j in range(50)]
+        blank_map.width = 20
+        blank_map.height = 20
+        blank_map.generate_edges_and_weights(uncertainty=10)
+
+        edge_weights_dict = {}
+        for vertex, edges in blank_map.edges_and_weights.items():
+            for next_vertex in edges:
+                next_node = next_vertex[0]
+                edge_weight = next_vertex[1]
+                normal_edge = self.normalize_edge(vertex, next_node)
+                if normal_edge in edge_weights_dict:
+                    self.assertEqual(edge_weights_dict[normal_edge], edge_weight)
+                else:
+                    edge_weights_dict[normal_edge] = edge_weight
+
+    @staticmethod
+    def normalize_edge(start, end):
+        return min(start, end), max(start, end)
 
 
 class TestConformantSolution(unittest.TestCase):
@@ -263,10 +283,10 @@ class TestLowLevelSolver(unittest.TestCase):
         large_map.start_positions = {1: start_goal}
         large_map.goal_positions = {1: start_goal}
         solver = ConstraintAstar(large_map)
-        con_time = 100
+        con_time = 30
         goal_con = {(1, start_goal, con_time)}
         large_map.fill_heuristic_table()
-        time_lim = 5
+        time_lim = 10
         plan = solver.compute_agent_path(goal_con, 1, start_goal, start_goal, set(), time_limit=time_lim)
 
         self.assertEqual(plan[2], (con_time+1, con_time+1))
@@ -395,6 +415,75 @@ class TestCcbsPlanner(unittest.TestCase):
         self.assertEqual(solution.cost, (39, 39))
         self.assertEqual(solution.length, 21)
 
+    def test_more_complex_4_connected_map(self):
+        complex_conf_prob = ConformantProblem()
+        complex_conf_prob.edges_and_weights = {
+            (0, 0): [((0, 1), (3, 5))],
+            (0, 1): [((0, 0), (3, 5)), ((0, 2), (1, 3)), ((1, 1), (1, 2))],
+            (0, 2): [((0, 1), (1, 3))],
+            (1, 1): [((0, 1), (1, 2)), ((2, 1), (1, 2))],
+            (2, 0): [((2, 1), (2, 4))],
+            (2, 1): [((2, 0), (2, 4)), ((2, 2), (1, 5)), ((1, 1), (1, 2))],
+            (2, 2): [((2, 1), (1, 5))]
+        }
+        complex_conf_prob.start_positions[1] = (0, 0)
+        complex_conf_prob.start_positions[2] = (0, 2)
+        complex_conf_prob.goal_positions[1] = (2, 1)
+        complex_conf_prob.goal_positions[2] = (1, 1)
+        complex_conf_prob.fill_heuristic_table()
+
+        ccbs_planner = ConformantCbsPlanner(complex_conf_prob)
+        solution = ccbs_planner.find_solution(min_best_case=True, time_limit=10, sum_of_costs=True)
+        self.assertEqual(solution.cost, (13, 20))
+
+    def test_blank_map(self):
+        seed = 12345678
+        random.seed(seed)
+        map_file = '../maps/small_blank_map.map'
+        blank_problem = ConformantProblem(map_file)
+        blank_problem.generate_problem_instance(1)
+        seed = 2025421785
+        random.seed(seed)
+        blank_problem.generate_agents(2)
+        blank_problem.fill_heuristic_table()
+        ccbs_solver = ConformantCbsPlanner(blank_problem)
+        sol = ccbs_solver.find_solution(True, 1000, True)
+        self.assertEqual(sol.cost, (16, 24))
+
+        seed = 12345678
+        random.seed(seed)
+        blank_problem.generate_problem_instance(uncertainty=2)
+        seed = 1432200775
+        random.seed(seed)
+        blank_problem.generate_agents(agent_num=3)
+        blank_problem.fill_heuristic_table()
+
+        ccbs_solver = ConformantCbsPlanner(blank_problem)
+        sol = ccbs_solver.find_solution(True, 1000, True)
+        self.assertEqual(sol.cost, (33, 42))
+
+    def test_edge_conflict_detection(self):
+
+        edge_example = ConformantProblem()
+        edge_example.edges_and_weights = {
+            (0, 0): [((0, 1), (5, 5))],
+            (0, 1): [((0, 0), (5, 5)), ((0, 2), (3, 3))],
+            (0, 2): [((0, 1), (3, 3)), ((0, 3), (7, 7)), ((1, 2), (5, 5))],
+            (0, 3): [((0, 2), (7, 7))],
+            (1, 2): [((0, 2), (5, 5))]
+        }
+
+        edge_example.start_positions[1] = (0, 0)
+        edge_example.start_positions[2] = (0, 3)
+        edge_example.goal_positions[1] = (0, 3)
+        edge_example.goal_positions[2] = (0, 0)
+
+        edge_example.fill_heuristic_table()
+        solver = ConformantCbsPlanner(edge_example)
+
+        sol = solver.find_solution(time_limit=20000)
+
+        self.assertEqual(sol.cost, (40, 40))
 
 class TestODAPlanner(unittest.TestCase):
     """
@@ -407,7 +496,7 @@ class TestODAPlanner(unittest.TestCase):
         for x in range(1, 18):
             for y in range(1, 2):
                 self.conf_problem.map[x][y] = 1
-        self.conf_problem.width = 20
+        self.conf_problem.width = 3
         self.conf_problem.height = 20
         self.conf_problem.generate_edges_and_weights()
 
@@ -418,9 +507,9 @@ class TestODAPlanner(unittest.TestCase):
         self.mini_conf_problem.height = 2
         self.mini_conf_problem.edges_and_weights = {
             (0, 0): [((0, 1), (1, 1)), ((1, 0), (1, 1))],
-            (0, 1): [((0, 0), (1, 1)), ((1, 1), (1, 1))],
-            (1, 0): [((0, 0), (1, 1)), ((1, 1), (1, 1))],
-            (1, 1): [((1, 0), (1, 1)), ((0, 1), (1, 1))]}
+            (0, 1): [((0, 0), (1, 1)), ((1, 1), (3, 3))],
+            (1, 0): [((0, 0), (1, 1)), ((1, 1), (3, 3))],
+            (1, 1): [((1, 0), (3, 3)), ((0, 1), (3, 3))]}
 
     def tearDown(self):
         pass
@@ -431,28 +520,100 @@ class TestODAPlanner(unittest.TestCase):
 
         self.mini_conf_problem.start_positions[1] = (0, 0)
         self.mini_conf_problem.start_positions[2] = (0, 1)
+        self.mini_conf_problem.start_positions[3] = (1, 1)
         self.mini_conf_problem.goal_positions[1] = (1, 1)
         self.mini_conf_problem.goal_positions[2] = (1, 0)
+        self.mini_conf_problem.goal_positions[3] = (0, 0)
         self.mini_conf_problem.fill_heuristic_table()
 
-        solution = self.path_finder.create_solution(time_limit=300, objective='min_best_case', sic=True)
-        self.assertEqual(solution[1], 4)
+        solution = self.path_finder.create_solution(time_limit=1, objective='min_best_case', sic=True)
+        self.assertEqual(solution[1], (10, 10))
 
         """ Tests a simple 20x20 map with 2 agents and non-weighted edges"""
         self.path_finder = ODAStar(self.conf_problem)
-        self.conf_problem.generate_edges_and_weights()
         self.conf_problem.start_positions[1] = (0, 0)
         self.conf_problem.start_positions[2] = (17, 0)
         self.conf_problem.goal_positions[1] = (19, 0)
         self.conf_problem.goal_positions[2] = (17, 0)
         self.conf_problem.fill_heuristic_table()
 
-        solution = self.path_finder.create_solution(time_limit=300, objective='min_best_case', sic=True)
-        self.assertEqual(solution.cost, (23, 23))  # Only agent 1 moves
-        self.assertEqual(solution.length, 24)
+        solution = self.path_finder.create_solution(time_limit=5, objective='min_best_case', sic=True)
+        self.assertEqual(solution[1], (23, 23))  # Only agent 1 moves
+        # self.assertEqual(solution.length, 24)
 
-        solution = self.path_finder.create_solution(time_limit=300, objective='min_worse_case', sic=False)
-        self.assertEqual(solution.cost, (20, 20))  # Both agents move simultaneously
-        solution.compute_solution_cost(sum_of_costs=True)
-        self.assertEqual(solution.cost, (39, 39))
-        self.assertEqual(solution.length, 21)
+        solution = self.path_finder.create_solution(time_limit=5, objective='min_best_case', sic=False)
+        self.assertEqual(solution[1], (39, 39))  # Both agents move simultaneously
+
+    def test_more_complex_4_connected_map(self):
+        complex_conf_prob = ConformantProblem()
+        complex_conf_prob.edges_and_weights = {
+            (0, 0): [((0, 1), (3, 5))],
+            (0, 1): [((0, 0), (3, 5)), ((0, 2), (1, 3)), ((1, 1), (1, 2))],
+            (0, 2): [((0, 1), (1, 3))],
+            (1, 1): [((0, 1), (1, 2)), ((2, 1), (1, 2))],
+            (2, 0): [((2, 1), (2, 4))],
+            (2, 1): [((2, 0), (2, 4)), ((2, 2), (1, 5)), ((1, 1), (1, 2))],
+            (2, 2): [((2, 1), (1, 5))]
+        }
+        complex_conf_prob.start_positions[1] = (0, 0)
+        complex_conf_prob.start_positions[2] = (0, 2)
+        complex_conf_prob.goal_positions[1] = (2, 1)
+        complex_conf_prob.goal_positions[2] = (1, 1)
+        complex_conf_prob.fill_heuristic_table()
+
+        self.path_finder = ODAStar(complex_conf_prob)
+        solution = self.path_finder.create_solution(time_limit=10000, objective='min_best_case', sic=True)
+        self.assertEqual(solution[1], (13, 20))
+
+    def test_collision_detection(self):
+
+        t_map = ConformantProblem()
+        t_map.edges_and_weights = {
+            (0, 0): [((0, 1), (10, 10))],
+            (0, 1): [((0, 0), (10, 10)), ((0, 2), (1, 1)), ((1, 1), (20, 20))],
+            (0, 2): [((0, 1), (1, 1))],
+            (1, 1): [((0, 1), (20, 20))]
+        }
+
+        t_map.start_positions[1] = (0, 0)
+        t_map.start_positions[2] = (0, 1)
+        t_map.goal_positions[1] = (0, 2)
+        t_map.goal_positions[2] = (0, 1)
+
+        t_map.fill_heuristic_table()
+        oda_solver = ODAStar(t_map)
+        sol = oda_solver.create_solution(500000, min_time_policy=False)
+
+        self.assertEqual(sol[1], (51, 51))
+
+    def test_blank_map(self):
+        seed = 12345678
+        random.seed(seed)
+        map_file = '../maps/small_blank_map.map'
+        blank_problem = ConformantProblem(map_file)
+        blank_problem.generate_problem_instance(1)
+        seed = 2025421785
+        random.seed(seed)
+        blank_problem.generate_agents(2)
+        blank_problem.fill_heuristic_table()
+        oda_star_solver = ODAStar(blank_problem)
+        sol = oda_star_solver.create_solution(5, min_time_policy=False)  # Serial mode
+        self.assertEqual(sol[1], (16, 24))
+
+        sol = oda_star_solver.create_solution(5, min_time_policy=True)  # Queue mode
+        self.assertEqual(sol[1], (16, 24))
+
+        seed = 12345678
+        random.seed(seed)
+        blank_problem.generate_problem_instance(uncertainty=2)
+        seed = 1432200775
+        random.seed(seed)
+        blank_problem.generate_agents(agent_num=3)
+        blank_problem.fill_heuristic_table()
+
+        oda_star_solver = ODAStar(blank_problem)
+        serial_sol = oda_star_solver.create_solution(time_limit=1000000, min_time_policy=False)  # Serial mode
+        self.assertEqual(serial_sol[1], (33, 42))
+
+        queue_sol = oda_star_solver.create_solution(time_limit=1000000, min_time_policy=True)  # Queue mode
+        self.assertEqual(queue_sol[1], (33, 42))

@@ -1,8 +1,9 @@
-import random
 from pathfinding.constraint_A_star import ConstraintAstar
 from pathfinding.maze import Maze
+import random
 import math
-
+import os
+import copy
 
 """
     Rudimentary class that converts a ccbsMap text file into a proper object that can be used by the solver.
@@ -26,6 +27,7 @@ class ConformantProblem:
         self.heuristic_table = None
         self.width = -1
         self.height = -1
+        self.is_maze = False
         if map_file_path:
             self.map_file_path = map_file_path
             with open(self.map_file_path) as map_text:
@@ -35,24 +37,24 @@ class ConformantProblem:
                     self.__extract_map(map_text)  # extract ccbs map
 
     @staticmethod
-    def generate_rectangle_map(height, width, min_time_range=(1, 1), max_time_range=(1, 1),
-                               agent_num=2, is_eight_connected=False):
+    def generate_rectangle_map(height, width, uncertainty=0, is_eight_connected=False):
         """
-        Generates a map according to the given input. Returns a ccbsMap object
+        Generates a map according to the given input. Returns a ccbsMap object. Agents are to be generated later
+        when user decides.
         """
         new_map = ConformantProblem()
 
-        solvable = False
-        while not solvable:
-            new_map.map = ConformantProblem.__generate_map(height, width)
-            new_map.width = len(new_map.map[0])
-            new_map.height = len(new_map.map)
-            new_map.generate_edges_and_weights(min_time_range, max_time_range, is_eight_connected)
-            new_map.generate_agents(agent_num)
-            solver = ConstraintAstar(new_map)
-            solvable = solver.trivial_solution(new_map.start_positions, new_map.goal_positions)
-        new_map.fill_heuristic_table()
+        new_map.map = ConformantProblem.__generate_map(height, width)
+        new_map.width = len(new_map.map[0])
+        new_map.height = len(new_map.map)
+        new_map.generate_edges_and_weights(uncertainty, is_eight_connected)
+        new_map.is_maze = True
+
         return new_map
+
+    def generate_maze_agents(self, agent_num=2):
+
+        self.assign_start_and_goal_positions(agent_num)
 
     @staticmethod
     def __generate_map(height, width):
@@ -62,10 +64,9 @@ class ConformantProblem:
     """
     The main function, adds to the ccbs problem the agents, vertices/edges and the weights.
     """
-    def generate_problem_instance(self, agent_num=2, min_time_range=(1, 1), max_time_range=(1, 1), eight_connected=False):
+    def generate_problem_instance(self, uncertainty=0, eight_connected=False):
         if self.map_file_path[-4:] == ".map":  # It's a moving-ai map
-            self.generate_edges_and_weights(min_time_range, max_time_range, eight_connected)
-            self.generate_agents(agent_num)
+            self.generate_edges_and_weights(uncertainty, eight_connected)
         else:
             with open(self.map_file_path) as map_text:
                 self.__extract_weights_and_time(map_text)  # extract edges, weights and traversal time
@@ -166,7 +167,7 @@ class ConformantProblem:
         else:  # Useful for the first run (find trivial solution)
             return abs(start_pos[0] - goal_pos[0]) + abs(start_pos[1] - goal_pos[1])
 
-    def generate_edges_and_weights(self, min_time_range=(1, 1), max_time_range=(1, 1), is_eight_connected=False):
+    def generate_edges_and_weights(self, uncertainty=0, is_eight_connected=False):
         """
         With a given map, generates all the edges and assigns semi-random time ranges.
 
@@ -195,33 +196,61 @@ class ConformantProblem:
                             if row + i < 0 or row + i == self.height or col + j < 0 or col + j == self.width:
                                 continue
                             if self.map[row + i][col + j] == 0:
-                                edge = self.__generate_edge((row, col), i, j, min_time_range, max_time_range)
+                                edge = self.__generate_edge((row, col), i, j, uncertainty)
                                 self.edges_and_weights[curr_node].append(edge)
                 else:  # 4-connected
                     if row > 0 and self.map[row - 1][col] == 0:  # moving up
-                        edge = self.__generate_edge((row, col), -1, 0, min_time_range, max_time_range)
-                        self.edges_and_weights[curr_node].append(edge)
+                        self.generate_and_append_new_edge(curr_node, (-1, 0), uncertainty)
                     if col > 0 and self.map[row][col - 1] == 0:  # moving left
-                        edge = self.__generate_edge((row, col), 0, -1, min_time_range, max_time_range)
-                        self.edges_and_weights[curr_node].append(edge)
+                        self.generate_and_append_new_edge(curr_node, (0, -1), uncertainty)
                     if col < self.width - 1 and self.map[row][col + 1] == 0:  # moving right
-                        edge = self.__generate_edge((row, col), 0, 1, min_time_range, max_time_range)
-                        self.edges_and_weights[curr_node].append(edge)
+                        self.generate_and_append_new_edge(curr_node, (0, 1), uncertainty)
                     if row < self.height - 1 and self.map[row + 1][col] == 0:  # moving down
-                        edge = self.__generate_edge((row, col), 1, 0, min_time_range, max_time_range)
-                        self.edges_and_weights[curr_node].append(edge)
+                        self.generate_and_append_new_edge(curr_node, (1, 0), uncertainty)
+
+    def generate_and_append_new_edge(self, curr_vertex, offset, uncertainty):
+        """
+        Generates a new edge based on the current node and the desired offset. Won't generate a new edge that already
+        exists in order to maintain the same edge weights between directions.
+        :param curr_vertex: The base coordinate to work with
+        :param offset: The difference in x and y coordinates
+        :param uncertainty: The desired uncertainty of the edge's weight.
+        :return: Appends the new edge to the edges dictionary.
+        """
+        next_vertex = (curr_vertex[0] + offset[0], curr_vertex[1] + offset[1])  # 6,5
+        if next_vertex in self.edges_and_weights:
+            for next_vertices in self.edges_and_weights[next_vertex]:
+                if next_vertices[0] == curr_vertex:
+                    edge = (next_vertex, next_vertices[1])
+        else:
+            edge = self.__generate_edge(curr_vertex, offset[0], offset[1], uncertainty)
+        self.edges_and_weights[curr_vertex].append(edge)
 
     @staticmethod
-    def __generate_edge(coordinate, i, j, min_time_range, max_time_range):
-
-        min_time = random.randint(min_time_range[0], min_time_range[1])
-        max_time = random.randint(max_time_range[0], max_time_range[1])
+    def __generate_edge(coordinate, i, j, uncertainty):
+        """
+        Receives the uncertainty parameter and creates an edge with the appropriate weight. The minimum weight of any
+        edge is between 1 to 1 + uncertainty, and the maximum is between the minimum weight and 1 + uncertainty.
+        :param coordinate: The coordinate of the vertex
+        :param i: The difference in x coordinate of the vertex the edge is being extended to
+        :param j: The difference in y coordinate of the vertex the edge is being extended to
+        :param uncertainty: The level of uncertainty in the edge weight.
+        :return: The newly formed edge.
+        """
+        min_time = random.randint(1, 1 + uncertainty)
+        max_time = random.randint(min_time, 1 + uncertainty)
         node = (coordinate[0] + i, coordinate[1] + j)
         edge = (node, (min_time, max_time))
 
         return edge
 
     def generate_agents(self, agent_num):
+        if self.is_maze:
+            self.generate_maze_agents(agent_num)
+        else:
+            self.assign_start_and_goal_positions(agent_num)
+
+    def assign_start_and_goal_positions(self, agent_num):
         """
         generates a number of agents with random start and goal positions. Agents are guaranteed to not have the same
         start and goal positions.
@@ -250,7 +279,6 @@ class ConformantProblem:
 
             self.goal_positions[agent_id] = (x, y)
             goal_set.add((x, y))
-
     def __extract_moving_ai_map(self, map_text):
         """
         Parses a moving AI map.
@@ -283,3 +311,27 @@ class ConformantProblem:
         for agent, goal in self.goal_positions.items():
             solution = solver.dijkstra_solution(goal)
             self.heuristic_table[goal] = solution
+
+    def print_map(self):
+        if os.name == 'nt':
+            print('The map being run:')
+            grid = copy.deepcopy(self.map)
+
+            for agent, position in self.start_positions.items():
+                grid[position[0]][position[1]] = chr(ord('A') - 1 + agent) + ' '
+
+            for agent, position in self.goal_positions.items():
+                grid[position[0]][position[1]] = str(agent) + ' '
+
+            for row in grid:
+                for cell in row:
+                    if cell == 1:
+                        print("■ ", end="")
+                    elif cell == 0:
+                        print("□ ", end="")
+                    else:
+                        print(cell, end="")
+                print("")
+            print("--------------------------------------------")
+        else:
+            pass

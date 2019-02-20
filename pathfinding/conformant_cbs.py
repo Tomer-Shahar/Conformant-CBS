@@ -66,7 +66,6 @@ class ConformantCbsPlanner:
         self.map = conformed_problem.map
         self.edges_and_weights = conformed_problem.edges_and_weights
         self.paths = {}
-        self.closed = {}
         self.startPositions = conformed_problem.start_positions
         self.goalPositions = conformed_problem.goal_positions
         self.start_time = 0
@@ -91,8 +90,8 @@ class ConformantCbsPlanner:
         if not root.solution:
             return None
         root.solution.compute_solution_cost()
-        print("Root solution found. Cost is between "+str(root.solution.cost[0]) + " and " + str(root.solution.cost[1]))
-        print("Number of initial conflicts: " + str(len(root.open_conflicts)))
+        #print("Root solution found. Cost is between "+str(root.solution.cost[0]) + " and " + str(root.solution.cost[1]))
+        #print("Number of initial conflicts: " + str(len(root.open_conflicts)))
 
         open_nodes = [root]  # initialize the list with root
         nodes_expanded = 0
@@ -104,13 +103,12 @@ class ConformantCbsPlanner:
             best_node = self.__get_best_node(open_nodes)
             self.__insert_into_closed_list(closed_nodes, best_node)
             nodes_expanded += 1
-            if nodes_expanded % 50 == 0 and nodes_expanded > 1:
-                print("Constraint nodes expanded: " + str(nodes_expanded))
             new_constraints = self.__validate_solution(best_node)
 
             if not new_constraints:  # Meaning that new_constraints is null, i.e there are no new constraints. Solved!
-                print("Solution found - nodes expanded: " + str(nodes_expanded))
+                #print("Solution found - nodes expanded: " + str(nodes_expanded))
                 best_node.solution.compute_solution_cost(sum_of_costs)
+                best_node.solution.nodes_expanded = nodes_expanded
                 return best_node.solution
 
             for new_con_set in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
@@ -118,12 +116,13 @@ class ConformantCbsPlanner:
                 if new_node.constraints in closed_nodes:
                     continue
                 agent = next(iter(new_con_set))[0]  # Ugly line to extract agent index.
+                time_passed = time.time()-self.start_time
                 agent, new_plan, cost = self.planner.compute_agent_path(
                     new_node.constraints, agent,
                     self.startPositions[agent],
                     self.goalPositions[agent],
                     new_node.open_conflicts,
-                    min_best_case, time_limit=5)  # compute the path for a single agent.
+                    min_best_case, time_limit=time_limit-time_passed)  # compute the path for a single agent.
                 new_node.solution.paths[agent] = ConformantPlan(agent, new_plan, cost)
                 new_node.solution.compute_solution_cost(sum_of_costs)  # compute the cost
 
@@ -301,7 +300,7 @@ class ConformantCbsPlanner:
             else:  # No solution for a particular agent
                 print("No solution for agent number " + str(agent_id))
                 return None
-        print("Found path for all agents")
+        #print("Found path for all agents")
         self.__validate_solution(root)
 
     @staticmethod
