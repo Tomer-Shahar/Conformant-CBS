@@ -30,10 +30,10 @@ class Experiments:
 
         # self.run_large_open_map(rep_num)
 
-        self.run_corridor_map(rep_num, num_of_agents)
-        self.run_maze_map(rep_num, num_of_agents)
+        #self.run_corridor_map(rep_num, num_of_agents)
+        #self.run_maze_map(rep_num, num_of_agents)
         self.run_circular_map(rep_num, num_of_agents)
-        #self.run_blank_map(rep_num, num_of_agents)
+        self.run_blank_map(rep_num, num_of_agents)
 
     def run_blank_map(self, rep_num, agent_num):
         results_file = self.file_prefix + 'small_open_map_results.csv'
@@ -215,64 +215,7 @@ class Experiments:
 
 exp = Experiments('.\\..\\experiments')
 for uncertainty_val in range(0, 10, 1):
-    for num_of_agents in range(6, 30, 2):
+    for num_of_agents in range(15, 30, 2):
         exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=300, rep_num=30)
 
 print("Finished Experiments")
-
-
-"""
-def run_and_log_incremental_agent_experiment(self, map_file, results_file, size=12):
-    with open(os.path.join(self.output_folder, results_file), 'w+') as map_result_file:
-        map_result_file.write(
-            'Experiment Number,Number of Agents,Uncertainty,Timeout,CBS Time,ODA Serial Time,ODA Queue Time, Seed\n')
-    for i in range(2, self.max_agents_num + 1):
-        print(f'Started Experiment #{i - 1}, with {i} agents')
-        seed = random.randrange(sys.maxsize)
-        random.seed(seed)
-        if map_file:  # moving-ai map
-            conf_problem = ConformantProblem(map_file)
-            conf_problem.generate_problem_instance(i, self.uncertainty)
-            conf_problem.generate_agents(i)
-        else:  # regular maze map
-            conf_problem = ConformantProblem.generate_rectangle_map(size, size, self.uncertainty)
-            conf_problem.generate_maze_agents(i)
-
-        conf_problem.fill_heuristic_table()
-        ccbs_planner = ConformantCbsPlanner(conf_problem)
-        oda_planner = ODAStar(conf_problem)
-        ccbs_sol = None
-        oda_star_serial_sol = None
-        oda_star_queue_sol = None
-
-        try:
-            start_time = time.time()
-            ccbs_sol = ccbs_planner.find_solution(min_best_case=True, time_limit=self.time_limit, sum_of_costs=True)
-            ccbs_time = time.time() - start_time
-        except OutOfTimeError:
-            ccbs_time = -1
-
-        try:
-            start_time = time.time()
-            oda_star_serial_sol = oda_planner.create_solution(self.time_limit, objective='min_best_case', sic=True,
-                                                              min_time_policy=False)
-            oda_serial_time = time.time() - start_time
-        except OutOfTimeError:
-            oda_serial_time = -1
-
-  
-try:
-    start_time = time.time()
-    oda_star_queue_sol = oda_planner.create_solution(self.time_limit, objective='min_best_case', sic=True,
-                                                     min_time_policy=True)
-    oda_queue_time = time.time() - start_time
-except OutOfTimeError:
-    oda_queue_time = -1
-
-if ccbs_sol and oda_star_queue_sol and ccbs_sol.cost != oda_star_queue_sol[1]:
-    raise RuntimeError
-else:
-    with open(os.path.join(self.output_folder, results_file), 'a') as map_result_file:
-        results = f'{i - 1},{i},{self.uncertainty},{self.time_limit},{ccbs_time},{oda_serial_time}, {seed}\n'
-        map_result_file.write(results)
-"""
