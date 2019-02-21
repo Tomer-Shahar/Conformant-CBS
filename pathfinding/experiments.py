@@ -103,7 +103,7 @@ class Experiments:
         ccbs_cost = [0, 0]
         oda_queue_cost = [0, 0]
 
-        for i in range(0, rep_num):
+        for i in range(rep_num):
             agent_seed = random.randrange(sys.maxsize)
             random.seed(agent_seed)
             conf_problem.generate_agents(agent_num)
@@ -217,9 +217,8 @@ if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
 elif os.name == 'posix':
     exp = Experiments('./../experiments')
-
-for uncertainty_val in range(4, 5, 1):
-    for num_of_agents in range(10, 15, 5):
-        exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+for uncertainty_val in range(0, 10, 1):
+    for num_of_agents in range(15, 30, 2):
+        exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=300, rep_num=30)
 
 print("Finished Experiments")
