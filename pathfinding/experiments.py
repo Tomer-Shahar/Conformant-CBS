@@ -178,16 +178,17 @@ class Experiments:
                     map_result_file.write(results)
 
         # Write final results.
+        ccbs_cost[0] /= ccbs_success   # We'll only divide by successful runs.
+        ccbs_cost[1] /= ccbs_success
+        oda_queue_cost[0] /= oda_queue_success
+        oda_queue_cost[1] /= oda_queue_success
+
         ccbs_success /= rep_num
         oda_queue_success /= rep_num
 
         ccbs_total_time /= rep_num
         oda_queue_total_time /= rep_num
 
-        ccbs_cost[0] /= rep_num
-        ccbs_cost[1] /= rep_num
-        oda_queue_cost[0] /= rep_num
-        oda_queue_cost[1] /= rep_num
 
         with open(os.path.join(self.output_folder, results_file), 'a') as map_result_file:
             header = '\nAlgorithm, Average Run Time, Success Rate, Average Cost, Ratio \n'
@@ -217,8 +218,8 @@ if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
 elif os.name == 'posix':
     exp = Experiments('./../experiments')
-for uncertainty_val in range(0, 10, 1):
-    for num_of_agents in range(15, 30, 2):
+for uncertainty_val in range(2, 10, 1):
+    for num_of_agents in range(10, 30, 2):
         exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=300, rep_num=30)
 
 print("Finished Experiments")
