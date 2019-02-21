@@ -98,6 +98,8 @@ class ConformantCbsPlanner:
         closed_nodes = set()
         while open_nodes:
             if time.time() - self.start_time > time_limit:
+                print(f'Number of CT nodes expanded: {len(closed_nodes)}')
+                print(f'Number of CT nodes in open: {len(open_nodes)}')
                 raise OutOfTimeError('Ran out of time :-(')
 
             best_node = self.__get_best_node(open_nodes)

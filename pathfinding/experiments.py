@@ -32,8 +32,8 @@ class Experiments:
 
         #self.run_corridor_map(rep_num, num_of_agents)
         #self.run_maze_map(rep_num, num_of_agents)
-        self.run_circular_map(rep_num, num_of_agents)
-        #self.run_blank_map(rep_num, num_of_agents)
+        #self.run_circular_map(rep_num, num_of_agents)
+        self.run_blank_map(rep_num, num_of_agents)
 
     def run_blank_map(self, rep_num, agent_num):
         results_file = self.file_prefix + 'small_open_map_results.csv'
@@ -86,10 +86,10 @@ class Experiments:
         self.run_and_log_same_instance_experiment(circular_map, results_file, agent_num, rep_num, seed)
 
     def run_and_log_same_instance_experiment(self, conf_problem, results_file, agent_num, rep_num, map_seed):
-        #with open(os.path.join(self.output_folder, results_file), 'w+') as map_result_file:
-        #    map_result_file.write('Experiment Number,Map Seed,Number of Agents, Agents Seed, Uncertainty,Timeout,'
-        #                          'CBS Time,ODA Queue Time, CCBS Min Cost, CCBS Max Cost, ODA Min Cost, ODA Max Cost,'
-        #                          ' CCBS nodes expanded, ODA nodes expanded\n')
+        with open(os.path.join(self.output_folder, results_file), 'w+') as map_result_file:
+            map_result_file.write('Experiment Number,Map Seed,Number of Agents, Agents Seed, Uncertainty,Timeout,'
+                                  'CBS Time,ODA Queue Time, CCBS Min Cost, CCBS Max Cost, ODA Min Cost, ODA Max Cost,'
+                                  ' CCBS nodes expanded, ODA nodes expanded\n')
 
         ccbs_total_time = 0
         oda_queue_total_time = 0
@@ -103,7 +103,7 @@ class Experiments:
         ccbs_cost = [0, 0]
         oda_queue_cost = [0, 0]
 
-        for i in range(17, rep_num):
+        for i in range(0, rep_num):
             agent_seed = random.randrange(sys.maxsize)
             random.seed(agent_seed)
             conf_problem.generate_agents(agent_num)
@@ -218,8 +218,8 @@ if os.name == 'nt':
 elif os.name == 'posix':
     exp = Experiments('./../experiments')
 
-for uncertainty_val in range(0, 10, 1):
-    for num_of_agents in range(15, 30, 2):
-        exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=300, rep_num=30)
+for uncertainty_val in range(4, 5, 1):
+    for num_of_agents in range(10, 15, 5):
+        exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
 
 print("Finished Experiments")
