@@ -216,7 +216,7 @@ if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
 else:
     exp = Experiments('./../experiments')
-for uncertainty_val in range(1, 5, 1):
+for uncertainty_val in range(0, 5, 1):
     for num_of_agents in range(10, 30, 5):
         exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
 
