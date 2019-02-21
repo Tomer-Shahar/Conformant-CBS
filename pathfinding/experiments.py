@@ -32,8 +32,8 @@ class Experiments:
 
         #self.run_corridor_map(rep_num, num_of_agents)
         #self.run_maze_map(rep_num, num_of_agents)
-        self.run_circular_map(rep_num, num_of_agents)
-        #self.run_blank_map(rep_num, num_of_agents)
+        #self.run_circular_map(rep_num, num_of_agents)
+        self.run_blank_map(rep_num, num_of_agents)
 
     def run_blank_map(self, rep_num, agent_num):
         results_file = self.file_prefix + 'small_open_map_results.csv'
@@ -216,8 +216,8 @@ if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
 else:
     exp = Experiments('./../experiments')
-for num_of_agents in range(5, 30, 5):
-    for uncertainty_val in range(4, 5, 1):
+for num_of_agents in range(20, 30, 5):
+    for uncertainty_val in range(0, 3, 1):
         exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
 
 print("Finished Experiments")
