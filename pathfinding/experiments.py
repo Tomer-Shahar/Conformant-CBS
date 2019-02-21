@@ -32,8 +32,8 @@ class Experiments:
 
         #self.run_corridor_map(rep_num, num_of_agents)
         #self.run_maze_map(rep_num, num_of_agents)
-        #self.run_circular_map(rep_num, num_of_agents)
-        self.run_blank_map(rep_num, num_of_agents)
+        self.run_circular_map(rep_num, num_of_agents)
+        #self.run_blank_map(rep_num, num_of_agents)
 
     def run_blank_map(self, rep_num, agent_num):
         results_file = self.file_prefix + 'small_open_map_results.csv'
@@ -178,17 +178,19 @@ class Experiments:
                     map_result_file.write(results)
 
         # Write final results.
-        ccbs_cost[0] /= ccbs_success   # We'll only divide by successful runs.
-        ccbs_cost[1] /= ccbs_success
-        oda_queue_cost[0] /= oda_queue_success
-        oda_queue_cost[1] /= oda_queue_success
+        if ccbs_success > 0:
+            ccbs_cost[0] /= ccbs_success   # We'll only divide by successful runs.
+            ccbs_cost[1] /= ccbs_success
+
+        if oda_queue_success > 0:
+            oda_queue_cost[0] /= oda_queue_success
+            oda_queue_cost[1] /= oda_queue_success
 
         ccbs_success /= rep_num
         oda_queue_success /= rep_num
 
         ccbs_total_time /= rep_num
         oda_queue_total_time /= rep_num
-
 
         with open(os.path.join(self.output_folder, results_file), 'a') as map_result_file:
             header = '\nAlgorithm, Average Run Time, Success Rate, Average Cost, Ratio \n'
@@ -218,8 +220,10 @@ if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
 elif os.name == 'posix':
     exp = Experiments('./../experiments')
-for uncertainty_val in range(0, 2, 1):
-    for num_of_agents in range(20, 30, 2):
+for uncertainty_val in range(1, 4, 1):
+    if uncertainty_val == 3:
+        continue
+    for num_of_agents in range(2, 30, 2):
         exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=300, rep_num=30)
 
 print("Finished Experiments")
