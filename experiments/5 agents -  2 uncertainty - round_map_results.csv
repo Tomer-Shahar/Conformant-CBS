@@ -1,0 +1,4 @@
+Experiment Number,Map Seed,Number of Agents, Agents Seed, Uncertainty,Timeout,CBS Time,ODA Queue Time, CCBS Min Cost, CCBS Max Cost, ODA Min Cost, ODA Max Cost, CCBS nodes expanded, ODA nodes expanded
+1,12345678,5, 713890312371775628, 2,60,-1, -1, -1, -1, -1, -1, -1, -1
+2,12345678,5, 5764276925687293313, 2,60,-1, -1, -1, -1, -1, -1, -1, -1
+3,12345678,5, 2332051378970401731, 2,60,-1, -1, -1, -1, -1, -1, -1, -1
