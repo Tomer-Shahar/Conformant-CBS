@@ -220,10 +220,21 @@ if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
 elif os.name == 'posix':
     exp = Experiments('./../experiments')
-for uncertainty_val in range(1, 4, 1):
+for uncertainty_val in range(1, 5, 1):
     if uncertainty_val == 3:
         continue
     for num_of_agents in range(2, 30, 2):
-        exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=300, rep_num=30)
+        pass
+
+exp.run_experiments_on_same_instance(num_of_agents=2, uncertainty=2, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=2, uncertainty=4, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=4, uncertainty=2, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=4, uncertainty=4, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=7, uncertainty=0, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=7, uncertainty=1, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=3, uncertainty=0, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=3, uncertainty=1, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=3, uncertainty=2, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=3, uncertainty=4, time_limit=60, rep_num=30)
 
 print("Finished Experiments")
