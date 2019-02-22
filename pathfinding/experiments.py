@@ -21,20 +21,6 @@ class Experiments:
         self.time_limit = 300
         self.file_prefix = 'default - '
 
-    def run_experiments_on_same_instance(self, num_of_agents, uncertainty, time_limit, rep_num):
-        self.uncertainty = uncertainty
-        self.max_agents_num = num_of_agents
-        self.time_limit = time_limit
-
-        self.file_prefix = f'{num_of_agents} agents -  {self.uncertainty} uncertainty - '
-
-        # self.run_large_open_map(rep_num)
-
-        #self.run_corridor_map(rep_num, num_of_agents)
-        #self.run_maze_map(rep_num, num_of_agents)
-        #self.run_circular_map(rep_num, num_of_agents)
-        self.run_blank_map(rep_num, num_of_agents)
-
     def run_blank_map(self, rep_num, agent_num):
         results_file = self.file_prefix + 'small_open_map_results.csv'
         map_file = '../maps/small_blank_map.map'
@@ -212,12 +198,32 @@ class Experiments:
 
         return ccbs_ratio, oda_queue_ratio
 
+    def run_experiments_on_same_instance(self, num_of_agents, uncertainty, time_limit, rep_num):
+        self.uncertainty = uncertainty
+        self.max_agents_num = num_of_agents
+        self.time_limit = time_limit
+
+        self.file_prefix = f'{num_of_agents} agents -  {self.uncertainty} uncertainty - '
+
+        # self.run_large_open_map(rep_num)
+
+        #self.run_corridor_map(rep_num, num_of_agents)
+        #self.run_maze_map(rep_num, num_of_agents)
+        #self.run_circular_map(rep_num, num_of_agents)
+        self.run_blank_map(rep_num, num_of_agents)
+
 if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
 else:
     exp = Experiments('./../experiments')
-for num_of_agents in range(20, 30, 5):
-    for uncertainty_val in range(0, 3, 1):
-        exp.run_experiments_on_same_instance(num_of_agents=num_of_agents, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+
+    exp.run_experiments_on_same_instance(num_of_agents=4, uncertainty=4, time_limit=60, rep_num=30)
+
+for uncertainty_val in range(1, 5, 1):
+    if uncertainty_val == 3:
+        continue
+    exp.run_experiments_on_same_instance(num_of_agents=9, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+    exp.run_experiments_on_same_instance(num_of_agents=13, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+
 
 print("Finished Experiments")
