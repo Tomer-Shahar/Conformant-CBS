@@ -224,7 +224,9 @@ for uncertainty_val in range(0, 5, 1):
     if uncertainty_val == 3:
         continue
 
-exp.run_experiments_on_same_instance(num_of_agents=17, uncertainty=0, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=5, uncertainty=0, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=4, uncertainty=1, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=7, uncertainty=0, time_limit=60, rep_num=30)
 
 
 print("Finished Experiments")
