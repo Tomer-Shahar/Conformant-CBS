@@ -21,20 +21,6 @@ class Experiments:
         self.time_limit = 300
         self.file_prefix = 'default - '
 
-    def run_experiments_on_same_instance(self, num_of_agents, uncertainty, time_limit, rep_num):
-        self.uncertainty = uncertainty
-        self.max_agents_num = num_of_agents
-        self.time_limit = time_limit
-
-        self.file_prefix = f'{num_of_agents} agents -  {self.uncertainty} uncertainty - '
-
-        # self.run_large_open_map(rep_num)
-
-        #self.run_corridor_map(rep_num, num_of_agents)
-        #self.run_maze_map(rep_num, num_of_agents)
-        self.run_circular_map(rep_num, num_of_agents)
-        #self.run_blank_map(rep_num, num_of_agents)
-
     def run_blank_map(self, rep_num, agent_num):
         results_file = self.file_prefix + 'small_open_map_results.csv'
         map_file = '../maps/small_blank_map.map'
@@ -86,7 +72,7 @@ class Experiments:
         self.run_and_log_same_instance_experiment(circular_map, results_file, agent_num, rep_num, seed)
 
     def run_and_log_same_instance_experiment(self, conf_problem, results_file, agent_num, rep_num, map_seed):
-        with open(os.path.join(self.output_folder, results_file), 'w+') as map_result_file:
+        with open(os.path.join(self.output_folder, results_file), 'w') as map_result_file:
             map_result_file.write('Experiment Number,Map Seed,Number of Agents, Agents Seed, Uncertainty,Timeout,'
                                   'CBS Time,ODA Queue Time, CCBS Min Cost, CCBS Max Cost, ODA Min Cost, ODA Max Cost,'
                                   ' CCBS nodes expanded, ODA nodes expanded\n')
@@ -200,11 +186,11 @@ class Experiments:
             results += f'ODA-queue, {oda_queue_total_time}, {oda_queue_success*100}%, {oda_queue_cost[0]} to {oda_queue_cost[1]}, {oda_queue_ratio}\n'
             map_result_file.write(results)
 
-    def calc_ratio(self, ccbs_total_time, oda_queue_total_time):
+    @staticmethod
+    def calc_ratio(ccbs_total_time, oda_queue_total_time):
         min_time = min(ccbs_total_time, oda_queue_total_time)
 
         ccbs_ratio = -1
-        #oda_serial_ratio = -1
         oda_queue_ratio = -1
 
         if ccbs_total_time != 0 and min_time != 0:
@@ -215,26 +201,36 @@ class Experiments:
 
         return ccbs_ratio, oda_queue_ratio
 
+    def run_experiments_on_same_instance(self, num_of_agents, uncertainty, time_limit, rep_num):
+        self.uncertainty = uncertainty
+        self.max_agents_num = num_of_agents
+        self.time_limit = time_limit
+
+        self.file_prefix = f'{num_of_agents} agents -  {self.uncertainty} uncertainty - '
+
+        # self.run_large_open_map(rep_num)
+
+        self.run_corridor_map(rep_num, num_of_agents)
+        #self.run_maze_map(rep_num, num_of_agents)
+        #self.run_circular_map(rep_num, num_of_agents)
+        #self.run_blank_map(rep_num, num_of_agents)
+
 
 if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
 elif os.name == 'posix':
     exp = Experiments('./../experiments')
+for uncertainty_val in range(0, 5, 1):
+    if uncertainty_val == 3:
+        continue
+    exp.run_experiments_on_same_instance(num_of_agents=3, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+
+exp.run_experiments_on_same_instance(num_of_agents=2, uncertainty=4, time_limit=60, rep_num=30)
+
 for uncertainty_val in range(1, 5, 1):
     if uncertainty_val == 3:
         continue
-    for num_of_agents in range(2, 30, 2):
-        pass
+    exp.run_experiments_on_same_instance(num_of_agents=4, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
 
-exp.run_experiments_on_same_instance(num_of_agents=2, uncertainty=2, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=2, uncertainty=4, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=4, uncertainty=2, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=4, uncertainty=4, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=7, uncertainty=0, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=7, uncertainty=1, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=3, uncertainty=0, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=3, uncertainty=1, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=3, uncertainty=2, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=3, uncertainty=4, time_limit=60, rep_num=30)
 
 print("Finished Experiments")
