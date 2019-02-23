@@ -208,12 +208,9 @@ class Experiments:
 
         self.file_prefix = f'{num_of_agents} agents -  {self.uncertainty} uncertainty - '
 
-        # self.run_large_open_map(rep_num)
-
         self.run_corridor_map(rep_num, num_of_agents)
-        #self.run_maze_map(rep_num, num_of_agents)
-        #self.run_circular_map(rep_num, num_of_agents)
-        #self.run_blank_map(rep_num, num_of_agents)
+        self.run_circular_map(rep_num, num_of_agents)
+        self.run_blank_map(rep_num, num_of_agents)
 
 
 if os.name == 'nt':
@@ -223,10 +220,11 @@ elif os.name == 'posix':
 for uncertainty_val in range(0, 5, 1):
     if uncertainty_val == 3:
         continue
+    for agents in range(2, 6):
+        exp.run_experiments_on_same_instance(num_of_agents=agents, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
 
-exp.run_experiments_on_same_instance(num_of_agents=5, uncertainty=0, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=4, uncertainty=1, time_limit=60, rep_num=30)
-exp.run_experiments_on_same_instance(num_of_agents=7, uncertainty=0, time_limit=60, rep_num=30)
 
+exp.run_experiments_on_same_instance(num_of_agents=10, uncertainty=0, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=15, uncertainty=0, time_limit=60, rep_num=30)
 
 print("Finished Experiments")
