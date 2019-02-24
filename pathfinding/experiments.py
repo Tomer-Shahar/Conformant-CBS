@@ -207,9 +207,9 @@ class Experiments:
 
         # self.run_large_open_map(rep_num)
 
-        #self.run_corridor_map(rep_num, num_of_agents)
+        self.run_corridor_map(rep_num, num_of_agents)
         #self.run_maze_map(rep_num, num_of_agents)
-        #self.run_circular_map(rep_num, num_of_agents)
+        self.run_circular_map(rep_num, num_of_agents)
         self.run_blank_map(rep_num, num_of_agents)
 
 if os.name == 'nt':
@@ -217,13 +217,13 @@ if os.name == 'nt':
 else:
     exp = Experiments('./../experiments')
 
-    exp.run_experiments_on_same_instance(num_of_agents=4, uncertainty=4, time_limit=60, rep_num=30)
 
-for uncertainty_val in range(1, 5, 1):
+
+for uncertainty_val in range(0, 1, 1):
     if uncertainty_val == 3:
         continue
-    exp.run_experiments_on_same_instance(num_of_agents=9, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
-    exp.run_experiments_on_same_instance(num_of_agents=13, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
-
+    exp.run_experiments_on_same_instance(num_of_agents=6, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+    exp.run_experiments_on_same_instance(num_of_agents=8, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+    exp.run_experiments_on_same_instance(num_of_agents=11, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
 
 print("Finished Experiments")
