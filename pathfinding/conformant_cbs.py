@@ -88,6 +88,7 @@ class ConformantCbsPlanner:
         self.compute_all_paths_and_conflicts(root)
         root.parent = ConstraintNode()
         if not root.solution:
+            print("No solution for cbs root node")
             return None
         root.solution.compute_solution_cost()
         #print("Root solution found. Cost is between "+str(root.solution.cost[0]) + " and " + str(root.solution.cost[1]))
@@ -301,7 +302,7 @@ class ConformantCbsPlanner:
                 root.solution.paths[agent_id] = agent_path
             else:  # No solution for a particular agent
                 print("No solution for agent number " + str(agent_id))
-                return None
+                root.solution = None
         #print("Found path for all agents")
         self.__validate_solution(root)
 

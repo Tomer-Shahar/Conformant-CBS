@@ -2,6 +2,7 @@
 File for running some experiments.
 """
 import os.path
+import csv
 import sys
 from pathfinding.map_reader import *
 from pathfinding.conformant_cbs import *
@@ -116,6 +117,9 @@ class Experiments:
                     ccbs_total_time += ccbs_time
                     ccbs_cost[0] += ccbs_sol.cost[0]
                     ccbs_cost[1] += ccbs_sol.cost[1]
+                else:
+                    i -= 1
+                    continue
             except OutOfTimeError:
                 ccbs_time = -1
 
@@ -138,30 +142,33 @@ class Experiments:
             if ccbs_sol and oda_star_queue_sol and (ccbs_sol.cost[0] != oda_star_queue_sol[1][0]):
                 print("ccbs cost: " + str(ccbs_sol.cost))
                 print("oda cost: " + str(oda_star_queue_sol[1]))
+                #self.write_solution(ccbs_sol, oda_star_queue_sol)
+                i -= 1
+                continue
                 #raise RuntimeError
-            else:
-                if ccbs_sol:
-                    ccbs_min = ccbs_sol.cost[0]
-                    ccbs_max = ccbs_sol.cost[1]
-                    ccbs_nodes_expanded = ccbs_sol.nodes_expanded
-                else:
-                    ccbs_min = -1
-                    ccbs_max = -1
-                    ccbs_nodes_expanded = -1
 
-                if oda_star_queue_sol:
-                    oda_min = oda_star_queue_sol[1][0]
-                    oda_max = oda_star_queue_sol[1][1]
-                    oda_nodes = oda_star_queue_sol[2]
-                else:
-                    oda_min = -1
-                    oda_max = -1
-                    oda_nodes = -1
-                with open(os.path.join(self.output_folder, results_file), 'a') as map_result_file:
-                    results = f'{i +1},{map_seed},{agent_num}, {agent_seed}, {self.uncertainty},{self.time_limit},' \
-                        f'{ccbs_time}, {oda_queue_time}, {ccbs_min}, {ccbs_max}, {oda_min}, {oda_max},' \
-                        f' {ccbs_nodes_expanded}, {oda_nodes}\n'
-                    map_result_file.write(results)
+            if ccbs_sol:
+                ccbs_min = ccbs_sol.cost[0]
+                ccbs_max = ccbs_sol.cost[1]
+                ccbs_nodes_expanded = ccbs_sol.nodes_expanded
+            else:
+                ccbs_min = -1
+                ccbs_max = -1
+                ccbs_nodes_expanded = -1
+
+            if oda_star_queue_sol:
+                oda_min = oda_star_queue_sol[1][0]
+                oda_max = oda_star_queue_sol[1][1]
+                oda_nodes = oda_star_queue_sol[2]
+            else:
+                oda_min = -1
+                oda_max = -1
+                oda_nodes = -1
+            with open(os.path.join(self.output_folder, results_file), 'a') as map_result_file:
+                results = f'{i +1},{map_seed},{agent_num}, {agent_seed}, {self.uncertainty},{self.time_limit},' \
+                    f'{ccbs_time}, {oda_queue_time}, {ccbs_min}, {ccbs_max}, {oda_min}, {oda_max},' \
+                    f' {ccbs_nodes_expanded}, {oda_nodes}\n'
+                map_result_file.write(results)
 
         # Write final results.
         if ccbs_success > 0:
@@ -187,6 +194,16 @@ class Experiments:
             map_result_file.write(results)
 
     @staticmethod
+    def write_solution(cbs_sol, oda_sol):
+        error_file = f'.\\{len(cbs_sol.paths)} Agents.csv'
+        with open(error_file, 'w') as file:
+            file.write('CBS Solution\n')
+            done = False
+            i=0
+            while not done:
+                for agent, path in cbs_sol.paths.items():
+                    pass
+    @staticmethod
     def calc_ratio(ccbs_total_time, oda_queue_total_time):
         min_time = min(ccbs_total_time, oda_queue_total_time)
 
@@ -208,9 +225,9 @@ class Experiments:
 
         self.file_prefix = f'{num_of_agents} agents -  {self.uncertainty} uncertainty - '
 
-        self.run_corridor_map(rep_num, num_of_agents)
-        self.run_circular_map(rep_num, num_of_agents)
         self.run_blank_map(rep_num, num_of_agents)
+        self.run_circular_map(rep_num, num_of_agents)
+        self.run_corridor_map(rep_num, num_of_agents)
 
 
 if os.name == 'nt':
@@ -220,7 +237,7 @@ elif os.name == 'posix':
 for uncertainty_val in range(0, 5, 1):
     if uncertainty_val == 3:
         continue
-    for agent_num in range(2, 5):
+    for agent_num in range(6, 7):
         exp.run_experiments_on_same_instance(num_of_agents=agent_num, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
 
 print("Finished Experiments")

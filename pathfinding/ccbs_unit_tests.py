@@ -485,6 +485,21 @@ class TestCcbsPlanner(unittest.TestCase):
 
         self.assertEqual(sol.cost, (40, 40))
 
+    def test_optimality(self):
+        blank_map = ConformantProblem('..\\maps\\small_blank_map.map')
+        random.seed(12345678)
+        blank_map.generate_problem_instance(uncertainty=1)
+        agent_seed = 1315457633
+        random.seed(agent_seed)
+        blank_map.generate_agents(agent_num=7)
+        blank_map.fill_heuristic_table()
+        cbs_planner = ConformantCbsPlanner(blank_map)
+        oda_solver = ODAStar(blank_map)
+        oda_solution = oda_solver.create_solution()
+        print(oda_solution[1])
+        sol = cbs_planner.find_solution(time_limit=6000)
+        self.assertEqual(sol.cost, (52, 65))
+
 class TestODAPlanner(unittest.TestCase):
     """
     Class for testing the conformant_cbs class
