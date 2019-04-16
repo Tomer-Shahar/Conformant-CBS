@@ -4,6 +4,7 @@ import random
 import math
 import os
 import copy
+import json
 
 """
     Rudimentary class that converts a ccbsMap text file into a proper object that can be used by the solver.
@@ -335,3 +336,14 @@ class ConformantProblem:
             print("--------------------------------------------")
         else:
             pass
+
+    def write_problem(self, filepath):
+        with open(filepath, 'w') as map_file:
+            json.dump(self, map_file)
+
+    @staticmethod
+    def load_map(filepath):
+        with open(filepath, 'w') as map_file:
+            new_map = json.load(map_file)
+
+        return new_map

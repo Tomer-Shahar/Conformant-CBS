@@ -2,11 +2,12 @@ import copy
 
 from pathfinding.map_reader import ConformantProblem
 from pathfinding.conformant_cbs import *
+from pathfinding.operator_decomposition_a_star import *
 import os
 import profile
 import random
 
-seed = 12341234
+seed = 9001
 random.seed(seed)
 print(f'The seed is {seed}')
 
@@ -24,22 +25,26 @@ def print_solution(solution):
     print("Solution length is  " + str(solution.length) + "\n")
 
 
-def run_map(ccbs_map, sic_heuristic=False, print_sol=True, time_limit=180):
-    for agent in range(1, len(ccbs_map.start_positions) + 1):
-        print("Agent " + str(agent) + ": " + str(ccbs_map.start_positions[agent]) + ", to " +
-              str(ccbs_map.goal_positions[agent]))
+def run_map(problem, sic_heuristic=False, print_sol=True, time_limit=180, use_cbs=True):
+    for agent in range(1, len(problem.start_positions) + 1):
+        print("Agent " + str(agent) + ": " + str(problem.start_positions[agent]) + ", to " +
+              str(problem.goal_positions[agent]))
     print("Finding solution.")
-    if sic_heuristic:
-        print("Using sum of costs measurement.")
+    if use_cbs:
+        if sic_heuristic:
+            print("Using sum of costs measurement.")
+        else:
+            print("Finding shortest global time measurement.")
+        ccbs_planner = ConformantCbsPlanner(problem)
+        start = time.time()
+        solution = ccbs_planner.find_solution(sum_of_costs=sic_heuristic, time_limit=time_limit)
+        total = (time.time() - start)
+        print("Solution found. Time Elapsed: " + str(total) + " seconds")
+        if print_sol:
+            print_solution(solution)
     else:
-        print("Finding shortest global time measurement.")
-    ccbs_planner = ConformantCbsPlanner(ccbs_map)
-    start = time.time()
-    solution = ccbs_planner.find_solution(sum_of_costs=sic_heuristic, time_limit=time_limit)
-    total = (time.time() - start)
-    print("Solution found. Time Elapsed: " + str(total) + " seconds")
-    if print_sol:
-        print_solution(solution)
+        oda_solver = ODAStar(problem)
+        solution = oda_solver.create_solution(time_limit=time_limit)
 
 
 def print_map(conf_problem):
@@ -70,7 +75,7 @@ def print_map(conf_problem):
 def run_test_map():
     print("----------- Small custom map ---------------")
     test_map = ConformantProblem('../maps/test_map.map')
-    test_map.generate_problem_instance(2, (1, 1), (1, 1))
+    test_map.generate_problem_instance(uncertainty=0)
     test_map.start_positions[1] = (0, 0)
     test_map.start_positions[2] = (17, 0)
     test_map.goal_positions[1] = (19, 0)
@@ -91,37 +96,6 @@ complex_map.generate_problem_instance(uncertainty=0)
 complex_map.generate_agents(15)
 print("Filling heuristics table..")
 complex_map.fill_heuristic_table()
-profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=1)
-
-complex_map = ConformantProblem('../maps/Archipelago.map')
-print("Parsing(spacious) map..")
-complex_map.generate_problem_instance(uncertainty=0)
-complex_map.generate_agents(15)
-print("Filling heuristics table..")
-complex_map.fill_heuristic_table()
-profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=1)
-
-complex_map = ConformantProblem('../maps/brc202d.map')
-print("Parsing (fairly narrow with long corridors) map..")
-complex_map.generate_problem_instance(uncertainty=0)
-complex_map.generate_agents(15)
-print("Filling heuristics table..")
-complex_map.fill_heuristic_table()
-profile.run('run_map(complex_map, print_sol=False, time_limit=180)', sort=1)
-
-print("\n----------- Larger random map: 25x25 ---------------")
-random_map = ConformantProblem.generate_rectangle_map(12, 12, uncertainty=0, is_eight_connected=False)
-random_map.generate_agents(4)
-random_map.fill_heuristic_table()
-print_map(random_map)
-profile.run('run_map(random_map, sic_heuristic=True, time_limit=120)', sort=1)
-
-print("\n----------- Extra Larger random map: 49x49 ---------------")
-random_map = ConformantProblem.generate_rectangle_map(24, 24, uncertainty=0, is_eight_connected=False)
-random_map.generate_agents(8)
-random_map.fill_heuristic_table()
-run_map(random_map, sic_heuristic=True, print_sol=False)
-profile.run('run_map(random_map, sic_heuristic=True, print_sol=False,time_limit=300)', sort=1)
+profile.run('run_map(complex_map, print_sol=False, time_limit=120, use_cbs=True)', sort=1)
 
 print("Test finished!")
-print("Total time elapsed: " + str(time.time() - total_start))

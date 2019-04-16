@@ -283,11 +283,11 @@ class TestLowLevelSolver(unittest.TestCase):
         large_map.start_positions = {1: start_goal}
         large_map.goal_positions = {1: start_goal}
         solver = ConstraintAstar(large_map)
-        con_time = 30
+        con_time = 8
         goal_con = {(1, start_goal, con_time)}
         large_map.fill_heuristic_table()
-        time_lim = 10
-        plan = solver.compute_agent_path(goal_con, 1, start_goal, start_goal, set(), time_limit=time_lim)
+        time_lim = 30
+        plan = solver.compute_agent_path(goal_con, 1, start_goal, start_goal, {1: set()}, time_limit=time_lim)
 
         self.assertEqual(plan[2], (con_time+1, con_time+1))
 
@@ -352,9 +352,8 @@ class TestCcbsPlanner(unittest.TestCase):
         agent_1_cons = set()
         agent_2_cons = set()
 
-        for i in range(8, 14):
-            agent_1_cons.add((agent_1, edge, i))
-            agent_2_cons.add((agent_2, edge, i))
+        agent_1_cons.add((agent_1, edge, 17))
+        agent_2_cons.add((agent_2, edge, 17))
 
         con_sets = self.CCBS_planner.extract_edge_conflict(agent_1, agent_2, interval_1, interval_2, edge)
 
@@ -392,7 +391,7 @@ class TestCcbsPlanner(unittest.TestCase):
         constraints = {(1, edge, 18)}
         self.single_agent_node = SingleAgentNode(v_1, (16, 0), (17, 17), self.conf_problem, (19, 0), 0)
         successor = (v_2, (18, 18))
-        self.assertFalse(self.single_agent_node.legal_move(agent, successor, constraints, set())[0])
+        self.assertFalse(self.single_agent_node.legal_move(agent, successor[0], successor[1], constraints))
 
     def test_simple_4_connected_two_agent_map(self):
 
@@ -481,7 +480,7 @@ class TestCcbsPlanner(unittest.TestCase):
         edge_example.fill_heuristic_table()
         solver = ConformantCbsPlanner(edge_example)
 
-        sol = solver.find_solution(time_limit=20000)
+        sol = solver.find_solution(time_limit=1)
 
         self.assertEqual(sol.cost, (40, 40))
 
@@ -495,10 +494,9 @@ class TestCcbsPlanner(unittest.TestCase):
         blank_map.fill_heuristic_table()
         cbs_planner = ConformantCbsPlanner(blank_map)
         oda_solver = ODAStar(blank_map)
-        oda_solution = oda_solver.create_solution()
-        print(oda_solution[1])
-        sol = cbs_planner.find_solution(time_limit=6000)
-        self.assertEqual(sol.cost, (52, 65))
+        sol = cbs_planner.find_solution(time_limit=2)
+        self.assertEqual(sol.cost[0], 53)
+
 
 class TestODAPlanner(unittest.TestCase):
     """
@@ -577,7 +575,7 @@ class TestODAPlanner(unittest.TestCase):
         complex_conf_prob.fill_heuristic_table()
 
         self.path_finder = ODAStar(complex_conf_prob)
-        solution = self.path_finder.create_solution(time_limit=10000, objective='min_best_case', sic=True)
+        solution = self.path_finder.create_solution(time_limit=5, objective='min_best_case', sic=True)
         self.assertEqual(solution[1], (13, 20))
 
     def test_collision_detection(self):
@@ -597,7 +595,7 @@ class TestODAPlanner(unittest.TestCase):
 
         t_map.fill_heuristic_table()
         oda_solver = ODAStar(t_map)
-        sol = oda_solver.create_solution(500000, min_time_policy=False)
+        sol = oda_solver.create_solution(1, min_time_policy=True)
 
         self.assertEqual(sol[1], (51, 51))
 
@@ -627,8 +625,6 @@ class TestODAPlanner(unittest.TestCase):
         blank_problem.fill_heuristic_table()
 
         oda_star_solver = ODAStar(blank_problem)
-        serial_sol = oda_star_solver.create_solution(time_limit=1000000, min_time_policy=False)  # Serial mode
-        self.assertEqual(serial_sol[1], (33, 42))
 
-        queue_sol = oda_star_solver.create_solution(time_limit=1000000, min_time_policy=True)  # Queue mode
+        queue_sol = oda_star_solver.create_solution(time_limit=5, min_time_policy=True)  # Queue mode
         self.assertEqual(queue_sol[1], (33, 42))

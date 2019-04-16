@@ -126,7 +126,7 @@ class Experiments:
             try:
                 start_time = time.time()
                 oda_star_queue_sol = oda_planner.create_solution(self.time_limit, objective='min_best_case', sic=True,
-                                                                 min_time_policy=True)
+                                                                 min_time_policy=True)  # ToDO: CHANGE BACK TIME LIMIT
                 if oda_star_queue_sol:
                     oda_queue_time = time.time() - start_time
                     oda_queue_success += 1
@@ -234,10 +234,10 @@ if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
 elif os.name == 'posix':
     exp = Experiments('./../experiments')
-for uncertainty_val in range(4, 5, 1):
-    if uncertainty_val == 3:
-        continue
+for uncertainty_val in range(3, 5, 1):
     for agent_num in range(8, 9):
-        exp.run_experiments_on_same_instance(num_of_agents=agent_num, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+        pass
+
+exp.run_experiments_on_same_instance(num_of_agents=11, uncertainty=1, time_limit=60, rep_num=30)
 
 print("Finished Experiments")

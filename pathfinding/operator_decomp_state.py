@@ -229,8 +229,8 @@ class ODState:
                 return False
 
             last_op = curr_node.prev_op
-
-            if last_op and curr_node.creates_edge_conflict(last_op, new_op):
+            new_op_start_time = self.curr_positions[new_op.agent]['time']
+            if last_op and curr_node.creates_edge_conflict(last_op, new_op, new_op_start_time):
                 return False
 
             if last_op and last_op.time[1] < new_op.time[0]:
@@ -241,15 +241,18 @@ class ODState:
 
         return True
 
-    def creates_edge_conflict(self, curr_op, new_op):
+    def creates_edge_conflict(self, curr_op, new_op, new_op_start_time):
         """
         :param curr_op: The current operation, that was already done
         :param new_op: The new operation that is being validated
         :return: True if it creates an edge conflict, otherwise false
         """
         for agent, position in self.curr_positions.items():
-            if agent != new_op.agent and self.overlapping(new_op.time, self.prev_op.time) and \
-                    new_op.normalize_edge() == curr_op.normalize_edge():
+            new_op_time = (new_op_start_time[0], new_op.time[1]-1)
+            curr_op_start = self.prev_node.curr_positions[curr_op.agent]['time'][0]
+            prev_op_time = (curr_op_start, curr_op.time[1]-1)
+            if agent != new_op.agent and self.overlapping(new_op_time, prev_op_time) and (
+                curr_op.edge == new_op.edge or (curr_op.edge[0] == new_op.edge[1] and curr_op.edge[1] == new_op.edge[0])):
                 return True
         return False
 
@@ -376,7 +379,7 @@ class Operation:
         :param agent: Agent that is moving
         :param prev_node: Previous coordinate
         :param next_node: Next coordinate
-        :param time_range: The time range the agent will be at the next location. Note that this is NOT a "global" time,
+        :param time: The time range the agent will be at the next location. Note that this is NOT a "global" time,
         but is only relevant for the agent making the operation.
         """
 
@@ -385,4 +388,5 @@ class Operation:
         self.time = curr_time[0] + move_time[0], curr_time[1] + move_time[1]
 
     def normalize_edge(self):
+        # ToDo: Why does this take so long?
         return min(self.edge[0], self.edge[1]), max(self.edge[0], self.edge[1])

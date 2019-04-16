@@ -11,7 +11,8 @@ class ConstraintNode:
     solution - a ConformantSolution object.
     parent - a pointer to the previous node.
     conflicting_agents - the agents that conflicted previously (most likely to conflict again)
-    open_conflicts - a set containing all known conflicts currently. Used in the low-level solver.
+    conflict_table - a dictionary mapping agent_id to a set containing tuples of <Time, Location> for each position
+    in the agents path.
     """
 
     def __init__(self, new_constraints=None, parent=None):
@@ -20,12 +21,12 @@ class ConstraintNode:
             self.constraints = self.__append_constraints(parent.constraints, new_constraints)
             self.copy_solution(parent)
             self.conflicting_agents = parent.conflicting_agents
-            self.open_conflicts = parent.open_conflicts
+            self.conflict_table = parent.conflict_table
         else:
             self.constraints = frozenset()
             self.solution = ConformantSolution()
             self.conflicting_agents = None
-            self.open_conflicts = set()
+            self.conflict_table = {}
 
         self.parent = parent
         # self.cost = math.inf  # Default value higher than any possible int
