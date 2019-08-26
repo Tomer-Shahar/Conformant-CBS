@@ -3,12 +3,12 @@ This class represents the solutions that are stored in each constraint node. The
 agent, the total cost range of the solution and the length (i.e the max length between the different paths).
 """
 import math
-from pathfinding.conformant_plan import ConformantPlan
+from pathfinding.time_uncertainty_plan import TimeUncertainPlan
 
 STAY_STILL_COST = 1
 
 
-class ConformantSolution:
+class TimeUncertainSolution:
 
     def __init__(self):
         self.cost = math.inf, math.inf
@@ -106,7 +106,7 @@ class ConformantSolution:
                                         path_max_time + time_step * STAY_STILL_COST), last_move[1])
                     new_path.append(stationary_move)
                 # plan.cost = new_path[-1][0]
-            self.paths[agent] = ConformantPlan(agent, new_path, plan.cost)
+            self.paths[agent] = TimeUncertainPlan(agent, new_path, plan.cost)
 
         self.length = len(self.paths[1].path)
 

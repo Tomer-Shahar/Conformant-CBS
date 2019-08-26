@@ -82,7 +82,7 @@ class ConstraintAstar:
         self.closed_set.add(node_tuple)
 
     def __add_node_to_open(self, node):
-        self.open_list.push(node, node.f_val[0], node.h_val, node.conflicts_created)
+        self.open_list.push(node, node.f_val[0], node.conflicts_created, node.h_val)
         key_tuple = node.create_tuple()
         self.open_dict[key_tuple] = node
 
@@ -93,7 +93,7 @@ class ConstraintAstar:
         neighbor_node.g_val = g_val
         neighbor_node.h_val = grid_map.calc_heuristic(neighbor_node.current_position, goal_pos)
         neighbor_node.f_val = g_val[0] + neighbor_node.h_val, g_val[1] + neighbor_node.h_val
-        #  self.open_list.heapify() ToDO: Use heapify??
+        # self.open_list.heapify()  # ToDO: Use heapify??
 
     def __can_stay_still(self, agent, best_node, constraints):
         """
@@ -195,27 +195,30 @@ class SingleAgentNode:
             vertex = edge_tuple[VERTEX_ID]
             if self.legal_move(agent, vertex, successor_time, constraints):
                 confs_created = self.conflicts_created
-                for tick in successor_time:
-                    for other_agent in conflict_table:
-                        if other_agent == agent:
-                            continue
-                        if (tick, vertex) in conflict_table[other_agent]:
-                            confs_created += 1
+                if len(conflict_table) > 0:
+                    confs_created = self.check_if_conflicts(agent, conflict_table, confs_created, successor_time, vertex)
                 successor = (vertex, successor_time, confs_created)
                 neighbors.append(successor)
 
         still_time = (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST)
         if self.legal_move(agent, self.current_position, still_time, constraints):  # Add the option of not moving.
             confs_created = self.conflicts_created
-            for other_agent in conflict_table:
-                if other_agent == agent:
-                    continue
-                if still_time[1] in conflict_table[other_agent]:
-                    confs_created += 1
+            if len(conflict_table) > 0:
+                confs_created = self.check_if_conflicts(agent, conflict_table, confs_created,
+                                                        (still_time[1], still_time[1]), self.current_position)
             stay_still = (self.current_position, still_time, confs_created)
             neighbors.append(stay_still)
 
         return neighbors
+
+    @staticmethod
+    def check_if_conflicts(agent, conflict_table, confs_created, successor_time, vertex):
+        for tick in range(successor_time[0], successor_time[1]+1):
+            if (tick, vertex) in conflict_table:  # At least 1 agent is there.
+                for other_agent in conflict_table[(tick, vertex)]:
+                    if other_agent != agent:
+                        confs_created += 1
+        return confs_created
 
     def calc_path(self, agent):
         """
@@ -234,34 +237,51 @@ class SingleAgentNode:
         Converts a node object into a tuple.
         (vertex, time)
         """
-        return self.current_position, self.g_val
+        return self.current_position, self.g_val, self.conflicts_created
 
-    def legal_move(self, agent, vertex, time, constraints):
+    @staticmethod
+    def is_single_tick_move_illegal(agent, edge, vertex, succ_time, constraints):
+        if succ_time[0] == succ_time[1]:
+            return (agent, edge, succ_time[0]) in constraints or (agent, vertex, succ_time[0]) in constraints
+
+    def is_movement_in_constraints(self, agent, vertex, edge, constraints, succ_time):
+        for con in constraints:
+            if agent == con[0] and \
+                    ((vertex == con[1] and ConstraintAstar.overlapping((con[2], con[2]), succ_time))
+                     or
+                     (edge == con[1] and ConstraintAstar.overlapping((con[2], con[2]), (self.g_val[0], succ_time[1])))):
+                return True
+
+        return False
+
+    def legal_move(self, agent, vertex, succ_time, constraints):
 
         """
         A function that checks if a certain movement is legal. First we check for vertex constraints and then edge
         constraints. The first loop checks for the time range that the agent might be at the next vertex.
+        vertex - The node the agent is traveling to
+        time - The arrival time at vertex
+        constraints - A set of constraints.
+
+        Returns false if move is illegal. Returns true if move is fine.
         """
-        succ_min_time = time[0]
-        succ_max_time = time[1]
-        curr_min_time = self.g_val[0]
         edge = min(self.current_position, vertex), max(self.current_position, vertex)
+
+        #if self.is_single_tick_move_illegal(agent, edge, vertex, succ_time, constraints):
+        #    return False
+
+        # return not self.is_movement_in_constraints(agent, vertex, edge, constraints, succ_time)
+
+       #if succ_time[0] == succ_time[1]:
+       #    if (agent, edge, succ_time[0]) in constraints or (agent, vertex, succ_time[0]) in constraints:
+       #        return False
 
         for con in constraints:
             if agent == con[0] and \
-                    ((vertex == con[1] and ConstraintAstar.overlapping((con[2], con[2]),
-                                                                       (succ_min_time, succ_max_time)))
-                     or (edge == con[1] and ConstraintAstar.overlapping((con[2], con[2]),
-                                                                        (curr_min_time, succ_max_time)))):
+                    ((vertex == con[1] and ConstraintAstar.overlapping((con[2], con[2]), succ_time))
+                     or
+                     (edge == con[1] and ConstraintAstar.overlapping((con[2], con[2]), (self.g_val[0], succ_time[1])))):
                 return False
 
-        # for con in constraints:
-        #    if agent == con[0] and edge == con[1] and \
-        #            ConstraintAstar.overlapping((con[2], con[2]), (curr_min_time, succ_max_time)):
-        #        return False, -1
-
-        if succ_min_time == succ_max_time:  # instantaneous traversal
-            if (agent, edge, succ_max_time) in constraints:
-                return False, -1
-
         return True
+

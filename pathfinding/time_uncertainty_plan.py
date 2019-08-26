@@ -3,7 +3,7 @@ Class representing a conformant plan.
 """
 
 
-class ConformantPlan:
+class TimeUncertainPlan:
 
     def __init__(self, agent_id, path, cost):
         """

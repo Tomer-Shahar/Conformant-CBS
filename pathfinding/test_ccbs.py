@@ -1,7 +1,7 @@
 import copy
 
-from pathfinding.map_reader import ConformantProblem
-from pathfinding.conformant_cbs import *
+from pathfinding.map_reader import TimeUncertaintyProblem
+from pathfinding.cbstu import *
 from pathfinding.operator_decomposition_a_star import *
 import os
 import profile
@@ -25,7 +25,7 @@ def print_solution(solution):
     print("Solution length is  " + str(solution.length) + "\n")
 
 
-def run_map(problem, sic_heuristic=False, print_sol=True, time_limit=180, use_cbs=True):
+def run_map(problem, sic_heuristic=False, print_sol=True, time_limit=180, use_cbs=True, use_cat=True):
     for agent in range(1, len(problem.start_positions) + 1):
         print("Agent " + str(agent) + ": " + str(problem.start_positions[agent]) + ", to " +
               str(problem.goal_positions[agent]))
@@ -35,11 +35,12 @@ def run_map(problem, sic_heuristic=False, print_sol=True, time_limit=180, use_cb
             print("Using sum of costs measurement.")
         else:
             print("Finding shortest global time measurement.")
-        ccbs_planner = ConformantCbsPlanner(problem)
-        start = time.time()
-        solution = ccbs_planner.find_solution(sum_of_costs=sic_heuristic, time_limit=time_limit)
-        total = (time.time() - start)
-        print("Solution found. Time Elapsed: " + str(total) + " seconds")
+        if use_cat:
+            print("Using Conflict Avoidance Table")
+        else:
+            print("Not using Conflict Avoidance Table")
+        ccbs_planner = CBSTUPlanner(problem)
+        solution = ccbs_planner.find_solution(sum_of_costs=sic_heuristic, time_limit=time_limit, use_cat=use_cat)
         if print_sol:
             print_solution(solution)
     else:
@@ -74,7 +75,7 @@ def print_map(conf_problem):
 
 def run_test_map():
     print("----------- Small custom map ---------------")
-    test_map = ConformantProblem('../maps/test_map.map')
+    test_map = TimeUncertaintyProblem('../maps/test_map.map')
     test_map.generate_problem_instance(uncertainty=0)
     test_map.start_positions[1] = (0, 0)
     test_map.start_positions[2] = (17, 0)
@@ -90,12 +91,12 @@ def run_test_map():
 total_start = time.time()
 
 print("-------------- Large moving-ai maps -------------------")
-complex_map = ConformantProblem('../maps/ost003d.map')
+complex_map = TimeUncertaintyProblem('../maps/ost003d.map')
 print("Parsing (round, slightly narrow) map..")
 complex_map.generate_problem_instance(uncertainty=0)
-complex_map.generate_agents(15)
+complex_map.generate_agents(10)
 print("Filling heuristics table..")
 complex_map.fill_heuristic_table()
-profile.run('run_map(complex_map, print_sol=False, time_limit=120, use_cbs=True)', sort=1)
+profile.run('run_map(complex_map, print_sol=False, time_limit=60, use_cbs=True, use_cat=False)', sort=1)
 
 print("Test finished!")

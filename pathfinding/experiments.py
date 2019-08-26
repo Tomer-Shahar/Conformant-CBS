@@ -5,7 +5,7 @@ import os.path
 import csv
 import sys
 from pathfinding.map_reader import *
-from pathfinding.conformant_cbs import *
+from pathfinding.cbstu import *
 from pathfinding.operator_decomposition_a_star import *
 
 
@@ -27,7 +27,7 @@ class Experiments:
         map_file = '../maps/small_blank_map.map'
         seed = 12345678
         random.seed(seed)
-        blank_problem = ConformantProblem(map_file)
+        blank_problem = TimeUncertaintyProblem(map_file)
         blank_problem.generate_problem_instance(self.uncertainty)
         print(f"--- STARTED BLANK MAP | SEED: {seed} | UNCERTAINTY: {self.uncertainty} ---")
         self.run_and_log_same_instance_experiment(blank_problem, results_file, agent_num, rep_num, seed)
@@ -36,7 +36,7 @@ class Experiments:
         results_file = self.file_prefix + 'maze_results.csv'
         seed = random.randrange(sys.maxsize)
         random.seed(seed)
-        maze = ConformantProblem.generate_rectangle_map(12, 12, self.uncertainty)
+        maze = TimeUncertaintyProblem.generate_rectangle_map(12, 12, self.uncertainty)
         print(f"--- STARTED MAZE MAP | SEED: {seed} | UNCERTAINTY: {self.uncertainty} ---")
 
         self.run_and_log_same_instance_experiment(maze, results_file, agent_num, rep_num, seed)
@@ -46,33 +46,33 @@ class Experiments:
         map_file = '../maps/ost003d.map'
         seed = 12345678
         random.seed(seed)
-        large_map = ConformantProblem(map_file)
+        large_map = TimeUncertaintyProblem(map_file)
         large_map.generate_problem_instance(self.uncertainty)
         print(f"--- STARTED LARGE OPEN MAP | SEED: {seed} | UNCERTAINTY: {self.uncertainty} ---")
 
         self.run_and_log_same_instance_experiment(large_map, results_file, agent_num, rep_num, seed)
 
-    def run_corridor_map(self, rep_num, agent_num):
+    def run_corridor_map(self, rep_num, agent_num, use_cat=True):
         results_file = self.file_prefix + 'narrow_corridor_results.csv'
         map_file = '../maps/brc202d.map'
         seed = 12345678
         random.seed(seed)
-        corridor_map = ConformantProblem(map_file)
+        corridor_map = TimeUncertaintyProblem(map_file)
         corridor_map.generate_problem_instance(self.uncertainty)
         print(f"--- STARTED CORRIDOR MAP | SEED: {seed}--- | UNCERTAINTY: {self.uncertainty} ---")
-        self.run_and_log_same_instance_experiment(corridor_map, results_file, agent_num, rep_num, seed)
+        self.run_and_log_same_instance_experiment(corridor_map, results_file, agent_num, rep_num, seed, use_cat)
 
     def run_circular_map(self, rep_num, agent_num):
         results_file = self.file_prefix + 'round_map_results.csv'
         map_file = '../maps/ost003d.map'
         seed = 12345678
         random.seed(seed)
-        circular_map = ConformantProblem(map_file)
+        circular_map = TimeUncertaintyProblem(map_file)
         circular_map.generate_problem_instance(self.uncertainty)
         print(f"--- STARTED CIRCULAR MAP | SEED: {seed}--- | UNCERTAINTY: {self.uncertainty} ---")
         self.run_and_log_same_instance_experiment(circular_map, results_file, agent_num, rep_num, seed)
 
-    def run_and_log_same_instance_experiment(self, conf_problem, results_file, agent_num, rep_num, map_seed):
+    def run_and_log_same_instance_experiment(self, conf_problem, results_file, agent_num, rep_num, map_seed, use_cat):
         with open(os.path.join(self.output_folder, results_file), 'w') as map_result_file:
             map_result_file.write('Experiment Number,Map Seed,Number of Agents, Agents Seed, Uncertainty,Timeout,'
                                   'CBS Time,ODA Queue Time, CCBS Min Cost, CCBS Max Cost, ODA Min Cost, ODA Max Cost,'
@@ -101,7 +101,7 @@ class Experiments:
                 i -= 1
                 conf_problem.heuristic_table = None
                 continue
-            ccbs_planner = ConformantCbsPlanner(conf_problem)
+            ccbs_planner = CBSTUPlanner(conf_problem)
             oda_planner = ODAStar(conf_problem)
             ccbs_sol = None
             oda_star_queue_sol = None
@@ -110,7 +110,8 @@ class Experiments:
 
             try:
                 start_time = time.time()
-                ccbs_sol = ccbs_planner.find_solution(min_best_case=True, time_limit=self.time_limit, sum_of_costs=True)
+                ccbs_sol = ccbs_planner.find_solution(min_best_case=True, time_limit=self.time_limit, sum_of_costs=True,
+                                                      use_cat=use_cat)
                 if ccbs_sol:
                     ccbs_time = time.time() - start_time
                     ccbs_success += 1
@@ -125,7 +126,7 @@ class Experiments:
 
             try:
                 start_time = time.time()
-                oda_star_queue_sol = oda_planner.create_solution(self.time_limit, objective='min_best_case', sic=True,
+                oda_star_queue_sol = oda_planner.create_solution(1, objective='min_best_case', sic=True,
                                                                  min_time_policy=True)  # ToDO: CHANGE BACK TIME LIMIT
                 if oda_star_queue_sol:
                     oda_queue_time = time.time() - start_time
@@ -218,16 +219,16 @@ class Experiments:
 
         return ccbs_ratio, oda_queue_ratio
 
-    def run_experiments_on_same_instance(self, num_of_agents, uncertainty, time_limit, rep_num):
+    def run_experiments_on_same_instance(self, num_of_agents, uncertainty, time_limit, rep_num, use_cat):
         self.uncertainty = uncertainty
         self.max_agents_num = num_of_agents
         self.time_limit = time_limit
 
         self.file_prefix = f'{num_of_agents} agents -  {self.uncertainty} uncertainty - '
 
-        self.run_blank_map(rep_num, num_of_agents)
+        #self.run_blank_map(rep_num, num_of_agents)
         #self.run_circular_map(rep_num, num_of_agents)
-        #self.run_corridor_map(rep_num, num_of_agents)
+        self.run_corridor_map(rep_num, num_of_agents, use_cat)
 
 
 if os.name == 'nt':
@@ -238,6 +239,6 @@ for uncertainty_val in range(3, 5, 1):
     for agent_num in range(8, 9):
         pass
 
-exp.run_experiments_on_same_instance(num_of_agents=11, uncertainty=1, time_limit=60, rep_num=30)
+exp.run_experiments_on_same_instance(num_of_agents=14, uncertainty=0, time_limit=60, rep_num=30, use_cat=False)
 
 print("Finished Experiments")

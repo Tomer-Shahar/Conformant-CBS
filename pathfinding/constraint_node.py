@@ -1,5 +1,7 @@
 import copy
-from pathfinding.conformant_solution import ConformantSolution
+
+from pathfinding.time_uncertainty_plan import TimeUncertainPlan
+from pathfinding.time_uncertainty_solution import TimeUncertainSolution
 
 
 class ConstraintNode:
@@ -15,16 +17,19 @@ class ConstraintNode:
     in the agents path.
     """
 
-    def __init__(self, new_constraints=None, parent=None):
+    def __init__(self, new_constraints=None, parent=None, use_cat=True):
 
         if parent:
             self.constraints = self.__append_constraints(parent.constraints, new_constraints)
             self.copy_solution(parent)
             self.conflicting_agents = parent.conflicting_agents
-            self.conflict_table = parent.conflict_table
+            if use_cat:
+                self.conflict_table = copy.deepcopy(parent.conflict_table)
+            else:
+                self.conflict_table = {}
         else:
             self.constraints = frozenset()
-            self.solution = ConformantSolution()
+            self.solution = TimeUncertainSolution()
             self.conflicting_agents = None
             self.conflict_table = {}
 
@@ -33,7 +38,7 @@ class ConstraintNode:
 
     def copy_solution(self, parent):
 
-        self.solution = ConformantSolution()
+        self.solution = TimeUncertainSolution()
         self.solution.copy_solution(parent.solution)
 
     def add_conflicting_agents(self, con_1, con_2):
@@ -61,3 +66,37 @@ class ConstraintNode:
         con_set.update(new_constraints)
         new_constraints = frozenset(con_set)
         return new_constraints
+
+    def update_solution(self, agent, new_path, cost, use_cat):
+        """
+        Updates the plan for a particular agent in the constraint node. Also updates the conflict table by iterating
+        over the old solution and removing the moves the agent previously did. Then, adds the required stationary moves
+        to the new path and inserts the moves from the new path into the CAT.
+
+        :param agent: The agent being updated.
+        :param new_path: The agent's new path.
+        :param cost: Cost of the agent's new path.
+        :return: updates the CAT and the node's solution.
+        """
+        if use_cat:
+            for move in self.solution.paths[agent].path:
+                min_time, max_time = move[0][0], move[0][1]
+                for tick in range(min_time, max_time + 1):
+                    try:
+                        if (tick, move[1]) in self.conflict_table and agent in self.conflict_table[(tick, move[1])]:
+                            self.conflict_table[(tick, move[1])].remove(agent)
+                    except KeyError:
+                        print("welp")
+
+        self.solution.paths[agent] = TimeUncertainPlan(agent, new_path, cost)
+        self.solution.add_stationary_moves()  # inserts missing time steps
+        if use_cat:
+            for move in new_path:
+                min_time, max_time = move[0][0], move[0][1]
+                for tick in range(min_time, max_time + 1):
+                    if (tick, move[1]) in self.conflict_table:
+                        self.conflict_table[(tick, move[1])].add(agent)
+                    else:
+                        self.conflict_table[(tick, move[1])] = {agent}
+
+

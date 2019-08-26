@@ -35,14 +35,14 @@ import time
 import math
 
 from pathfinding.constraint_A_star import ConstraintAstar as cas
-from pathfinding.conformant_plan import ConformantPlan
+from pathfinding.time_uncertainty_plan import TimeUncertainPlan
 from pathfinding.constraint_node import ConstraintNode
 from pathfinding.time_error import OutOfTimeError
 
 STAY_STILL_COST = 1
 
 
-class ConformantCbsPlanner:
+class CBSTUPlanner:
     """
     The class that represents the cbs solver. The input is a conformedMap - a map that also contains the weights
     of the edges and the time step range to complete the transfer.
@@ -71,7 +71,7 @@ class ConformantCbsPlanner:
         self.start_time = 0
         self.planner = cas(conformed_problem)
 
-    def find_solution(self, min_best_case=True, time_limit=60, sum_of_costs=True):
+    def find_solution(self, min_best_case=True, time_limit=60, sum_of_costs=True, use_cat=True):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -84,17 +84,14 @@ class ConformantCbsPlanner:
         time_limit - Unsurprisingly, the maximum time for this function to run (in seconds)
         """
         self.start_time = time.time()
-        root = ConstraintNode()
-        for agent in self.startPositions:
-            root.conflict_table[agent] = set()
-        self.compute_all_paths_and_conflicts(root)
+        root = ConstraintNode(use_cat=use_cat)
+        self.compute_all_paths_and_conflicts(root, use_cat)
+        #  print("Computed root node")
         root.parent = ConstraintNode()
         if not root.solution:
             print("No solution for cbs root node")
             return None
         root.solution.compute_solution_cost()
-        #print("Root solution found. Cost is between "+str(root.solution.cost[0]) + " and " + str(root.solution.cost[1]))
-
         open_nodes = [root]  # initialize the list with root
         nodes_expanded = 0
         closed_nodes = set()
@@ -126,8 +123,7 @@ class ConformantCbsPlanner:
                     self.goalPositions[agent],
                     new_node.conflict_table,
                     min_best_case, time_limit=time_limit-time_passed)  # compute the path for a single agent.
-                new_node.solution.paths[agent] = ConformantPlan(agent, new_plan, cost)
-                new_node.conflict_table[agent] = set(new_node.solution.paths[agent].path)
+                new_node.update_solution(agent, new_plan, cost, use_cat)
                 new_node.solution.compute_solution_cost(sum_of_costs)  # compute the cost
 
                 if new_node.solution.cost[0] < math.inf:  # If the minimum time is less than infinity..
@@ -136,6 +132,7 @@ class ConformantCbsPlanner:
                 open_nodes.sort(key=lambda k: k.solution.cost[0], reverse=True)
             else:
                 open_nodes.sort(key=lambda k: k.solution.cost[1], reverse=True)
+        print("Empty open list")
 
     def __validate_solution(self, node):
         """Given a solution, this function will validate it.
@@ -143,8 +140,7 @@ class ConformantCbsPlanner:
         meaning agents a1 and a2 cannot both be at vertex v1 or v2 or the edge (v1,v2) between t1 and t2, the function
         will return ((a1,v1,v2,t1,t2), (a2,v1,v2,t1,t2))
         """
-
-        node.solution.add_stationary_moves()  # inserts missing time steps
+        # node.solution.add_stationary_moves()  # inserts missing time steps
         node.solution.create_movement_tuples()
 
         new_constraints = self.__check_vertex_conflict(node)
@@ -215,7 +211,7 @@ class ConformantCbsPlanner:
 
             Constraints will be of the form (agent, conflict_node, time)
         """
-        t = self.__pick_time_to_constrain(interval_i, interval_j)
+        t = self.__pick_time_to_constrain(interval_i, interval_j, t='max')
         return {(agent_i, vertex, t)}, {(agent_j, vertex, t)}
 
     def check_edge_swap_conflict(self, filled_solution, node):
@@ -274,7 +270,8 @@ class ConformantCbsPlanner:
         j_begin_occupation = interval_j[0]
         j_end_occupation = interval_j[1] - 1
 
-        t = self.__pick_time_to_constrain((i_begin_occupation, i_end_occupation), (j_begin_occupation, j_end_occupation))
+        t = self.__pick_time_to_constrain((i_begin_occupation, i_end_occupation), (j_begin_occupation, j_end_occupation),
+                                          t='max')
 
         if edge_min == edge_max == 1:
             return {(agent_i, conflict_edge, t + 1)}, {(agent_j, conflict_edge, t + 1)}
@@ -284,7 +281,7 @@ class ConformantCbsPlanner:
 
         return agent_i_constraints, agent_j_constraints
 
-    def compute_all_paths_and_conflicts(self, root):
+    def compute_all_paths_and_conflicts(self, root, use_cat):
         """
         A function that computes the paths for all agents, i.e a solution. Used for the root node before any constraints
         are added.
@@ -293,17 +290,22 @@ class ConformantCbsPlanner:
         for agent_id, agent_start in self.startPositions.items():
             agent, plan, cost = self.planner.compute_agent_path(
                 root.constraints, agent_id, agent_start, self.goalPositions[agent_id], root.conflict_table)
-            agent_path = ConformantPlan(agent, plan, cost)
+            agent_path = TimeUncertainPlan(agent, plan, cost)
             if agent_path.path:  # Solution found
                 root.solution.paths[agent_id] = agent_path
-                root.conflict_table[agent_id] = set()
-                for move in agent_path.path:
-                    root.conflict_table[agent_id].add((move[0], move[1]))
             else:  # No solution for a particular agent
                 print("No solution for agent number " + str(agent_id))
                 root.solution = None
-        #print("Found path for all agents")
+        root.solution.add_stationary_moves()  # inserts missing time steps
         self.__validate_solution(root)
+        if use_cat:
+            for agent, conf_plan in root.solution.paths.items():
+                for move in conf_plan.path:
+                    for tick in range(move[0][0], move[0][1] + 1):
+                        if (tick, move[1]) not in root.conflict_table:
+                            root.conflict_table[(tick, move[1])] = {agent}
+                        else:
+                            root.conflict_table[(tick, move[1])].add(agent)
 
 
 
@@ -355,20 +357,23 @@ class ConformantCbsPlanner:
         return None
 
     @staticmethod
-    def __pick_time_to_constrain(interval_i, interval_j, pick_max=True):
+    def __pick_time_to_constrain(interval_i, interval_j, t='max'):
         # ToDo: Check the effect of pick_max
         """
         Returns the time tick to constrain in the conflict interval. For example if the intervals are (4,17) and (8,22),
         the conflicting interval will be (8,17).
         :param interval_i: Agent i's interval for occupying a resource
         :param interval_j: Agent j's interval for occupying a resource
+        :param t: what time tick to constrain. Can be max or min. Any other value will choose the average time.
         :return: The time tick to constraints. Currently returns the maximum time of the CONFLICT interval.
         """
         conflict_interval = max(interval_i[0], interval_j[0]), min(interval_i[1], interval_j[1])
-        if pick_max:
+        if t == 'max':
             return conflict_interval[1]  # Choose the minimum between the max times in the conflict interval
-        else:
+        elif t == 'min':
             return conflict_interval[0]
+        else:
+            return int((conflict_interval[0] + conflict_interval[1]) / 2)
 
     def __check_previously_conflicting_agents(self, solution, prev_agents):
         """
