@@ -3,7 +3,7 @@ This class represents the solutions that are stored in each constraint node. The
 agent, the total cost range of the solution and the length (i.e the max length between the different paths).
 """
 import math
-from pathfinding.time_uncertainty_plan import TimeUncertainPlan
+from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
 
 STAY_STILL_COST = 1
 

@@ -34,10 +34,10 @@ Written by: Tomer Shahar, AI search lab, department of Software & Information Sy
 import time
 import math
 
-from pathfinding.constraint_A_star import ConstraintAstar as cas
-from pathfinding.time_uncertainty_plan import TimeUncertainPlan
-from pathfinding.constraint_node import ConstraintNode
-from pathfinding.time_error import OutOfTimeError
+from pathfinding.planners.constraint_A_star import ConstraintAstar as cas
+from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
+from pathfinding.planners.utils.constraint_node import ConstraintNode
+from pathfinding.planners.utils.time_error import OutOfTimeError
 
 STAY_STILL_COST = 1
 

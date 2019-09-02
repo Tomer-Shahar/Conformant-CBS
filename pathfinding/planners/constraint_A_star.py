@@ -5,8 +5,8 @@ a group of constraints.
 Currently a naive implementation of A*
 """
 
-from pathfinding.custom_heap import OpenListHeap
-from pathfinding.time_error import OutOfTimeError
+from pathfinding.planners.utils.custom_heap import OpenListHeap
+from pathfinding.planners.utils.time_error import OutOfTimeError
 import math
 import networkx
 import time

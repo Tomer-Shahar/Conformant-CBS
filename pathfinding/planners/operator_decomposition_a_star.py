@@ -5,9 +5,9 @@ uncertainty.
 
 - Tomer Shahar, 2019
 """
-from pathfinding.time_error import OutOfTimeError
-from pathfinding.custom_heap import OpenListHeap
-from pathfinding.operator_decomp_state import ODState
+from pathfinding.planners.utils.time_error import OutOfTimeError
+from pathfinding.planners.utils.custom_heap import OpenListHeap
+from pathfinding.planners.utils.operator_decomp_state import ODState
 import math
 import time
 

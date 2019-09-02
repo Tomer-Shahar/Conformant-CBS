@@ -1,7 +1,7 @@
 import copy
 
-from pathfinding.time_uncertainty_plan import TimeUncertainPlan
-from pathfinding.time_uncertainty_solution import TimeUncertainSolution
+from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
+from pathfinding.planners.utils.time_uncertainty_solution import TimeUncertainSolution
 
 
 class ConstraintNode:

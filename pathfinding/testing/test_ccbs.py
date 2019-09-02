@@ -1,8 +1,8 @@
 import copy
 
-from pathfinding.map_reader import TimeUncertaintyProblem
-from pathfinding.cbstu import *
-from pathfinding.operator_decomposition_a_star import *
+from pathfinding.planners.utils.map_reader import TimeUncertaintyProblem
+from pathfinding.planners.cbstu import *
+from pathfinding.planners.operator_decomposition_a_star import *
 import os
 import profile
 import random

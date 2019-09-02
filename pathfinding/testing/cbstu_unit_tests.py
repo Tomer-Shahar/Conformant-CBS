@@ -2,11 +2,12 @@
 Unit tests for Conformant-CBS
 """
 
-from pathfinding.map_reader import TimeUncertaintyProblem
-from pathfinding.time_uncertainty_solution import TimeUncertainSolution
-from pathfinding.cbstu import *
-from pathfinding.constraint_A_star import *
-from pathfinding.operator_decomposition_a_star import *
+from pathfinding.planners.utils.map_reader import TimeUncertaintyProblem
+from pathfinding.planners.utils.time_uncertainty_solution import TimeUncertainSolution
+from pathfinding.planners.cbstu import *
+from pathfinding.planners.constraint_A_star import *
+from pathfinding.planners.operator_decomposition_a_star import *
+from pathfinding.planners.utils.time_error import *
 import unittest
 import random
 
@@ -438,7 +439,7 @@ class TestCcbsPlanner(unittest.TestCase):
     def test_blank_map(self):
         seed = 12345678
         random.seed(seed)
-        map_file = '../maps/small_blank_map.map'
+        map_file = '.\small_blank_map.map'
         blank_problem = TimeUncertaintyProblem(map_file)
         blank_problem.generate_problem_instance(1)
         seed = 2025421785
@@ -485,7 +486,7 @@ class TestCcbsPlanner(unittest.TestCase):
         self.assertEqual(sol.cost, (40, 40))
 
     def test_optimality(self):
-        blank_map = TimeUncertaintyProblem('..\\maps\\small_blank_map.map')
+        blank_map = TimeUncertaintyProblem('.\\small_blank_map.map')
         random.seed(12345678)
         blank_map.generate_problem_instance(uncertainty=1)
         agent_seed = 1315457633
@@ -602,7 +603,7 @@ class TestODAPlanner(unittest.TestCase):
     def test_blank_map(self):
         seed = 12345678
         random.seed(seed)
-        map_file = '../maps/small_blank_map.map'
+        map_file = './small_blank_map.map'
         blank_problem = TimeUncertaintyProblem(map_file)
         blank_problem.generate_problem_instance(1)
         seed = 2025421785
@@ -663,7 +664,7 @@ class TestODAPlanner(unittest.TestCase):
         mini_conf_problem.edges_and_weights = {
             (0, 0): [((0, 1), (1, 1)), ((1, 1), (1, 1))],
             (0, 1): [((0, 0), (1, 1)), ((1, 1), (1, 1))],
-            (1, 0): [((1, 1), (1, 1))],
+            (1, 0): [((1, 1), (1, 2))],
             (1, 1): [((1, 0), (1, 1)), ((0, 0), (1, 1)), ((0, 1), (1, 1))]}
 
         mini_conf_problem.start_positions[1] = (0, 0)
@@ -675,5 +676,5 @@ class TestODAPlanner(unittest.TestCase):
         mini_conf_problem.fill_heuristic_table()
 
         path_finder = ODAStar(mini_conf_problem)
-        solution = path_finder.create_solution(time_limit=1, objective='min_best_case', sic=True)
-        self.assertEqual(solution[1], (6, 6))
+        with self.assertRaises(OutOfTimeError) as err:
+            path_finder.create_solution(time_limit=3, objective='min_best_case', sic=True)

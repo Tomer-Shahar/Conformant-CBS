@@ -2,11 +2,10 @@
 File for running some experiments.
 """
 import os.path
-import csv
 import sys
-from pathfinding.map_reader import *
-from pathfinding.cbstu import *
-from pathfinding.operator_decomposition_a_star import *
+from pathfinding.planners.utils.map_reader import *
+from pathfinding.planners.cbstu import *
+from pathfinding.planners.operator_decomposition_a_star import *
 
 
 class Experiments:
