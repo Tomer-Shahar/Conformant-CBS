@@ -3,6 +3,7 @@ import copy
 from pathfinding.planners.utils.map_reader import TimeUncertaintyProblem
 from pathfinding.planners.cbstu import *
 from pathfinding.planners.operator_decomposition_a_star import *
+from pathfinding.simulator import *
 import os
 import profile
 import random
@@ -90,13 +91,23 @@ def run_test_map():
 # profile.run('run_test_map()', sort=1)
 total_start = time.time()
 
-print("-------------- Large moving-ai maps -------------------")
-complex_map = TimeUncertaintyProblem('../maps/ost003d.map')
-print("Parsing (round, slightly narrow) map..")
-complex_map.generate_problem_instance(uncertainty=0)
-complex_map.generate_agents(10)
-print("Filling heuristics table..")
-complex_map.fill_heuristic_table()
-profile.run('run_map(complex_map, print_sol=False, time_limit=60, use_cbs=True, use_cat=False)', sort=1)
+#print("-------------- Large moving-ai maps -------------------")
+#complex_map = TimeUncertaintyProblem('../maps/ost003d.map')
+#print("Parsing (round, slightly narrow) map..")
+#complex_map.generate_problem_instance(uncertainty=0)
+#complex_map.generate_agents(10)
+#print("Filling heuristics table..")
+#complex_map.fill_heuristic_table()
+#profile.run('run_map(complex_map, print_sol=False, time_limit=60, use_cbs=True, use_cat=False)', sort=1)
 
-print("Test finished!")
+
+tu_problem = TimeUncertaintyProblem('./test_map.map')
+tu_problem.generate_problem_instance(uncertainty=2)
+tu_problem.start_positions[1] = (0, 0)
+tu_problem.start_positions[2] = (17, 0)
+tu_problem.goal_positions[1] = (19, 0)
+tu_problem.goal_positions[2] = (17, 0)
+tu_problem.fill_heuristic_table()
+
+sim = MAPFSimulator(tu_problem, sensing_prob=0, cooperation=True)
+sim.begin_execution()

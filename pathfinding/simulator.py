@@ -24,6 +24,9 @@ class MAPFSimulator:
         self.sensing_prob = sensing_prob
         self.cooperation = cooperation
         self.online_CSTU = OnlineCBSTU(tu_problem)
+        self.final_solution = {}
+        for agent in self.tu_problem.start_positions:
+            self.final_solution[agent] = [self.tu_problem.start_positions[agent]]
 
     def begin_execution(self):
 
@@ -44,12 +47,15 @@ class MAPFSimulator:
         :return:
         """
         static_agents = self.online_CSTU.current_state['at_vertex']
+        at_vertex = {}
+        in_transition = {}
         for agent in static_agents:
-            action = self.online_CSTU.current_plan[agent]
-            actual_time = random.uniform(action[2][0], action[2][1])  # Randomly choose real traversal time
+            action = self.get_next_action(agent)
+            actual_time = random.randint(action[2][0], action[2][1])  # Randomly choose real traversal time
+            self.final_solution[agent].append((action[0], actual_time))
             if action[0] != action[1]:  # Not a wait action
                 self.online_CSTU.current_state['at_vertex'].pop(agent, None)
-                self.online_CSTU.current_state['in_transition'][agent] = time + actual_time
+                self.online_CSTU.current_state['in_transition'][agent] = action[1], actual_time
 
     def at_goal_state(self):
         """
@@ -64,3 +70,14 @@ class MAPFSimulator:
                 return False
 
         return True  # All agents are at their goal states
+
+    def get_next_action(self, agent):
+        """
+        Extract from the current plan the next action that will be taken.
+        :param agent: The agent for the needed action
+        :return: The action done including possible completion times.
+        """
+        start_location = self.online_CSTU.current_plan.paths[agent].path[0]
+        destination = self.online_CSTU.current_plan.paths[agent].path[1]
+        return start_location[1], destination[1], destination[0]
+
