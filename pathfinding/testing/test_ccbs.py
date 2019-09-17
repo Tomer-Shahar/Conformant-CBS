@@ -8,7 +8,7 @@ import os
 import profile
 import random
 
-seed = 9001
+seed = 1234541
 random.seed(seed)
 print(f'The seed is {seed}')
 
@@ -102,12 +102,12 @@ total_start = time.time()
 
 
 tu_problem = TimeUncertaintyProblem('./test_map.map')
-tu_problem.generate_problem_instance(uncertainty=2)
+tu_problem.generate_problem_instance(uncertainty=1)
 tu_problem.start_positions[1] = (0, 0)
 tu_problem.start_positions[2] = (17, 0)
 tu_problem.goal_positions[1] = (19, 0)
 tu_problem.goal_positions[2] = (17, 0)
 tu_problem.fill_heuristic_table()
 
-sim = MAPFSimulator(tu_problem, sensing_prob=0, cooperation=True)
-sim.begin_execution()
+sim = MAPFSimulator(tu_problem, sensing_prob=0)
+sim.begin_execution(communication=False)

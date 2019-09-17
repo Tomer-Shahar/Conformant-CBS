@@ -72,7 +72,30 @@ class TestMapReader(unittest.TestCase):
     def test_edge_weights(self):
         """Tests if the weights of the edges are in the range given."""
 
-        uncertainty = random.randint(0, 10)
+        blank_map = TimeUncertaintyProblem()
+        blank_map.map = [[0 for i in range(50)] for j in range(50)]
+        blank_map.height = 50
+        blank_map.width = 50
+        blank_map.generate_edges_and_weights(uncertainty=1)
+
+        distribution = {(1, 1): 0, (1, 2): 0, (2, 2): 0}
+        for vertex, edgeList in blank_map.edges_and_weights.items():
+            for edge in edgeList:
+                distribution[edge[1]] += 1
+        sum_val = sum(distribution.values())
+        distribution[(1, 1)] = distribution[(1, 1)] / sum_val
+        distribution[(1, 2)] = distribution[(1, 2)] / sum_val
+        distribution[(2, 2)] = distribution[(2, 2)] / sum_val
+        print(distribution)
+
+        self.assertTrue(0.3 <= distribution[(1, 1)] <= 0.35)
+        self.assertTrue(0.3 <= distribution[(1, 2)] <= 0.35)
+        self.assertTrue(0.3 <= distribution[(2, 2)] <= 0.35)
+
+    def test_edge_weights_distribution(self):
+        """Tests if the weights of the edges are in the range given."""
+
+        uncertainty = 1
 
         self.conf_problem.generate_edges_and_weights(uncertainty)
 
@@ -163,8 +186,8 @@ class TestMapReader(unittest.TestCase):
         """
         blank_map = TimeUncertaintyProblem()
         blank_map.map = [[0 for i in range(50)] for j in range(50)]
-        blank_map.width = 20
-        blank_map.height = 20
+        blank_map.width = 50
+        blank_map.height = 50
         blank_map.generate_edges_and_weights(uncertainty=10)
 
         edge_weights_dict = {}
@@ -495,8 +518,10 @@ class TestCcbsPlanner(unittest.TestCase):
         blank_map.fill_heuristic_table()
         cbs_planner = CBSTUPlanner(blank_map)
         oda_solver = ODAStar(blank_map)
-        sol = cbs_planner.find_solution(time_limit=2)
-        self.assertEqual(sol.cost[0], 53)
+        cbs_sol = cbs_planner.find_solution(time_limit=2)
+        oda_sol = oda_solver.create_solution()
+        self.assertEqual(cbs_sol.cost[0], 45)
+        self.assertEqual(oda_sol[1][0], 45)
 
 
 class TestODAPlanner(unittest.TestCase):
@@ -612,10 +637,10 @@ class TestODAPlanner(unittest.TestCase):
         blank_problem.fill_heuristic_table()
         oda_star_solver = ODAStar(blank_problem)
         sol = oda_star_solver.create_solution(5, min_time_policy=False)  # Serial mode
-        self.assertEqual(sol[1], (16, 24))
+        self.assertEqual(sol[1], (16, 22))
 
         sol = oda_star_solver.create_solution(5, min_time_policy=True)  # Queue mode
-        self.assertEqual(sol[1], (16, 24))
+        self.assertEqual(sol[1], (16, 22))
 
         seed = 12345678
         random.seed(seed)
@@ -628,7 +653,7 @@ class TestODAPlanner(unittest.TestCase):
         oda_star_solver = ODAStar(blank_problem)
 
         queue_sol = oda_star_solver.create_solution(time_limit=5, min_time_policy=True)  # Queue mode
-        self.assertEqual(queue_sol[1], (33, 42))
+        self.assertEqual(queue_sol[1], (28, 46))
 
     def test_exam_problem(self):
 

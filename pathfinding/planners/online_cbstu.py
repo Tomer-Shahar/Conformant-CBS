@@ -26,7 +26,8 @@ class OnlineCBSTU:
         """
         Uses the offline planner to find an initial solution. Also creates the current state of the world, where the
         time is 0 and all agents are just in their start positions. During the execution of the plan the current state
-        will update.
+        will update. Note that the planner does NOT know when each agent will finish traversing the edge, but instead
+        this info is injected during execution from the simulator.
         :return: A solution for the uncertain problem.
         """
         self.initial_plan = self.offline_cbstu_planner.find_solution()
@@ -34,7 +35,7 @@ class OnlineCBSTU:
         self.current_state = {'time': 0,
                               'cost': 0,
                               'at_vertex': self.tu_problem.start_positions,  # Agents that are at a vertex
-                              'in_transition': {}}  # Agents that are transitioning
+                              'in_transition': {}}  # Agents that are transitioning.
 
     def update_current_state(self, curr_time):
         """
@@ -66,11 +67,11 @@ class OnlineCBSTU:
 
         return True  # All agents are at their goal states
 
-    def update_and_replan(self):
+    def update_and_replan(self, time):
         """
         Function called when the planner receives an update about the current state of the world. Replans for all agents
         that are at a vertex and require re-planning.
         :return: a new plan for the required agents.
         """
-        self.update_current_state()  # Update and extract info from the new state.
+        self.update_current_state(time)  # Update and extract info from the new state.
         return self.create_new_plans()

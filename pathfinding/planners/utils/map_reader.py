@@ -238,10 +238,13 @@ class TimeUncertaintyProblem:
         :param uncertainty: The level of uncertainty in the edge weight.
         :return: The newly formed edge.
         """
-        min_time = random.randint(1, 1 + uncertainty)
-        max_time = random.randint(min_time, 1 + uncertainty)
+        possible_times = []
+        for min_time in range(1, 1 + uncertainty + 1):
+            for max_time in range(min_time, 1 + uncertainty + 1):
+                possible_times.append((min_time, max_time))
+        edge_weight = random.choice(possible_times)
         node = (coordinate[0] + i, coordinate[1] + j)
-        edge = (node, (min_time, max_time))
+        edge = (node, edge_weight)
 
         return edge
 

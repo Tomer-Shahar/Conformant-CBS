@@ -196,7 +196,8 @@ class SingleAgentNode:
             if self.legal_move(agent, vertex, successor_time, constraints):
                 confs_created = self.conflicts_created
                 if len(conflict_table) > 0:
-                    confs_created = self.check_if_conflicts(agent, conflict_table, confs_created, successor_time, vertex)
+                    confs_created = self.check_if_conflicts(agent, conflict_table, confs_created, successor_time,
+                                                            vertex)
                 successor = (vertex, successor_time, confs_created)
                 neighbors.append(successor)
 
@@ -213,7 +214,7 @@ class SingleAgentNode:
 
     @staticmethod
     def check_if_conflicts(agent, conflict_table, confs_created, successor_time, vertex):
-        for tick in range(successor_time[0], successor_time[1]+1):
+        for tick in range(successor_time[0], successor_time[1] + 1):
             if (tick, vertex) in conflict_table:  # At least 1 agent is there.
                 for other_agent in conflict_table[(tick, vertex)]:
                     if other_agent != agent:
@@ -267,14 +268,14 @@ class SingleAgentNode:
         """
         edge = min(self.current_position, vertex), max(self.current_position, vertex)
 
-        #if self.is_single_tick_move_illegal(agent, edge, vertex, succ_time, constraints):
+        # if self.is_single_tick_move_illegal(agent, edge, vertex, succ_time, constraints):
         #    return False
 
         # return not self.is_movement_in_constraints(agent, vertex, edge, constraints, succ_time)
 
-       #if succ_time[0] == succ_time[1]:
-       #    if (agent, edge, succ_time[0]) in constraints or (agent, vertex, succ_time[0]) in constraints:
-       #        return False
+        # if succ_time[0] == succ_time[1]:
+        #    if (agent, edge, succ_time[0]) in constraints or (agent, vertex, succ_time[0]) in constraints:
+        #        return False
 
         for con in constraints:
             if agent == con[0] and \
@@ -284,4 +285,3 @@ class SingleAgentNode:
                 return False
 
         return True
-
