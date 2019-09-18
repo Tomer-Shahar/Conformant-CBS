@@ -16,7 +16,6 @@ class MAPFSimulator:
         """
         :param tu_problem: A time uncertainty problem
         :param sensing_prob: The probability to sense at each node
-
         """
 
         self.tu_problem = tu_problem
@@ -25,6 +24,7 @@ class MAPFSimulator:
         self.final_solution = TimeUncertainSolution()  # Maintain the final path taken by agents
         self.arrival_times = {}  # Maintain a dictionary of when agents will arrive to their next destination
         self.fixed_weights = {}  # The actual traversal times
+        self.communication = True
         for agent in self.tu_problem.start_positions:
             self.final_solution.paths[agent] = TimeUncertainPlan(agent,
                                                                  [((0, 0), self.tu_problem.start_positions[agent])]
@@ -36,12 +36,13 @@ class MAPFSimulator:
         if need be.
         :param communication: Mode of cooperation. Irrelevant if there's no sensing. Otherwise, it's either full
         cooperation (True) or no cooperation (False). Full cooperation means agents can communicate with each other. No
-        cooperation means agents replan for themselves only.
+        cooperation means agents replan for themselves only (distributed planning).
 
         :return: The path that was ultimately taken for each agent.
         """
 
         self.populate_initial_solution()
+        self.communication = communication
         time = 0
 
         if not communication:
@@ -55,6 +56,17 @@ class MAPFSimulator:
             self.online_CSTU.create_new_plans()
             time += 1
         self.print_final_solution(time)
+
+    def simulate_sensing_and_broadcast(self, time, actions_taken):
+
+        for agent, action in actions_taken.items():  # Iterate over agents that performed a move action
+            if self.sensing_prob >= random.random():  # Agent can sense their arrival time
+                actual_time = random.randint(action[2][0], action[2][1])  # Randomly choose real traversal time
+                self.arrival_times[actual_time].append(agent, action[1])
+
+        self.online_CSTU.update_current_state(time)
+
+        pass
 
     def execute_next_step(self, time):
         """
@@ -87,17 +99,6 @@ class MAPFSimulator:
         #    self.online_CSTU.current_state['at_vertex'][agent_action[0]] = agent_action[1]
 
         return actions_taken
-
-    def simulate_sensing_and_broadcast(self, time, actions_taken):
-
-        for agent, action in actions_taken.items():  # Iterate over agents that performed a move action
-            if self.sensing_prob > random.random():  # Agent can sense their arrival time
-                actual_time = random.randint(action[2][0], action[2][1])  # Randomly choose real traversal time
-                self.arrival_times[actual_time].append(agent, action[1])
-
-        self.online_CSTU.update_current_state(time)
-
-        pass
 
     def at_goal_state(self):
         """
@@ -137,52 +138,53 @@ class MAPFSimulator:
 
         agent_graphs = {}  # Maps between an agent and their valid path
         constraints = {}  # Maps between an agent and constraints RELEVANT TO THEM!!
-
+        traversed_locations = {}  # All locations that have been traversed in the solution.
         self.online_CSTU.initial_plan.create_movement_tuples()
         for agent, plan in self.online_CSTU.initial_plan.paths.items():
-            new_agent_graph, traversed_locations = self.generate_tu_problem_graph(agent)
-
+            new_agent_graph, traversed_locations = self.generate_tu_problem_graph(agent, traversed_locations)
+            new_agent_graph.fill_heuristic_table()
             agent_graphs[agent] = new_agent_graph
+            constraints[agent] = set()
+
+        for agent, tu_plan in self.online_CSTU.initial_plan.paths.items():
+            for move in tu_plan.path:
+                for presence in traversed_locations[move[1]]:
+                    if presence[0] != agent:
+                        constraints[agent].add((agent, move[1], move[0]))
 
         return agent_graphs, constraints
 
-    def generate_tu_problem_graph(self, agent):
+    def generate_tu_problem_graph(self, agent, traversed_locs):
         """
         Converts an agent's found path to a graph.
+        :param traversed_locs:
         :param agent: The agent we're building a graph for
         :return: a TimeUncertaintyProblem object. The edges for it will be the same edges traversed by the agent.
         """
 
         agent_path_graph = TimeUncertaintyProblem()
-        prev_move = self.online_CSTU.initial_plan.tuple_solution[agent][0]
-        self.online_CSTU.initial_plan.tuple_solution[agent].pop(0)
+        agent_path_graph.start_positions[agent] = self.online_CSTU.initial_plan.paths[agent].path[0][1]
+        agent_path_graph.goal_positions[agent] = self.online_CSTU.initial_plan.paths[agent].path[-1][1]
+        prev_loc = self.online_CSTU.initial_plan.paths[agent].path.pop(0)
         agent_path_graph.edges_and_weights = {}
-        traversed_locations = {prev_move[1][0]: {(agent, (0, 0))}}
+        self.safe_add_to_dict(prev_loc[1], (agent, (0, 0)), traversed_locs)  # add the vertex
 
-        for move in self.online_CSTU.initial_plan.tuple_solution[agent]:
-            weight = (move[0][0] - prev_move[0][0], move[0][1] - prev_move[0][1])
-            edge = move[1]
-            if edge not in traversed_locations:
-                traversed_locations[edge] = set()
-            traversed_locations[edge].add((agent, (move[0][0], move[0][1]-1)))
+        for loc in self.online_CSTU.initial_plan.paths[agent].path:
+            edge_weight = (loc[0][0] - prev_loc[0][0], loc[0][1] - prev_loc[0][1])
 
-            if move[1][0] not in traversed_locations:
-                traversed_locations[move[1][0]] = set()
-            traversed_locations[move[1][0]].add((agent, move[0]))
+            # add the vertex to edge dictionary. Must add the edge in both directions
+            self.safe_add_to_dict(prev_loc[1], (loc[1], edge_weight), agent_path_graph.edges_and_weights)
+            self.safe_add_to_dict(loc[1], (prev_loc[1], edge_weight), agent_path_graph.edges_and_weights)
 
-            if edge[0] not in agent_path_graph.edges_and_weights:
-                agent_path_graph.edges_and_weights[edge[0]] = set()
+            # Add the edge and node to traversed locations
+            self.safe_add_to_dict(loc[1], (agent, loc[0]), traversed_locs)
 
-            agent_path_graph.edges_and_weights[edge[0]].add((edge[1], weight))
+            if edge_weight != (1, 1):  # We don't add edges that were traversed instantly.
+                self.safe_add_to_dict((prev_loc[1], loc[1]), (agent, (prev_loc[0][0]+1, loc[0][1]-1)), traversed_locs)
 
-            if edge[1] not in agent_path_graph.edges_and_weights:
-                agent_path_graph.edges_and_weights[edge[1]] = set()
+            prev_loc = loc
 
-            agent_path_graph.edges_and_weights[edge[1]].add((edge[0], weight))
-
-            prev_move = move
-
-        return agent_path_graph, traversed_locations
+        return agent_path_graph, traversed_locs
 
     def print_final_solution(self, time):
 
@@ -210,3 +212,13 @@ class MAPFSimulator:
             self.fixed_weights[vertex_1] = []
             for vertex_2 in edges:
                 self.fixed_weights[vertex_1].append((vertex_2[0], random.randint(vertex_2[1][0], vertex_2[1][1])))
+
+    @staticmethod
+    def safe_add_to_dict(key, value, dict_to_insert):
+        """
+        Adds an item to a given dictionary safely. First check if it's there, and if not creates an empty set and adds
+        it to it.
+        """
+        if key not in dict_to_insert:
+            dict_to_insert[key] = set()
+        dict_to_insert[key].add(value)
