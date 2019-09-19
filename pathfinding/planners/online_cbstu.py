@@ -37,7 +37,7 @@ class OnlineCBSTU:
                               'at_vertex': self.tu_problem.start_positions,  # Agents that are at a vertex
                               'in_transition': {}}  # Agents that are transitioning.
 
-    def update_current_state(self, curr_time):
+    def update_current_state(self, curr_time, sensed_agents):
         """
         Extract new info from the current state, such as where each agent is and what the current time is. Both provide
         useful information. Some agents will have completed their actions and some will currently be traversing, so they
@@ -45,12 +45,12 @@ class OnlineCBSTU:
         """
         pass
 
-    def create_new_plans(self):
+    def create_new_plans(self, sensing_agents):
         """
         Replan for the agents that updated their location.
         :return: New plans for the agents that are at a vertex.
         """
-        for agent in self.current_state['at_vertex']:  # Agents that have completed their action, including waiting.
+        for agent in sensing_agents:  # Agents that have completed their action, including waiting.
             pass
 
     def at_goal_state(self):
