@@ -67,36 +67,36 @@ class ConstraintNode:
         new_constraints = frozenset(con_set)
         return new_constraints
 
-    def update_solution(self, agent, new_path, cost, use_cat):
+    def update_solution(self, new_plan, use_cat):
         """
         Updates the plan for a particular agent in the constraint node. Also updates the conflict table by iterating
         over the old solution and removing the moves the agent previously did. Then, adds the required stationary moves
         to the new path and inserts the moves from the new path into the CAT.
 
-        :param agent: The agent being updated.
-        :param new_path: The agent's new path.
-        :param cost: Cost of the agent's new path.
+        :param use_cat: Boolean value, use conflict avoidance table or not
+        :param new_plan: The new time uncertainty plan
         :return: updates the CAT and the node's solution.
         """
         if use_cat:
-            for move in self.solution.paths[agent].path:
+            for move in self.solution.paths[new_plan.agent_id].path:
                 min_time, max_time = move[0][0], move[0][1]
                 for tick in range(min_time, max_time + 1):
                     try:
-                        if (tick, move[1]) in self.conflict_table and agent in self.conflict_table[(tick, move[1])]:
-                            self.conflict_table[(tick, move[1])].remove(agent)
+                        if (tick, move[1]) in self.conflict_table and\
+                                new_plan.agent_id in self.conflict_table[(tick, move[1])]:
+                            self.conflict_table[(tick, move[1])].remove(new_plan.agent_id)
                     except KeyError:
                         print("welp")
 
-        self.solution.paths[agent] = TimeUncertainPlan(agent, new_path, cost)
+        self.solution.paths[new_plan.agent_id] = new_plan
         self.solution.add_stationary_moves()  # inserts missing time steps
         if use_cat:
-            for move in new_path:
+            for move in new_plan.path:
                 min_time, max_time = move[0][0], move[0][1]
                 for tick in range(min_time, max_time + 1):
                     if (tick, move[1]) in self.conflict_table:
-                        self.conflict_table[(tick, move[1])].add(agent)
+                        self.conflict_table[(tick, move[1])].add(new_plan.agent_id)
                     else:
-                        self.conflict_table[(tick, move[1])] = {agent}
+                        self.conflict_table[(tick, move[1])] = {new_plan.agent_id}
 
 

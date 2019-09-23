@@ -5,6 +5,8 @@ results in terms of Sum of Costs.
 """
 
 from pathfinding.planners.cbstu import CBSTUPlanner
+from pathfinding.planners.constraint_A_star import ConstraintAstar
+from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
 
 
 class OnlineCBSTU:
@@ -45,7 +47,7 @@ class OnlineCBSTU:
         """
         pass
 
-    def create_new_plans(self, sensing_agents):
+    def create_new_plans(self, sensing_agents, curr_time):
         """
         Replan for the agents that updated their location.
         :return: New plans for the agents that are at a vertex.
@@ -75,3 +77,23 @@ class OnlineCBSTU:
         """
         self.update_current_state(time)  # Update and extract info from the new state.
         return self.create_new_plans()
+
+    def plan_distributed(self, graphs, constraints, sensing_agents, time):
+        """
+        Lets agents replan after sensing, but without communication. Each agent plans for itself while taking into
+        account possible constraints.
+        :param time: current time
+        :param graphs: the path that each agent can plan in.
+        :param constraints: A set of constraints for all agents
+        :param sensing_agents: Agents that performed a sensing action
+        :return: Creates new plans for each agent that sensed.
+        """
+
+        for agent, loc in sensing_agents.items():
+            agent_constraints = self.offline_cbstu_planner.final_constraints | constraints[agent]
+            planner = ConstraintAstar(graphs[agent])
+            new_plan = planner.compute_agent_path(agent_constraints, agent, loc, graphs[agent].goal_positions[agent],
+                                                  set(), False, curr_time=(time, time))
+            self.current_plan.paths[agent] = new_plan
+
+        self.current_plan.add_stationary_moves()

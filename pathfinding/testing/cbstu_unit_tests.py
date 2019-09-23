@@ -8,6 +8,9 @@ from pathfinding.planners.cbstu import *
 from pathfinding.planners.constraint_A_star import *
 from pathfinding.planners.operator_decomposition_a_star import *
 from pathfinding.planners.utils.time_error import *
+from pathfinding.simulator import MAPFSimulator
+from pathfinding.planners.online_cbstu import OnlineCBSTU
+
 import unittest
 import random
 
@@ -307,13 +310,13 @@ class TestLowLevelSolver(unittest.TestCase):
         large_map.start_positions = {1: start_goal}
         large_map.goal_positions = {1: start_goal}
         solver = ConstraintAstar(large_map)
-        con_time = 50
+        con_time = 50, 50
         goal_con = {(1, start_goal, con_time)}
         large_map.fill_heuristic_table()
         time_lim = 10
         plan = solver.compute_agent_path(goal_con, 1, start_goal, start_goal, {1: set()}, time_limit=time_lim)
 
-        self.assertEqual(plan[2], (con_time+1, con_time+1))
+        self.assertEqual(plan.cost, (con_time[0] + 1, con_time[1] + 1))
 
 
 class TestCcbsPlanner(unittest.TestCase):
@@ -353,8 +356,8 @@ class TestCcbsPlanner(unittest.TestCase):
         con_sets = self.CCBS_planner.extract_vertex_conflict_constraints(
             interval_1, interval_2, v, agent_1, agent_2)
 
-        agent_1_cons = {(agent_1, v, 6)}
-        agent_2_cons = {(agent_2, v, 6)}
+        agent_1_cons = {(agent_1, v, (6, 6))}
+        agent_2_cons = {(agent_2, v, (6, 6))}
 
         self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
 
@@ -376,8 +379,8 @@ class TestCcbsPlanner(unittest.TestCase):
         agent_1_cons = set()
         agent_2_cons = set()
 
-        agent_1_cons.add((agent_1, edge, 17))
-        agent_2_cons.add((agent_2, edge, 17))
+        agent_1_cons.add((agent_1, edge, (17, 17)))
+        agent_2_cons.add((agent_2, edge, (17, 17)))
 
         con_sets = self.CCBS_planner.extract_edge_conflict(agent_1, agent_2, interval_1, interval_2, edge)
 
@@ -396,8 +399,8 @@ class TestCcbsPlanner(unittest.TestCase):
         v_2 = (18, 0)
         edge = (v_1, v_2)
         self.CCBS_planner.edges_and_weights = {v_1: {(v_2, (1, 1))}}
-        agent_1_cons = {(agent_1, edge, 18)}  # ToDo: Should the time be 17 or 18?
-        agent_2_cons = {(agent_2, edge, 18)}
+        agent_1_cons = {(agent_1, edge, (18, 18))}  # ToDo: Should the time be 17 or 18?
+        agent_2_cons = {(agent_2, edge, (18, 18))}
 
         con_sets = self.CCBS_planner.extract_edge_conflict(agent_1, agent_2, interval_1, interval_2, edge)
 
@@ -412,7 +415,7 @@ class TestCcbsPlanner(unittest.TestCase):
         v_2 = (18, 0)
         edge = (v_1, v_2)
         self.CCBS_planner.edges_and_weights = {v_1: {(v_2, (1, 1)), ((16, 0), (1, 1))}}
-        constraints = {(1, edge, 18)}
+        constraints = {(1, edge, (18, 18))}
         self.single_agent_node = SingleAgentNode(v_1, (16, 0), (17, 17), self.conf_problem, (19, 0), 0)
         successor = (v_2, (18, 18))
         self.assertFalse(self.single_agent_node.legal_move(agent, successor[0], successor[1], constraints))
@@ -428,15 +431,18 @@ class TestCcbsPlanner(unittest.TestCase):
         self.conf_problem.fill_heuristic_table()
 
         ccbs_planner = CBSTUPlanner(self.conf_problem)
+        solution = ccbs_planner.find_solution(min_best_case=True, time_limit=2000, sum_of_costs=False)
+        self.assertEqual(solution.cost, (20, 20))  # Both agents move simultaneously
+
+        solution.compute_solution_cost(sum_of_costs=True)
+        self.assertEqual(solution.cost, (39, 39))
+        self.assertEqual(solution.length, 21)
+
         solution = ccbs_planner.find_solution(min_best_case=True, time_limit=2000, sum_of_costs=True)
         self.assertEqual(solution.cost, (23, 23))  # Only agent 1 moves
         self.assertEqual(solution.length, 24)
 
-        solution = ccbs_planner.find_solution(min_best_case=True, time_limit=2000, sum_of_costs=False)
-        self.assertEqual(solution.cost, (20, 20))  # Both agents move simultaneously
-        solution.compute_solution_cost(sum_of_costs=True)
-        self.assertEqual(solution.cost, (39, 39))
-        self.assertEqual(solution.length, 21)
+
 
     def test_more_complex_4_connected_map(self):
         complex_conf_prob = TimeUncertaintyProblem()
@@ -483,7 +489,7 @@ class TestCcbsPlanner(unittest.TestCase):
 
         ccbs_solver = CBSTUPlanner(blank_problem)
         sol = ccbs_solver.find_solution(True, 1000, True)
-        self.assertEqual(sol.cost, (33, 42))
+        self.assertEqual(sol.cost, (28, 44))
 
     def test_edge_conflict_detection(self):
 
@@ -504,7 +510,7 @@ class TestCcbsPlanner(unittest.TestCase):
         edge_example.fill_heuristic_table()
         solver = CBSTUPlanner(edge_example)
 
-        sol = solver.find_solution(time_limit=1)
+        sol = solver.find_solution(time_limit=100)
 
         self.assertEqual(sol.cost, (40, 40))
 
@@ -703,3 +709,43 @@ class TestODAPlanner(unittest.TestCase):
         path_finder = ODAStar(mini_conf_problem)
         with self.assertRaises(OutOfTimeError) as err:
             path_finder.create_solution(time_limit=3, objective='min_best_case', sic=True)
+
+
+class TestOnlineCBSTU(unittest.TestCase):
+    """
+    Tests the online cbstu and simulator.
+    """
+
+    def test_simulator_no_broadcasting_always_sensing_simple(self):
+        """
+        Tests the online planner with a simple example where agents cannot communicate.
+        """
+
+        simple_tu = TimeUncertaintyProblem()
+        simple_tu.edges_and_weights = {
+            (0, 1): [((1, 1), (1, 1))],
+            (0, 2): [((1, 2), (2, 9))],
+            (1, 0): [((1, 1), (1, 5))],
+            (1, 1): [((1, 0), (1, 5)), ((0, 1), (1, 1)), ((1, 2), (1, 1)), ((2, 1), (1, 1))],
+            (1, 2): [((1, 1), (1, 1)), ((0, 2), (2, 9))],
+            (2, 1): [((1, 1), (1, 1))]
+        }
+        simple_tu.start_positions = {1: (1, 0), 2: (0, 2)}
+        simple_tu.goal_positions = {1: (0, 1), 2: (2, 1)}
+        simple_tu.fill_heuristic_table()
+
+        offline_cbstu_planner = CBSTUPlanner(simple_tu)
+        sol = offline_cbstu_planner.find_solution()
+        online_cbstu_planner = OnlineCBSTU(simple_tu)
+        online_cbstu_planner.find_initial_path()
+        self.assertEqual(sol.cost, (9, 20))
+        self.assertEqual(online_cbstu_planner.initial_plan.cost, sol.cost)
+
+        sim = MAPFSimulator(simple_tu, sensing_prob=1)
+        sim.create_initial_solution()
+        graphs, constraints = sim.create_plan_graphs_and_constraints()
+        sensing_agent = {2: (1, 2)}
+        sim.time = 5
+        online_cbstu_planner.plan_distributed(graphs, constraints, sensing_agent, sim.time)
+        online_cbstu_planner.current_plan.compute_solution_cost(sum_of_costs=True)
+        self.assertEqual(online_cbstu_planner.current_plan.cost, (9, 13))

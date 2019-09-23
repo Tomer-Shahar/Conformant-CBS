@@ -7,6 +7,7 @@ Currently a naive implementation of A*
 
 from pathfinding.planners.utils.custom_heap import OpenListHeap
 from pathfinding.planners.utils.time_error import OutOfTimeError
+from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
 import math
 import networkx
 import time
@@ -18,8 +19,8 @@ STAY_STILL_COST = 1
 
 class ConstraintAstar:
 
-    def __init__(self, ccbs_map):
-        self.grid_map = ccbs_map
+    def __init__(self, tu_problem):
+        self.tu_problem = tu_problem
         self.open_list = OpenListHeap()
         self.open_dict = {}
         self.closed_set = set()
@@ -34,15 +35,15 @@ class ConstraintAstar:
     *** Currently naive implementation (basic A* with constraints)****
     """
 
-    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table, min_best_case=True,
-                           time_limit=200000):
+    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table,
+                           min_best_case=True, time_limit=200000, curr_time=(0, 0)):
 
         self.open_list = OpenListHeap()
         self.open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
         self.closed_set = set()
         self.agent = agent
         start_time = time.time()
-        start_node = SingleAgentNode(start_pos, None, (0, 0), self.grid_map, goal_pos, conflicts_created=0)
+        start_node = SingleAgentNode(start_pos, None, curr_time, self.tu_problem, goal_pos, conflicts_created=0)
         self.__add_node_to_open(start_node)
 
         while len(self.open_list.internal_heap) > 0:
@@ -54,13 +55,13 @@ class ConstraintAstar:
             if best_node.current_position == goal_pos and self.__can_stay_still(agent, best_node, constraints):
                 return best_node.calc_path(agent)
 
-            successors = best_node.expand(agent, constraints, conf_table, self.grid_map)
+            successors = best_node.expand(agent, constraints, conf_table, self.tu_problem)
             for neighbor in successors:
                 if neighbor in self.closed_set:
                     continue
                 g_val = neighbor[1]
                 if neighbor not in self.open_dict:
-                    neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.grid_map, goal_pos,
+                    neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.tu_problem, goal_pos,
                                                     neighbor[2])
                     self.__add_node_to_open(neighbor_node)
                 else:
@@ -72,7 +73,7 @@ class ConstraintAstar:
                         continue  # No need to update node. Continue iterating successors
                     # print("Found a faster path for node " + neighbor_node.current_position)
                 # ToDO: Is the open list updated?
-                self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.grid_map)
+                self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.tu_problem)
         print("No solution?")
         return agent, None, math.inf  # no solution
 
@@ -88,28 +89,33 @@ class ConstraintAstar:
 
         return node
 
-    def __update_node(self, neighbor_node, prev_node, g_val, goal_pos, grid_map):
+    @staticmethod
+    def __update_node(neighbor_node, prev_node, g_val, goal_pos, grid_map):
         neighbor_node.prev_node = prev_node
         neighbor_node.g_val = g_val
         neighbor_node.h_val = grid_map.calc_heuristic(neighbor_node.current_position, goal_pos)
         neighbor_node.f_val = g_val[0] + neighbor_node.h_val, g_val[1] + neighbor_node.h_val
         # self.open_list.heapify()  # ToDO: Use heapify??
 
-    def __can_stay_still(self, agent, best_node, constraints):
+    @staticmethod
+    def __can_stay_still(agent, best_node, constraints):
         """
         A function that verifies that the agent has reached the goal at an appropriate time. Useful when an agent
         reaches the goal in, for example, 5-8 time units however in the solution it takes another agent 10-15 time
         units.
         Therefor we must verify what happens if this agent stands still all this time (there might be a conflict!)
         """
-        can_stay = True
-        agent_cons = set()
-        for con in constraints:  # ToDo: Iterate over all constraints or send the max time to stand?
-            if con[0] == agent and con[1] == best_node.current_position and best_node.g_val[0] <= con[2]:
-                agent_cons.add(con)
-                can_stay = False
+        try:
+            can_stay = True
+            agent_cons = set()
+            for con in constraints:  # ToDo: Iterate over all constraints or send the max time to stand?
+                if con[0] == agent and con[1] == best_node.current_position and best_node.g_val[0] <= con[2][1]:
+                    agent_cons.add(con)
+                    can_stay = False
 
-        return can_stay
+            return can_stay
+        except TypeError:
+            print('fudge')
 
     def dijkstra_solution(self, source_vertex):
         """
@@ -122,7 +128,7 @@ class ConstraintAstar:
         """
 
         graph = networkx.Graph()
-        for vertex, edges in self.grid_map.edges_and_weights.items():
+        for vertex, edges in self.tu_problem.edges_and_weights.items():
             for edge in edges:
                 graph.add_edge(vertex, edge[0], weight=edge[1][0])
         return networkx.single_source_dijkstra_path_length(graph, source_vertex)
@@ -140,7 +146,7 @@ class ConstraintAstar:
             new_time = curr_node.g_val[0] + STAY_STILL_COST, curr_node.g_val[1] + STAY_STILL_COST
             goal = goal_node.current_position
             if (self.agent, goal, new_time[0]) not in agent_cons:  # Safe to add!
-                new_node = SingleAgentNode(goal, curr_node, new_time, self.grid_map, goal, conflicts_created=0)
+                new_node = SingleAgentNode(goal, curr_node, new_time, self.tu_problem, goal, conflicts_created=0)
                 curr_node = new_node
             else:  # Curr node was the best we got.
                 if not curr_node.create_tuple() in self.closed_set:
@@ -161,9 +167,11 @@ class ConstraintAstar:
            a<-->b
         ===> A <= a <= B or a <= A <= b
         """
-
-        if (time_1[0] <= time_2[0] <= time_1[1]) or (time_2[0] <= time_1[0] <= time_2[1]):
-            return True
+        try:
+            if (time_1[0] <= time_2[0] <= time_1[1]) or (time_2[0] <= time_1[0] <= time_2[1]):
+                return True
+        except TypeError:
+            print("fudge")
 
         return False
 
@@ -231,7 +239,7 @@ class SingleAgentNode:
             move = (curr_node.g_val, curr_node.current_position)
             path.insert(0, move)
             curr_node = curr_node.prev_node
-        return agent, path, self.g_val
+        return TimeUncertainPlan(agent, path, self.g_val)
 
     def create_tuple(self):
         """
@@ -279,9 +287,9 @@ class SingleAgentNode:
 
         for con in constraints:
             if agent == con[0] and \
-                    ((vertex == con[1] and ConstraintAstar.overlapping((con[2], con[2]), succ_time))
+                    ((vertex == con[1] and ConstraintAstar.overlapping((con[2]), succ_time))
                      or
-                     (edge == con[1] and ConstraintAstar.overlapping((con[2], con[2]), (self.g_val[0], succ_time[1])))):
+                     (edge == con[1] and ConstraintAstar.overlapping((con[2]), (self.g_val[0], succ_time[1])))):
                 return False
 
         return True

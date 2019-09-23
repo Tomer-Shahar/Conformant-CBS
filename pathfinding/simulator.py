@@ -50,18 +50,19 @@ class MAPFSimulator:
             graphs, constraints = self.create_plan_graphs_and_constraints()
 
         while True:
-            actions_to_be_taken = self.execute_next_step()
             if self.at_goal_state():
                 break
-            sensing_agents = self.simulate_sensing_and_broadcast(actions_to_be_taken)
+            sensing_agents = self.simulate_sensing_and_broadcast()
             if self.communication:
-                self.online_CSTU.create_new_plans(sensing_agents)
+                self.online_CSTU.create_new_plans(sensing_agents, self.time)
             else:
-                self.plan_distributed(graphs, constraints, sensing_agents)
+                self.online_CSTU.plan_distributed(graphs, constraints, sensing_agents, self.time)
+            self.execute_next_step()
             self.time += 1
+
         self.print_final_solution()
 
-    def simulate_sensing_and_broadcast(self, actions_to_be_taken):
+    def simulate_sensing_and_broadcast(self):
         """
         Simulates the sensing of location and time, and broadcasting if need be. The simulator always keeps the actual
         arrival times of the agents, but only if they "sense", they get to know what their location and time is. The
@@ -72,9 +73,15 @@ class MAPFSimulator:
         """
         sensed_agents = {}
 
-        for agent, action in actions_to_be_taken.items():  # Iterate over agents that performed a move action
+        # Iterate over agents that were on the move and decide if they already arrived to their destination
+        if self.time in self.arrival_times:
+            for arrival in self.arrival_times[self.time]:
+                self.online_CSTU.current_state['at_vertex'][arrival[0]] = arrival[1]
+                self.online_CSTU.current_state['in_transition'].pop(arrival[0], None)
+
+        for agent, location in self.online_CSTU.current_state['at_vertex'].items():  # Iterate over agents that performed a move action
             if self.sensing_prob >= random.random():  # Agent can sense the current time
-                sensed_agents[agent] = action[0]
+                sensed_agents[agent] = location
         if self.communication:
             self.online_CSTU.update_current_state(self.time, sensed_agents)
 
@@ -89,19 +96,13 @@ class MAPFSimulator:
         be the actual time of the action in case the agent senses. Format:
         {agent: (start vertex, end vertex, possible time, actual time)}
         """
-        actions_to_be_taken = {}
-
-        # Iterate over agents that were on the move and randomly decide if they already arrived to their destination
-        if self.time in self.arrival_times:
-            for arrival in self.arrival_times[self.time]:
-                self.online_CSTU.current_state['at_vertex'][arrival[0]] = arrival[1]
-                self.online_CSTU.current_state['in_transition'].pop(arrival[0], None)
+        #actions_to_be_taken = {}
 
         for agent in list(self.online_CSTU.current_state['at_vertex'].keys()):  # Agents that are currently in a vertex
             action = self.get_next_action(agent, self.time)
             actual_time = random.randint(max(self.time + 1, action[2][0]),
                                          action[2][1])  # Randomly choose real traversal time
-            actions_to_be_taken[agent] = action + (actual_time, )
+            #actions_to_be_taken[agent] = action + (actual_time, )
             self.final_solution.paths[agent].path.append((action[2], action[1]))
             if action[0] != action[1]:  # Not a wait action
                 self.online_CSTU.current_state['at_vertex'].pop(agent, None)
@@ -110,7 +111,7 @@ class MAPFSimulator:
                     self.arrival_times[actual_time] = []
                 self.arrival_times[actual_time].append((agent, action[1]))
 
-        return actions_to_be_taken
+        #return actions_to_be_taken
 
     def at_goal_state(self):
         """
@@ -151,17 +152,18 @@ class MAPFSimulator:
         agent_graphs = {}  # Maps between an agent and their valid path
         constraints = {}  # Maps between an agent and constraints RELEVANT TO THEM!!
         traversed_locations = {}  # All locations that have been traversed in the solution.
+        # Create the graph for each agent
         for agent, plan in self.online_CSTU.initial_plan.paths.items():
             new_agent_graph, traversed_locations = self.generate_tu_problem_graph(agent, traversed_locations)
             new_agent_graph.fill_heuristic_table()
             agent_graphs[agent] = new_agent_graph
             constraints[agent] = set()
-
+        # Update their respective constraints
         for agent, tu_plan in self.online_CSTU.initial_plan.paths.items():
             for move in tu_plan.path:
                 for presence in traversed_locations[move[1]]:
                     if presence[0] != agent:
-                        constraints[agent].add((agent, move[1], move[0]))
+                        constraints[agent].add((agent, move[1], presence[1]))
 
         return agent_graphs, constraints
 
@@ -234,13 +236,4 @@ class MAPFSimulator:
             dict_to_insert[key] = set()
         dict_to_insert[key].add(value)
 
-    def plan_distributed(self, graphs, constraints, sensing_agents):
-        """
-        Lets agents replan after sensing, but without communication. Each agent plans for itself while taking into
-        account possible constraints.
-        :param graphs:
-        :param constraints:
-        :param sensing_agents:
-        :return:
-        """
-        pass
+

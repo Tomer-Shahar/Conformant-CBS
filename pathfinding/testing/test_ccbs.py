@@ -102,10 +102,10 @@ total_start = time.time()
 
 
 tu_problem = TimeUncertaintyProblem('./test_map.map')
-tu_problem.generate_problem_instance(uncertainty=2)
+tu_problem.generate_problem_instance(uncertainty=1)
 tu_problem.start_positions[1] = (0, 0)
 tu_problem.start_positions[2] = (17, 0)
-tu_problem.goal_positions[1] = (10, 2)
+tu_problem.goal_positions[1] = (19, 0)
 tu_problem.goal_positions[2] = (17, 0)
 tu_problem.fill_heuristic_table()
 
