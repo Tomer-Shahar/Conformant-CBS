@@ -3,6 +3,8 @@ This class represents the solutions that are stored in each constraint node. The
 agent, the total cost range of the solution and the length (i.e the max length between the different paths).
 """
 import math
+import json
+import os
 from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
 
 STAY_STILL_COST = 1
@@ -16,6 +18,15 @@ class TimeUncertainSolution:
         self.paths = {}
         self.tuple_solution = None
         self.nodes_expanded = 0
+        self.constraints = set()
+
+    @staticmethod
+    def empty_solution():
+        empty_sol = TimeUncertainSolution()
+        empty_sol.nodes_expanded = -1
+        empty_sol.paths = None
+
+        return empty_sol
 
     def copy_solution(self, other_sol):
 
@@ -39,7 +50,7 @@ class TimeUncertainSolution:
             for agent, plan in self.paths.items():
                 if plan.path is None:
                     return math.inf, math.inf
-
+                plan.compute_cost()
                 min_cost += plan.cost[0]
                 max_cost += plan.cost[1]
             self.cost = min_cost, max_cost
@@ -110,7 +121,47 @@ class TimeUncertainSolution:
 
         self.length = len(self.paths[1].path)
 
+    def save_solution(self, tu_problem, uncertainty, soc, min_best_case, folder):
+        start = [v for v in tu_problem.start_positions.items()]
+        goals = [v for v in tu_problem.goal_positions.items()]
+        file_name = f'sol_soc={soc}_mbc={min_best_case}_start={start}_goals={goals}_' \
+            f'uncertainty={uncertainty}.sol'
+        path = os.path.join(folder, file_name)
 
+        with open(path, 'w+') as sol_file:
+            json_sol = {'paths': {}, 'constraints': None}
+            for agent, path in self.paths.items():
+                json_sol['paths'][agent] = path.path
+            json_sol['constraints'] = list(self.constraints)
+            json.dump(json_sol, sol_file)
+
+    @staticmethod
+    def load_solution(tu_problem, uncertainty, soc, min_best_case, folder):
+        start = [v for v in tu_problem.start_positions.items()]
+        goals = [v for v in tu_problem.goal_positions.items()]
+        file_name = f'sol_soc={soc}_mbc={min_best_case}_start={start}_goals={goals}_' \
+            f'uncertainty={uncertainty}.sol'
+        path = os.path.join(folder, file_name)
+
+        if not os.path.exists(path):
+            return None
+
+        with open(path, 'r') as sol_file:
+            json_sol = json.load(sol_file)
+            tu_sol = TimeUncertainSolution()
+            for agent, path in json_sol['paths'].items():
+                tuple_path = []
+                for presence in path:
+                    tuple_path.append((tuple(presence[0]), tuple(presence[1])))
+                tu_plan = TimeUncertainPlan(int(agent), tuple_path, math.inf)
+                tu_sol.paths[int(agent)] = tu_plan
+            for con in json_sol['constraints']:
+                tuple_con = con[0], tuple(con[1]), tuple(con[2])
+                tu_sol.constraints.add(tuple_con)
+
+            tu_sol.compute_solution_cost()
+            tu_sol.create_movement_tuples()
+            return tu_sol
 """
     def fill_in_solution(self):
         

@@ -109,7 +109,7 @@ class Experiments:
 
             try:
                 start_time = time.time()
-                ccbs_sol = ccbs_planner.find_solution(min_best_case=True, time_limit=self.time_limit, sum_of_costs=True,
+                ccbs_sol = ccbs_planner.find_solution(min_best_case=True, time_limit=self.time_limit, soc=True,
                                                       use_cat=use_cat)
                 if ccbs_sol:
                     ccbs_time = time.time() - start_time

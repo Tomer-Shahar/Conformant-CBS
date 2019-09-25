@@ -78,15 +78,18 @@ class ConstraintNode:
         :return: updates the CAT and the node's solution.
         """
         if use_cat:
-            for move in self.solution.paths[new_plan.agent_id].path:
-                min_time, max_time = move[0][0], move[0][1]
-                for tick in range(min_time, max_time + 1):
-                    try:
-                        if (tick, move[1]) in self.conflict_table and\
-                                new_plan.agent_id in self.conflict_table[(tick, move[1])]:
-                            self.conflict_table[(tick, move[1])].remove(new_plan.agent_id)
-                    except KeyError:
-                        print("welp")
+            try:
+                for move in self.solution.paths[new_plan.agent_id].path:
+                    min_time, max_time = move[0][0], move[0][1]
+                    for tick in range(min_time, max_time + 1):
+                        try:
+                            if (tick, move[1]) in self.conflict_table and\
+                                    new_plan.agent_id in self.conflict_table[(tick, move[1])]:
+                                self.conflict_table[(tick, move[1])].remove(new_plan.agent_id)
+                        except KeyError:
+                            print("welp")
+            except AttributeError:
+                print('what???')
 
         self.solution.paths[new_plan.agent_id] = new_plan
         self.solution.add_stationary_moves()  # inserts missing time steps

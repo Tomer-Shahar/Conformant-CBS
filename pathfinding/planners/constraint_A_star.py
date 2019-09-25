@@ -74,8 +74,7 @@ class ConstraintAstar:
                     # print("Found a faster path for node " + neighbor_node.current_position)
                 # ToDO: Is the open list updated?
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.tu_problem)
-        print("No solution?")
-        return agent, None, math.inf  # no solution
+        return TimeUncertainPlan(agent, None, math.inf)  # no solution
 
     def __remove_node_from_open(self, node):
         node_tuple = node.create_tuple()
@@ -267,7 +266,7 @@ class SingleAgentNode:
 
         """
         A function that checks if a certain movement is legal. First we check for vertex constraints and then edge
-        constraints. The first loop checks for the time range that the agent might be at the next vertex.
+        constraints. The loop checks for the time range that the agent might be at the next vertex.
         vertex - The node the agent is traveling to
         time - The arrival time at vertex
         constraints - A set of constraints.
@@ -276,20 +275,26 @@ class SingleAgentNode:
         """
         edge = min(self.current_position, vertex), max(self.current_position, vertex)
 
-        # if self.is_single_tick_move_illegal(agent, edge, vertex, succ_time, constraints):
-        #    return False
-
-        # return not self.is_movement_in_constraints(agent, vertex, edge, constraints, succ_time)
-
-        # if succ_time[0] == succ_time[1]:
-        #    if (agent, edge, succ_time[0]) in constraints or (agent, vertex, succ_time[0]) in constraints:
-        #        return False
+        if (succ_time[0] - self.g_val[0], succ_time[1] - self.g_val[1]) == (1, 1):
+            edge_occupation = 0, 0
+        else:
+            edge_occupation = self.g_val[0] + 1, succ_time[1] - 1
 
         for con in constraints:
             if agent == con[0] and \
                     ((vertex == con[1] and ConstraintAstar.overlapping((con[2]), succ_time))
                      or
-                     (edge == con[1] and ConstraintAstar.overlapping((con[2]), (self.g_val[0], succ_time[1])))):
+                     (edge == con[1] and ConstraintAstar.overlapping((con[2]), edge_occupation))):
                 return False
 
         return True
+
+    def calc_edge_time(self, succ_time):
+        """
+        Calculates how much time an agent will occupy the edge it is traversing
+        :param succ_time: The time at successor node
+        :return:
+        """
+        if (succ_time[0] - self.g_val[0], succ_time[1] - self.g_val[1]) == (1, 1):
+            return 0, 0
+        return self.g_val[0] + 1, succ_time[1] - 1

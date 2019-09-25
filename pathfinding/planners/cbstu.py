@@ -37,6 +37,7 @@ import math
 from pathfinding.planners.constraint_A_star import ConstraintAstar as Cas
 from pathfinding.planners.utils.constraint_node import ConstraintNode
 from pathfinding.planners.utils.time_error import OutOfTimeError
+from pathfinding.planners.utils.time_uncertainty_solution import TimeUncertainSolution
 
 STAY_STILL_COST = 1
 
@@ -71,7 +72,7 @@ class CBSTUPlanner:
         self.start_time = 0
         self.planner = Cas(conformed_problem)
 
-    def find_solution(self, min_best_case=True, time_limit=60, sum_of_costs=True, use_cat=True):
+    def find_solution(self, min_best_case=True, time_limit=60, soc=True, use_cat=True):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -107,9 +108,10 @@ class CBSTUPlanner:
             new_constraints = self.__validate_solution(best_node)
 
             if not new_constraints:  # Meaning that new_constraints is null, i.e there are no new constraints. Solved!
-                best_node.solution.compute_solution_cost(sum_of_costs)
+                best_node.solution.compute_solution_cost(soc)
                 best_node.solution.nodes_expanded = nodes_expanded
                 self.final_constraints = best_node.constraints
+                best_node.solution.constraints = set(best_node.constraints)
                 return best_node.solution
 
             for new_con_set in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
@@ -124,16 +126,18 @@ class CBSTUPlanner:
                     self.goalPositions[agent],
                     new_node.conflict_table,
                     min_best_case, time_limit=time_limit-time_passed)  # compute the path for a single agent.
-                new_node.update_solution(new_plan, use_cat)
-                new_node.solution.compute_solution_cost(sum_of_costs)  # compute the cost
+                if new_plan.path:
+                    new_node.update_solution(new_plan, use_cat)
+                    new_node.solution.compute_solution_cost(soc)  # compute the cost
 
-                if new_node.solution.cost[0] < math.inf:  # If the minimum time is less than infinity..
-                    self.__insert_open_node(open_nodes, new_node)
+                    if new_node.solution.cost[0] < math.inf:  # If the minimum time is less than infinity..
+                        self.__insert_open_node(open_nodes, new_node)
             if min_best_case:
                 open_nodes.sort(key=lambda k: k.solution.cost[0], reverse=True)
             else:
                 open_nodes.sort(key=lambda k: k.solution.cost[1], reverse=True)
-        print("Empty open list")
+        print("Empty open list - No Solution")
+        return TimeUncertainSolution.empty_solution()
 
     def __validate_solution(self, node):
         """Given a solution, this function will validate it.

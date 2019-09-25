@@ -28,7 +28,7 @@ class ODAStar:
         self.objective = 'min_best_case'
         self.max_nodes = 115000 + 340000
 
-    def create_solution(self, time_limit=300, objective='min_best_case', sic=True, min_time_policy=True ):
+    def create_solution(self, time_limit=300, objective='min_best_case', sic=True, min_time_policy=True):
         """
         Computes a solution for the given conformant problem. Returns a tuple
         solution, cost

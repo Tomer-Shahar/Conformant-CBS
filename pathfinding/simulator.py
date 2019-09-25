@@ -31,18 +31,21 @@ class MAPFSimulator:
                                                                  [((0, 0), self.tu_problem.start_positions[agent])],
                                                                  (0, 0))
 
-    def begin_execution(self, communication=True):
+    def begin_execution(self, min_best_case=False, soc=True, time_limit=120, communication=True, initial_sol=False):
         """
         The main function of the simulator. Finds an initial solution and runs it, occasionally sensing and broadcasting
         if need be.
+        :param initial_sol: Incase we already computed the initial valid solution and don't want to waste time.
+        :param time_limit: Time limit for total execution, including finding an initial path.
+        :param soc: If to use sum of costs or makespan
+        :param min_best_case: Boolean value. If to minimize the best case or worst case.
         :param communication: Mode of cooperation. Irrelevant if there's no sensing. Otherwise, it's either full
         cooperation (True) or no cooperation (False). Full cooperation means agents can communicate with each other. No
         cooperation means agents replan for themselves only (distributed planning).
 
         :return: The path that was ultimately taken for each agent.
         """
-
-        self.create_initial_solution()
+        self.create_initial_solution(min_best_case, soc, time_limit, initial_sol)
         self.communication = communication
         self.time = 0
         graphs, constraints = None, {}
@@ -74,6 +77,7 @@ class MAPFSimulator:
         sensed_agents = {}
 
         # Iterate over agents that were on the move and decide if they already arrived to their destination
+        # This is data for the simulator only
         if self.time in self.arrival_times:
             for arrival in self.arrival_times[self.time]:
                 self.online_CSTU.current_state['at_vertex'][arrival[0]] = arrival[1]
@@ -82,6 +86,7 @@ class MAPFSimulator:
         for agent, location in self.online_CSTU.current_state['at_vertex'].items():  # Iterate over agents that performed a move action
             if self.sensing_prob >= random.random():  # Agent can sense the current time
                 sensed_agents[agent] = location
+                self.final_solution.paths[agent].path[-1] = (self.time, self.time), location
         if self.communication:
             self.online_CSTU.update_current_state(self.time, sensed_agents)
 
@@ -92,26 +97,22 @@ class MAPFSimulator:
         Executes the next action for all agents that are at a vertex and updates the current state accordingly. Also
         inserts into the transitioning agents dict the ones that just performed an action that isn't waiting (and
         removes them from the list of agents that are at a vertex)
-        :return: Agents that are at a vertex and are about to make an action (including wait). This includes what will
-        be the actual time of the action in case the agent senses. Format:
-        {agent: (start vertex, end vertex, possible time, actual time)}
+        :return: Update the list of arrival times and the online planner state
         """
-        #actions_to_be_taken = {}
-
-        for agent in list(self.online_CSTU.current_state['at_vertex'].keys()):  # Agents that are currently in a vertex
-            action = self.get_next_action(agent, self.time)
-            actual_time = random.randint(max(self.time + 1, action[2][0]),
-                                         action[2][1])  # Randomly choose real traversal time
-            #actions_to_be_taken[agent] = action + (actual_time, )
-            self.final_solution.paths[agent].path.append((action[2], action[1]))
-            if action[0] != action[1]:  # Not a wait action
-                self.online_CSTU.current_state['at_vertex'].pop(agent, None)
-                self.online_CSTU.current_state['in_transition'][agent] = action
-                if actual_time not in self.arrival_times:
-                    self.arrival_times[actual_time] = []
-                self.arrival_times[actual_time].append((agent, action[1]))
-
-        #return actions_to_be_taken
+        try:  # Agents that are currently in a vertex
+            for agent in list(self.online_CSTU.current_state['at_vertex'].keys()):
+                action = self.get_next_action(agent, self.time)
+                actual_time = random.randint(max(self.time + 1, action[2][0]),
+                                             action[2][1])  # Randomly choose real traversal time
+                self.final_solution.paths[agent].path.append((action[2], action[1]))
+                if action[0] != action[1]:  # Not a wait action
+                    self.online_CSTU.current_state['at_vertex'].pop(agent, None)
+                    self.online_CSTU.current_state['in_transition'][agent] = action
+                    if actual_time not in self.arrival_times:
+                        self.arrival_times[actual_time] = []
+                    self.arrival_times[actual_time].append((agent, action[1]))
+        except ValueError:
+            print("error")
 
     def at_goal_state(self):
         """
@@ -205,15 +206,11 @@ class MAPFSimulator:
         print(f'Total time: {self.online_CSTU.initial_plan.cost}')
 
         print('Final Path Taken:')
-        print(f'Total time: {self.time}')
+        self.final_solution.compute_solution_cost()
         print(f'Total Cost: {self.final_solution.cost}')
 
-    def create_initial_solution(self):
-        self.online_CSTU.find_initial_path()
-        self.final_solution.cost = self.online_CSTU.initial_plan.cost
-
-        for agent, plan in self.online_CSTU.initial_plan.paths.items():
-            self.final_solution.paths[agent].cost = plan.cost
+    def create_initial_solution(self, min_best_case=False, soc=True, time_limit=60, initial_sol=None):
+        self.online_CSTU.find_initial_path(min_best_case, soc, time_limit, initial_sol)
 
     def comp_weights(self):
         """

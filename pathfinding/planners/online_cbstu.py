@@ -24,7 +24,7 @@ class OnlineCBSTU:
         self.current_plan = None
         self.current_state = None
 
-    def find_initial_path(self):
+    def find_initial_path(self, min_best_case=False, soc=True, time_limit=60, initial_sol=None):
         """
         Uses the offline planner to find an initial solution. Also creates the current state of the world, where the
         time is 0 and all agents are just in their start positions. During the execution of the plan the current state
@@ -32,8 +32,13 @@ class OnlineCBSTU:
         this info is injected during execution from the simulator.
         :return: A solution for the uncertain problem.
         """
-        self.initial_plan = self.offline_cbstu_planner.find_solution()
-        self.current_plan = self.initial_plan
+        if initial_sol:
+            self.initial_plan = initial_sol
+            self.current_plan = initial_sol
+            self.offline_cbstu_planner.final_constraints = initial_sol.constraints
+        else:
+            self.initial_plan = self.offline_cbstu_planner.find_solution(min_best_case, time_limit, soc, use_cat=True)
+            self.current_plan = self.initial_plan
         self.current_state = {'time': 0,
                               'cost': 0,
                               'at_vertex': self.tu_problem.start_positions,  # Agents that are at a vertex
@@ -68,15 +73,6 @@ class OnlineCBSTU:
                 return False
 
         return True  # All agents are at their goal states
-
-    def update_and_replan(self, time):
-        """
-        Function called when the planner receives an update about the current state of the world. Replans for all agents
-        that are at a vertex and require re-planning.
-        :return: a new plan for the required agents.
-        """
-        self.update_current_state(time)  # Update and extract info from the new state.
-        return self.create_new_plans()
 
     def plan_distributed(self, graphs, constraints, sensing_agents, time):
         """
