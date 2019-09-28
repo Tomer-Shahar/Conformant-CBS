@@ -382,7 +382,7 @@ class TestCcbsPlanner(unittest.TestCase):
         agent_1_cons.add((agent_1, edge, (17, 17)))
         agent_2_cons.add((agent_2, edge, (17, 17)))
 
-        con_sets = self.CCBS_planner.extract_edge_conflict(agent_1, agent_2, interval_1, interval_2, edge)
+        con_sets = self.CCBS_planner.get_edge_constraint(agent_1, agent_2, interval_1, interval_2, edge)
 
         self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
 
@@ -402,7 +402,7 @@ class TestCcbsPlanner(unittest.TestCase):
         agent_1_cons = {(agent_1, edge, (18, 18))}  # ToDo: Should the time be 17 or 18?
         agent_2_cons = {(agent_2, edge, (18, 18))}
 
-        con_sets = self.CCBS_planner.extract_edge_conflict(agent_1, agent_2, interval_1, interval_2, edge)
+        con_sets = self.CCBS_planner.get_edge_constraint(agent_1, agent_2, interval_1, interval_2, edge)
 
         self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
 
@@ -510,7 +510,7 @@ class TestCcbsPlanner(unittest.TestCase):
         edge_example.fill_heuristic_table()
         solver = CBSTUPlanner(edge_example)
 
-        sol = solver.find_solution(time_limit=100)
+        sol = solver.find_solution(time_limit=10000)
 
         self.assertEqual(sol.cost, (40, 40))
 
@@ -735,12 +735,12 @@ class TestODAPlanner(unittest.TestCase):
         mini_conf_problem.fill_heuristic_table()
 
         path_finder = ODAStar(mini_conf_problem)
-        sol = path_finder.create_solution(time_limit=100, sic=True)
+        sol = path_finder.create_solution(time_limit=10000, sic=True)
         self.assertEqual(sol[1], (19, 19))
 
         path_finder = CBSTUPlanner(mini_conf_problem)
         sol = path_finder.find_solution(time_limit=100000, min_best_case=True, soc=True)
-        self.assertEqual(sol.cost, (19, 19))
+        self.assertEqual(sol.cost, (18, 18))
 
 
 class TestOnlineCBSTU(unittest.TestCase):

@@ -169,7 +169,7 @@ class CBSTUPlanner:
         """
 
         constraints = self.__check_previously_conflicting_agents(node.solution, node.conflicting_agents)
-        if constraints and node.parent is None:
+        if constraints and node.parent is None:  # ToDO: Why is None?
             return constraints
 
         visited_nodes = {}  # A dictionary containing all the nodes visited
@@ -226,11 +226,14 @@ class CBSTUPlanner:
         and it will be returned. Note that for a conflict to arise the time intervals must be "strongly overlapping",
         i.e (16,17) and (17,18) don't count, however (17,18) and (17,18) do conflict. This is because in an edge
         conflict, if it was a swap type conflict it would be discovered earlier during the vertex conflict check.
+
+        An edge constraint for agent 'a' on edge 'e' at time 't' means that agent 'a' cannot BEGIN to traverse 'e' at
+        time 't'.
         """
 
-        constraints = self.__check_previously_conflicting_agents(filled_solution, node.conflicting_agents)
-        if constraints:
-            return constraints
+        #constraints = self.check_previously_conflicting_agents(filled_solution, node.conflicting_agents)
+        #if constraints:
+        #    return constraints
 
         # A dictionary containing the different edges being traversed in the solution and the times and agents
         # traversing them.
@@ -238,16 +241,41 @@ class CBSTUPlanner:
 
         for agent, path in node.solution.tuple_solution.items():
             for move in path:
-                if move[1] not in positions:
-                    positions[move[1]] = {(agent, move[0])}
-                else:
-                    positions[move[1]].add((agent, move[0]))
-                    for traversal in positions[move[1]]:
-                        if traversal[0] != agent and self.strong_overlapping(move[0], traversal[1]):
-                            return self.extract_edge_conflict(traversal[0], agent, traversal[1], move[0], move[1])
+                edge = move[1]
+                if edge not in positions:
+                    positions[edge] = set()
+                positions[edge].add((agent, move[0]))
+                """
+                if move[0][1] - move[0][0] > 1:  # Edge weight is more than 1
+                    if (edge[0], edge) not in positions:
+                        positions[(edge[0], edge)] = set()
+                    if (edge[1], edge) not in positions:
+                        positions[(edge[1], edge)] = set()
+                    if move[2] == 'f':  # The edge tuple order is indeed the order of traversal
+                        positions[(edge[0], edge)].add((agent, (move[0][0], move[0][0])))
+                        positions[(edge[1], edge)].add((agent, (move[0][1]-1, move[0][1]-1)))
+                        for traversal in positions[edge[0], edge]:
+                            if traversal[0] != agent and (move[0][0], move[0][0]) == traversal[1]:
+                                return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
+                        for traversal in positions[edge[1], edge]:
+                            if traversal[0] != agent and (move[0][1]-1, move[0][1]-1) == traversal[1]:
+                                return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
+                    else:  # The edge tuple order is opposite to the actual order of traversal
+                        positions[(edge[1], edge)].add((agent, (move[0][0], move[0][0])))
+                        positions[(edge[0], edge)].add((agent, (move[0][1]-1, move[0][1]-1)))
+                        for traversal in positions[edge[1], edge]:
+                            if traversal[0] != agent and (move[0][0], move[0][0]) == traversal[1]:
+                                return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
+                        for traversal in positions[edge[0], edge]:
+                            if traversal[0] != agent and (move[0][1]-1, move[0][1]-1) == traversal[1]:
+                                return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
+                """
+                for traversal in positions[edge]:
+                    if traversal[0] != agent and self.strong_overlapping(move[0], traversal[1]):
+                        return self.get_edge_constraint(traversal[0], agent, traversal[1], move[0], edge)
         return None
 
-    def extract_edge_conflict(self, agent_i, agent_j, interval_i, interval_j, conflict_edge):
+    def get_edge_constraint(self, agent_i, agent_j, interval_i, interval_j, conflict_edge):
         """
         We know there's a conflict at some edge, and agent1 cannot BEGIN traversing it at time 1 and agent 2 cannot
         begin traversing it at time 2. Time 1 and time 2 must be computed through the given intervals and the time to
@@ -411,14 +439,14 @@ class CBSTUPlanner:
             else:
                 positions[move[1]].add((agent_i, move[0]))
 
-        for move in solution.tuple_solution[agent_j][1]:
+        for move in solution.tuple_solution[agent_j]:
             if move[1] not in positions:
                 positions[move[1]] = {(agent_j, move[0])}
             else:
                 positions[move[1]].add((agent_j, move[0]))
                 for traversal in positions[move[1]]:
-                    if traversal[0] != agent_j and self.strong_overlapping(move[1], traversal[1]):
-                        return self.extract_edge_conflict(traversal[0], agent_j, traversal[1], move[0], move[1])
+                    if traversal[0] != agent_j and self.strong_overlapping(move[0], traversal[1]):
+                        return self.get_edge_constraint(traversal[0], agent_j, traversal[1], move[0], move[1])
         return None
 
 

@@ -79,7 +79,8 @@ class TimeUncertainSolution:
         converts each path in solution to a tuple of ( (t1,t2), (u,v) ) where (u,v) is an edge and t1 is when the agent
         began the movement across it and t2 is when the agent completed the movement.
 
-        For easier comparison, 'u' and 'v' will be sorted.
+        For easier comparison, 'u' and 'v' will be sorted. We still maintain 'f' or 'b' to signify what was the original
+        direction. This is necessary in a few very specific conflicts.
         """
         self.tuple_solution = {}
 
@@ -90,7 +91,12 @@ class TimeUncertainSolution:
                 start_time = plan.path[move][0][0]
                 next_vertex = max(plan.path[move][1], plan.path[move + 1][1])
                 finish_time = plan.path[move + 1][0][1]
-                new_path.append(((start_time, finish_time), (start_vertex, next_vertex)))
+                if start_vertex == plan.path[move][1]:
+                    direction = 'f'  # The original beginning vertex was 'start_vertex'
+                else:
+                    direction = 'b'  # The original beginning vertex was 'next_vertex'
+
+                new_path.append(((start_time, finish_time), (start_vertex, next_vertex), direction))
 
             self.tuple_solution[agent] = new_path
 

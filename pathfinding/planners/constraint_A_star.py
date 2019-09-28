@@ -276,7 +276,7 @@ class SingleAgentNode:
         edge = min(self.current_position, vertex), max(self.current_position, vertex)
 
         if (succ_time[0] - self.g_val[0], succ_time[1] - self.g_val[1]) == (1, 1):
-            edge_occupation = 0, 0
+            edge_occupation = self.g_val[0]+1, self.g_val[0]+1
         else:
             edge_occupation = self.g_val[0] + 1, succ_time[1] - 1
 
