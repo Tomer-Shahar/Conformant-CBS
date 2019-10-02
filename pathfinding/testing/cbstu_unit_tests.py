@@ -3,7 +3,6 @@ Unit tests for Conformant-CBS
 """
 
 from pathfinding.planners.utils.map_reader import TimeUncertaintyProblem
-from pathfinding.planners.utils.time_uncertainty_solution import TimeUncertainSolution
 from pathfinding.planners.cbstu import *
 from pathfinding.planners.constraint_A_star import *
 from pathfinding.planners.operator_decomposition_a_star import *
@@ -64,7 +63,8 @@ class TestMapReader(unittest.TestCase):
         self.assertTrue(edges[(0, 3)] == [((1, 2), (1, 1)), ((1, 3), (1, 1))])
 
         self.assertTrue(edges[(1, 0)] == [((0, 0), (1, 1)), ((2, 0), (1, 1)), ((2, 1), (1, 1))])
-        self.assertTrue(edges[(1, 2)] == [((0, 3), (1, 1)), ((1, 3), (1, 1)), ((2, 1), (1, 1)), ((2, 2), (1, 1)), ((2, 3), (1, 1))])
+        self.assertTrue(
+            edges[(1, 2)] == [((0, 3), (1, 1)), ((1, 3), (1, 1)), ((2, 1), (1, 1)), ((2, 2), (1, 1)), ((2, 3), (1, 1))])
         self.assertTrue(edges[(1, 3)] == [((0, 3), (1, 1)), ((1, 2), (1, 1)), ((2, 2), (1, 1)), ((2, 3), (1, 1))])
 
         self.assertTrue(edges[(2, 0)] == [((1, 0), (1, 1)), ((2, 1), (1, 1))])
@@ -105,7 +105,7 @@ class TestMapReader(unittest.TestCase):
         for vertex, edgeList in self.conf_problem.edges_and_weights.items():
             for edge in edgeList:
                 self.assertTrue(1 <= edge[1][0] <= edge[1][1])
-                self.assertTrue(edge[1][0] <= edge[1][1] <= 1+uncertainty)
+                self.assertTrue(edge[1][0] <= edge[1][1] <= 1 + uncertainty)
 
     def test_agent_generation(self):
         """Tests that the generate_agents function works properly"""
@@ -209,22 +209,51 @@ class TestMapReader(unittest.TestCase):
         return min(start, end), max(start, end)
 
 
-class TestConformantSolution(unittest.TestCase):
+class TestLowLevelSolver(unittest.TestCase):
+    """ Class for testing the low level solver. """
+
+    def setUp(self):
+        pass
+
+    def test_large_map_with_goal_constraint(self):
+        """
+        Tests a large map where the agent begins at the goal, but has a constraint much later on.
+        Ideally, the solution should be found quick since the agent can just stay there and move one step when need be
+        """
+        large_map = TimeUncertaintyProblem()
+        large_map.map = [[0 for i in range(50)] for j in range(50)]
+        large_map.width = 50
+        large_map.height = 50
+        large_map.generate_edges_and_weights()
+        start_goal = (25, 25)
+        large_map.start_positions = {1: start_goal}
+        large_map.goal_positions = {1: start_goal}
+        solver = ConstraintAstar(large_map)
+        con_time = 50, 50
+        goal_con = {(1, start_goal, con_time)}
+        large_map.fill_heuristic_table()
+        time_lim = 10
+        plan = solver.compute_agent_path(goal_con, 1, start_goal, start_goal, {1: set()}, time_limit=time_lim)
+
+        self.assertEqual(plan.cost, (con_time[0] + 1, con_time[1] + 1))
+
+
+class TestTimeUncertaintySolution(unittest.TestCase):
 
     def setUp(self):
         self.conformant_sol = TimeUncertainSolution()
         self.conformant_sol.paths[1] = TimeUncertainPlan(agent_id=1,
                                                          path=[((0, 0), (0, 1)),
-                                                            ((1, 3), (0, 2)),
-                                                            ((2, 6), (0, 3)),
-                                                            ((3, 9), (0, 4)),
-                                                            ((4, 12), (1, 4)),
-                                                            ((5, 15), (1, 5))]
+                                                               ((1, 3), (0, 2)),
+                                                               ((2, 6), (0, 3)),
+                                                               ((3, 9), (0, 4)),
+                                                               ((4, 12), (1, 4)),
+                                                               ((5, 15), (1, 5))]
                                                          , cost=(5, 15))
 
         self.conformant_sol.paths[2] = TimeUncertainPlan(agent_id=1,
                                                          path=[((0, 0), (3, 1)),
-                                                            ((6, 8), (3, 2))]
+                                                               ((6, 8), (3, 2))]
                                                          , cost=(6, 8))
 
         self.conformant_sol.length = 5
@@ -277,46 +306,17 @@ class TestConformantSolution(unittest.TestCase):
         self.conformant_sol.create_movement_tuples()
 
         expected_movement = {
-            1: [((0, 3), ((0, 1), (0, 2))),
-                    ((1, 6), ((0, 2), (0, 3))),
-                    ((2, 9), ((0, 3), (0, 4))),
-                    ((3, 12), ((0, 4), (1, 4))),
-                    ((4, 15), ((1, 4), (1, 5))),
-                    ((5, 16), ((1, 5), (1, 5)))],
+            1: [((0, 3), ((0, 1), (0, 2)), 'f'),
+                ((1, 6), ((0, 2), (0, 3)), 'f'),
+                ((2, 9), ((0, 3), (0, 4)), 'f'),
+                ((3, 12), ((0, 4), (1, 4)), 'f'),
+                ((4, 15), ((1, 4), (1, 5)), 'f'),
+                ((5, 16), ((1, 5), (1, 5)), 'f')],
 
-            2: [((0, 8), ((3, 1), (3, 2)))]
+            2: [((0, 8), ((3, 1), (3, 2)), 'f')]
         }
 
         self.assertEqual(self.conformant_sol.tuple_solution, expected_movement)
-
-
-class TestLowLevelSolver(unittest.TestCase):
-    """ Class for testing the low level solver. """
-
-    def setUp(self):
-        pass
-
-    def test_large_map_with_goal_constraint(self):
-        """
-        Tests a large map where the agent begins at the goal, but has a constraint much later on.
-        Ideally, the solution should be found quick since the agent can just stay there and move one step when need be
-        """
-        large_map = TimeUncertaintyProblem()
-        large_map.map = [[0 for i in range(50)] for j in range(50)]
-        large_map.width = 50
-        large_map.height = 50
-        large_map.generate_edges_and_weights()
-        start_goal = (25, 25)
-        large_map.start_positions = {1: start_goal}
-        large_map.goal_positions = {1: start_goal}
-        solver = ConstraintAstar(large_map)
-        con_time = 50, 50
-        goal_con = {(1, start_goal, con_time)}
-        large_map.fill_heuristic_table()
-        time_lim = 10
-        plan = solver.compute_agent_path(goal_con, 1, start_goal, start_goal, {1: set()}, time_limit=time_lim)
-
-        self.assertEqual(plan.cost, (con_time[0] + 1, con_time[1] + 1))
 
 
 class TestCcbsPlanner(unittest.TestCase):
@@ -379,8 +379,8 @@ class TestCcbsPlanner(unittest.TestCase):
         agent_1_cons = set()
         agent_2_cons = set()
 
-        agent_1_cons.add((agent_1, edge, (17, 17)))
-        agent_2_cons.add((agent_2, edge, (17, 17)))
+        agent_1_cons.add((agent_1, edge, (18, 18)))
+        agent_2_cons.add((agent_2, edge, (18, 18)))
 
         con_sets = self.CCBS_planner.get_edge_constraint(agent_1, agent_2, interval_1, interval_2, edge)
 
@@ -399,7 +399,7 @@ class TestCcbsPlanner(unittest.TestCase):
         v_2 = (18, 0)
         edge = (v_1, v_2)
         self.CCBS_planner.edges_and_weights = {v_1: {(v_2, (1, 1))}}
-        agent_1_cons = {(agent_1, edge, (18, 18))}  # ToDo: Should the time be 17 or 18?
+        agent_1_cons = {(agent_1, edge, (18, 18))}
         agent_2_cons = {(agent_2, edge, (18, 18))}
 
         con_sets = self.CCBS_planner.get_edge_constraint(agent_1, agent_2, interval_1, interval_2, edge)
@@ -441,8 +441,6 @@ class TestCcbsPlanner(unittest.TestCase):
         solution = ccbs_planner.find_solution(min_best_case=True, time_limit=2000, soc=True)
         self.assertEqual(solution.cost, (23, 23))  # Only agent 1 moves
         self.assertEqual(solution.length, 24)
-
-
 
     def test_more_complex_4_connected_map(self):
         complex_conf_prob = TimeUncertaintyProblem()
@@ -494,6 +492,27 @@ class TestCcbsPlanner(unittest.TestCase):
     def test_edge_conflict_detection(self):
 
         edge_example = TimeUncertaintyProblem()
+
+        edge_example.edges_and_weights = {
+            (0, 0): [((0, 1), (1, 1))],
+            (0, 1): [((0, 0), (1, 1)), ((0, 2), (1, 1)), ((1, 1), (1, 1))],
+            (0, 2): [((0, 1), (1, 1))],
+            (1, 1): [((0, 1), (1, 1))]
+        }
+
+        edge_example.start_positions[1] = (0, 0)
+        edge_example.start_positions[2] = (0, 1)
+        edge_example.goal_positions[1] = (0, 2)
+        edge_example.goal_positions[2] = (0, 0)
+
+        edge_example.fill_heuristic_table()
+        solver = CBSTUPlanner(edge_example)
+
+        sol = solver.find_solution(time_limit=10000)
+
+        self.assertEqual(sol.cost, (5, 5))
+
+        edge_example = TimeUncertaintyProblem()
         edge_example.edges_and_weights = {
             (0, 0): [((0, 1), (5, 5))],
             (0, 1): [((0, 0), (5, 5)), ((0, 2), (3, 3))],
@@ -510,7 +529,7 @@ class TestCcbsPlanner(unittest.TestCase):
         edge_example.fill_heuristic_table()
         solver = CBSTUPlanner(edge_example)
 
-        sol = solver.find_solution(time_limit=10000)
+        sol = solver.find_solution(time_limit=2)
 
         self.assertEqual(sol.cost, (40, 40))
 
@@ -528,6 +547,91 @@ class TestCcbsPlanner(unittest.TestCase):
         oda_sol = oda_solver.create_solution()
         self.assertEqual(cbs_sol.cost[0], 45)
         self.assertEqual(oda_sol[1][0], 45)
+
+    def test_weighted_graph_counter_example(self):
+        mini_conf_problem = TimeUncertaintyProblem()
+        mini_conf_problem.map = [[0, 0],
+                                 [0, 0]]
+        mini_conf_problem.width = 2
+        mini_conf_problem.height = 2
+        mini_conf_problem.edges_and_weights = {
+            (0, 0): [((0, 1), (2, 2)), ((1, 1), (2, 2))],
+            (0, 1): [((0, 0), (2, 2)), ((1, 1), (3, 3))],
+            (1, 0): [((1, 1), (2, 2))],
+            (1, 1): [((1, 0), (2, 2)), ((0, 0), (2, 2)), ((0, 1), (3, 3))]}
+
+        mini_conf_problem.start_positions[1] = (1, 0)
+        mini_conf_problem.start_positions[2] = (1, 1)
+        mini_conf_problem.start_positions[3] = (0, 0)
+        mini_conf_problem.start_positions[4] = (0, 1)
+
+        mini_conf_problem.goal_positions[1] = (0, 0)
+        mini_conf_problem.goal_positions[2] = (0, 1)
+        mini_conf_problem.goal_positions[3] = (1, 1)
+        mini_conf_problem.goal_positions[4] = (1, 0)
+        mini_conf_problem.fill_heuristic_table()
+
+        path_finder = CBSTUPlanner(mini_conf_problem)
+        sol = path_finder.find_solution(time_limit=2, min_best_case=True, soc=True)
+        self.assertEqual(sol.cost, (18, 18))
+
+    def test_solution_evaluation(self):
+        """ Gets a valid solution and attempts to detect conflicts"""
+        mini_conf_problem = TimeUncertaintyProblem()
+        mini_conf_problem.map = [[0, 0],
+                                 [0, 0]]
+        mini_conf_problem.width = 2
+        mini_conf_problem.height = 2
+        mini_conf_problem.edges_and_weights = {
+            (0, 0): [((0, 1), (2, 2)), ((1, 1), (2, 2))],
+            (0, 1): [((0, 0), (2, 2)), ((1, 1), (3, 3))],
+            (1, 0): [((1, 1), (2, 2))],
+            (1, 1): [((1, 0), (2, 2)), ((0, 0), (2, 2)), ((0, 1), (3, 3))]}
+
+        mini_conf_problem.start_positions[1] = (1, 0)
+        mini_conf_problem.start_positions[2] = (1, 1)
+        mini_conf_problem.start_positions[3] = (0, 0)
+        mini_conf_problem.start_positions[4] = (0, 1)
+
+        mini_conf_problem.goal_positions[1] = (0, 0)
+        mini_conf_problem.goal_positions[2] = (0, 1)
+        mini_conf_problem.goal_positions[3] = (1, 1)
+        mini_conf_problem.goal_positions[4] = (1, 0)
+        mini_conf_problem.fill_heuristic_table()
+
+        planner = CBSTUPlanner(mini_conf_problem)
+        ct_node = ConstraintNode()
+        ct_node.solution.paths = {
+            1: TimeUncertainPlan(1, [((0, 0), (1, 0)), ((2, 2), (1, 1)), ((4, 4), (0, 0))], (4, 4)),
+            2: TimeUncertainPlan(2, [((0, 0), (1, 1)), ((2, 2), (0, 0)), ((4, 4), (0, 1))], (4, 4)),
+            3: TimeUncertainPlan(3, [((0, 0), (0, 0)), ((2, 2), (0, 1)), ((5, 5), (1, 1))], (5, 5)),
+            4: TimeUncertainPlan(4, [((0, 0), (0, 1)), ((3, 3), (1, 1)), ((5, 5), (1, 0))], (5, 5))
+        }
+
+        constraints = planner.validate_solution(ct_node)  # Solution that should not contain conflicts
+        self.assertEqual(constraints, None)
+
+        ct_node = ConstraintNode()
+        ct_node.solution.paths = {
+            1: TimeUncertainPlan(1, [((0, 0), (1, 0)), ((2, 2), (1, 1)), ((4, 4), (0, 0))], (4, 4)),
+            2: TimeUncertainPlan(2, [((0, 0), (1, 1)), ((2, 2), (0, 0)), ((4, 4), (0, 1))], (4, 4)),
+            3: TimeUncertainPlan(3, [((0, 0), (0, 0)), ((2, 2), (0, 1)), ((3, 3), (0, 1)), ((6, 6), (1, 1))], (6, 6)),
+            4: TimeUncertainPlan(4, [((0, 0), (0, 1)), ((3, 3), (1, 1)), ((5, 5), (1, 0))], (5, 5))
+        }
+
+        constraints = planner.validate_solution(ct_node)  # Solution that should not contain conflicts
+        self.assertEqual(constraints, None)
+        ct_node.solution.compute_solution_cost()
+        self.assertEqual(ct_node.solution.cost, (19, 19))
+
+        cas = ConstraintAstar(mini_conf_problem)
+        constraints = {(3, ((0, 0), (1, 1)), (3, 3)),
+                       (3, ((0, 1), (1, 1)), (2, 2)),
+                       (3, (1, 1), (3, 3)),
+                       (3, (1, 1), (2, 2)),
+                       (2, ((0, 1), (1, 1)), (2, 2))}
+        new_plan = cas.compute_agent_path(constraints, 3, (0, 0), (1, 1), {}, time_limit=10000)
+        self.assertEqual(new_plan.cost, (6, 6))
 
 
 class TestODAPlanner(unittest.TestCase):
@@ -687,6 +791,10 @@ class TestODAPlanner(unittest.TestCase):
         self.assertEqual(solution[1], (6, 6))
 
     def test_incomplete_problem(self):
+        """
+        Tests for a graph that is unsolvable. Since ODA* cannot determine that a problem is unsolvable, we make sure it
+        raised an out of time exception instead (it should be able to solve it in 3 seconds if it was solvable)
+        """
         mini_conf_problem = TimeUncertaintyProblem()
         mini_conf_problem.map = [[0, 0],
                                  [0, 0]]
@@ -707,9 +815,9 @@ class TestODAPlanner(unittest.TestCase):
         mini_conf_problem.goal_positions[3] = (0, 0)
         mini_conf_problem.fill_heuristic_table()
 
-        path_finder = CBSTUPlanner(mini_conf_problem)
-        sol = path_finder.find_solution(time_limit=1, min_best_case=True, soc=True)
-        self.assertEqual(sol.cost, (math.inf, math.inf))
+        path_finder = ODAStar(mini_conf_problem)
+        time_limit = 3
+        self.assertRaises(OutOfTimeError, path_finder.create_solution, time_limit)
 
     def test_weighted_problem_vs_unweighted_problem(self):
         mini_conf_problem = TimeUncertaintyProblem()
@@ -735,12 +843,8 @@ class TestODAPlanner(unittest.TestCase):
         mini_conf_problem.fill_heuristic_table()
 
         path_finder = ODAStar(mini_conf_problem)
-        sol = path_finder.create_solution(time_limit=10000, sic=True)
-        self.assertEqual(sol[1], (19, 19))
-
-        path_finder = CBSTUPlanner(mini_conf_problem)
-        sol = path_finder.find_solution(time_limit=100000, min_best_case=True, soc=True)
-        self.assertEqual(sol.cost, (18, 18))
+        odasol = path_finder.create_solution(time_limit=5, sic=True)
+        self.assertEqual(odasol[1], (19, 19))
 
 
 class TestOnlineCBSTU(unittest.TestCase):
@@ -777,10 +881,135 @@ class TestOnlineCBSTU(unittest.TestCase):
         sim.create_initial_solution()
         graphs, constraints = sim.create_plan_graphs_and_constraints()
         sensing_agent = {2: (1, 2)}
-        sim.time = 5
-        online_cbstu_planner.plan_distributed(graphs, constraints, sensing_agent, sim.time)
+        sim.sim_time = 5
+        online_cbstu_planner.plan_distributed(graphs, constraints, sensing_agent, sim.sim_time)
         online_cbstu_planner.current_plan.compute_solution_cost(sum_of_costs=True)
         self.assertEqual(online_cbstu_planner.current_plan.cost, (9, 13))  # Test with only agent 2 sensing
+
+    def test_no_broadcasting_multiple_agents_example_map_full_sensing(self):
+        map_file = '.\\small_blank_map.map'
+        blank_problem = TimeUncertaintyProblem(map_file)
+
+        for i in range(15):
+            blank_problem.generate_problem_instance(uncertainty=2)
+            blank_problem.generate_agents(agent_num=6)
+            sim = MAPFSimulator(blank_problem, sensing_prob=1)
+            sim.begin_execution(communication=False, time_limit=10)
+            init_cost = sim.online_CSTU.initial_plan.cost
+            final_cost = sim.final_solution.cost
+            init_tu = init_cost[1]-init_cost[0]
+            final_tu = final_cost[1] - final_cost[0]
+            for agent, solution in sim.final_solution.paths.items():
+                start_loc = solution.path[0][1]
+                final_loc = solution.path[-1][1]
+                start = blank_problem.start_positions[agent]
+                goal = blank_problem.goal_positions[agent]
+                self.assertEqual(final_loc, goal)
+                self.assertEqual(start_loc, start)
+            self.assertGreaterEqual(init_cost[1], final_cost[1])
+            self.assertGreaterEqual(final_cost[0], init_cost[0])
+            self.assertGreaterEqual(init_tu, final_tu)
+
+    def test_no_broadcasting_multiple_agents_example_map_partial_sensing(self):
+        map_file = '.\\small_blank_map.map'
+        blank_problem = TimeUncertaintyProblem(map_file)
+
+        for i in range(15):
+            blank_problem.generate_problem_instance(uncertainty=2)
+            blank_problem.generate_agents(agent_num=5)
+            sim = MAPFSimulator(blank_problem, sensing_prob=0.5)
+            sim.begin_execution(communication=False, time_limit=10)
+            init_cost = sim.online_CSTU.initial_plan.cost
+            final_cost = sim.final_solution.cost
+            init_tu = init_cost[1]-init_cost[0]
+            final_tu = final_cost[1] - final_cost[0]
+            for agent, solution in sim.final_solution.paths.items():
+                start_loc = solution.path[0][1]
+                final_loc = solution.path[-1][1]
+                start = blank_problem.start_positions[agent]
+                goal = blank_problem.goal_positions[agent]
+                self.assertEqual(final_loc, goal)
+                self.assertEqual(start_loc, start)
+            self.assertGreaterEqual(init_cost[1], final_cost[1])
+            self.assertGreaterEqual(final_cost[0], init_cost[0])
+            self.assertGreaterEqual(init_tu, final_tu)
+
+    def test_simple_sensing_no_broadcasting(self):
+        random.seed(2483203)
+        small_tu_map = TimeUncertaintyProblem()
+        small_tu_map.map = [[0, 0, 0],
+                            [0, 0, 0]]
+        small_tu_map.width = 3
+        small_tu_map.height = 2
+        small_tu_map.edges_and_weights = {
+            (0, 0): [((0, 1), (1, 10))],
+            (0, 1): [((0, 0), (1, 10)), ((0, 2), (1, 10))],
+            (0, 2): [((0, 1), (1, 10)), ((1, 2), (1, 1)), ((0, 3), (5, 10))],
+            (0, 3): [((0, 2), (5, 10)), ((0, 4), (1, 1))],
+            (0, 4): [((0, 3), (1, 1))],
+            (1, 2): [((0, 2), (1, 1))]}
+
+        small_tu_map.start_positions[1] = (0, 0)
+        small_tu_map.start_positions[2] = (0, 4)
+
+        small_tu_map.goal_positions[1] = (0, 3)
+        small_tu_map.goal_positions[2] = (1, 2)
+        small_tu_map.fill_heuristic_table()
+
+        sim = MAPFSimulator(small_tu_map, sensing_prob=1)
+        sim.begin_execution(time_limit=10000, communication=False)
+
+    def test_unsolvable_without_sensing_problem(self):
+        """ A test using Abdallah's example of a problem that is unsolvable without sensing."""
+        small_tu_map = TimeUncertaintyProblem()
+        small_tu_map.map = [[0, 0],
+                            [0, 0]]
+        small_tu_map.width = 2
+        small_tu_map.height = 2
+        small_tu_map.edges_and_weights = {
+            (0, 0): [((0, 1), (1, 1)), ((1, 1), (1, 1))],
+            (0, 1): [((0, 0), (1, 1)), ((1, 1), (1, 1))],
+            (1, 0): [((1, 1), (1, 2))],
+            (1, 1): [((1, 0), (1, 2)), ((0, 0), (1, 1)), ((0, 1), (1, 1))]}
+
+        small_tu_map.start_positions[1] = (1, 0)
+        small_tu_map.start_positions[2] = (1, 1)
+        small_tu_map.start_positions[3] = (0, 0)
+        small_tu_map.start_positions[4] = (0, 1)
+
+        small_tu_map.goal_positions[1] = (0, 0)
+        small_tu_map.goal_positions[2] = (0, 1)
+        small_tu_map.goal_positions[3] = (1, 1)
+        small_tu_map.goal_positions[4] = (1, 0)
+        small_tu_map.fill_heuristic_table()
+
+        offline_planner = CBSTUPlanner(small_tu_map)
+        self.assertRaises(OutOfTimeError, offline_planner.find_solution, True, 5)
+
+    def test_solvable_with_sensing_problem(self):
+        """ A test using Abdallah's example of a problem that is unsolvable without sensing."""
+        small_tu_map = TimeUncertaintyProblem()
+        small_tu_map.map = [[0, 0],
+                            [0, 0]]
+        small_tu_map.width = 2
+        small_tu_map.height = 2
+        small_tu_map.edges_and_weights = {
+            (0, 0): [((0, 1), (1, 1)), ((1, 1), (1, 1))],
+            (0, 1): [((0, 0), (1, 1)), ((1, 1), (1, 1))],
+            (1, 0): [((1, 1), (1, 2))],
+            (1, 1): [((1, 0), (1, 2)), ((0, 0), (1, 1)), ((0, 1), (1, 1))]}
+
+        small_tu_map.start_positions[1] = (0, 0)
+        small_tu_map.start_positions[2] = (0, 1)
+        small_tu_map.start_positions[3] = (1, 0)
+
+        small_tu_map.goal_positions[1] = (0, 1)
+        small_tu_map.goal_positions[2] = (1, 1)
+        small_tu_map.goal_positions[3] = (0, 0)
+        small_tu_map.fill_heuristic_table()
+
+        sim = MAPFSimulator(small_tu_map, sensing_prob=1)
+        sim.begin_execution(time_limit=100, communication=True)
 
     def test_low_sensing_probability(self):
         seed = 1234541

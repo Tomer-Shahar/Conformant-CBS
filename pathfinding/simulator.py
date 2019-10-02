@@ -7,6 +7,8 @@ time. This occurs when the agent is at a node (waiting or having just arrived).
 from pathfinding.planners.utils.time_uncertainty_solution import *
 from pathfinding.planners.online_cbstu import *
 from pathfinding.planners.utils.map_reader import *
+from pathfinding.planners.utils.time_error import OutOfTimeError
+import time
 import random
 
 
@@ -25,7 +27,7 @@ class MAPFSimulator:
         self.arrival_times = {0: []}  # Maintain a dictionary of when agents will arrive to their next destination
         self.fixed_weights = {}  # The actual traversal times
         self.communication = True
-        self.time = 0
+        self.sim_time = 0
         for agent in self.tu_problem.start_positions:
             self.final_solution.paths[agent] = TimeUncertainPlan(agent,
                                                                  [((0, 0), self.tu_problem.start_positions[agent])],
@@ -35,7 +37,7 @@ class MAPFSimulator:
         """
         The main function of the simulator. Finds an initial solution and runs it, occasionally sensing and broadcasting
         if need be.
-        :param initial_sol: Incase we already computed the initial valid solution and don't want to waste time.
+        :param initial_sol: In case we already computed the initial valid solution and don't want to waste time.
         :param time_limit: Time limit for total execution, including finding an initial path.
         :param soc: If to use sum of costs or makespan
         :param min_best_case: Boolean value. If to minimize the best case or worst case.
@@ -47,23 +49,28 @@ class MAPFSimulator:
         """
         self.create_initial_solution(min_best_case, soc, time_limit, initial_sol)
         self.communication = communication
-        self.time = 0
+        self.sim_time = 0
+        start_time = time.time()
         graphs, constraints = None, {}
         if not communication:
             graphs, constraints = self.create_plan_graphs_and_constraints()
 
         while True:
+            if time.time() - start_time >= time_limit:
+                raise OutOfTimeError('Reached time limit')
             if self.at_goal_state():
                 break
             sensing_agents = self.simulate_sensing_and_broadcast()
             if self.communication:
-                self.online_CSTU.create_new_plans(sensing_agents, self.time)
+                self.online_CSTU.create_new_plans(sensing_agents, self.sim_time)
             else:
-                self.online_CSTU.plan_distributed(graphs, constraints, sensing_agents, self.time)
+                self.online_CSTU.plan_distributed(graphs, constraints, sensing_agents, self.sim_time)
             self.execute_next_step()
-            self.time += 1
+            self.sim_time += 1
 
+        self.final_solution.compute_solution_cost()
         self.print_final_solution()
+        return self.final_solution
 
     def simulate_sensing_and_broadcast(self):
         """
@@ -78,17 +85,25 @@ class MAPFSimulator:
 
         # Iterate over agents that were on the move and decide if they already arrived to their destination
         # This is data for the simulator only
-        if self.time in self.arrival_times:
-            for arrival in self.arrival_times[self.time]:
+        if self.sim_time in self.arrival_times:
+            for arrival in self.arrival_times[self.sim_time]:
                 self.online_CSTU.current_state['at_vertex'][arrival[0]] = arrival[1]
                 self.online_CSTU.current_state['in_transition'].pop(arrival[0], None)
 
-        for agent, location in self.online_CSTU.current_state['at_vertex'].items():  # Iterate over agents that performed a move action
+        # Iterate over agents that performed a move action
+        for agent, location in self.online_CSTU.current_state['at_vertex'].items():
             if self.sensing_prob >= random.random():  # Agent can sense the current time
                 sensed_agents[agent] = location
-                self.final_solution.paths[agent].path[-1] = (self.time, self.time), location
+                self.final_solution.paths[agent].path[-1] = (self.sim_time, self.sim_time), location
+            elif len(self.final_solution.paths[agent].path) > 1:
+                final_path = self.final_solution.paths[agent].path
+                waited = final_path[-1][1] == final_path[-2][1]  # If last location and one before that are equal
+                no_tu = final_path[-1][0][1] - final_path[-1][0][0] == 0  # if the last movement's uncertainty is 0
+                if waited and no_tu:
+                    sensed_agents[agent] = location
+                    self.final_solution.paths[agent].path[-1] = (self.sim_time, self.sim_time), location
         if self.communication:
-            self.online_CSTU.update_current_state(self.time, sensed_agents)
+            self.online_CSTU.update_current_state(self.sim_time, sensed_agents)
 
         return sensed_agents
 
@@ -101,16 +116,16 @@ class MAPFSimulator:
         """
         try:  # Agents that are currently in a vertex
             for agent in list(self.online_CSTU.current_state['at_vertex'].keys()):
-                action = self.get_next_action(agent, self.time)
-                actual_time = random.randint(max(self.time + 1, action[2][0]),
+                action = self.get_next_action(agent, self.sim_time)
+                actual_time = random.randint(max(self.sim_time + 1, action[2][0]),
                                              action[2][1])  # Randomly choose real traversal time
                 self.final_solution.paths[agent].path.append((action[2], action[1]))
-                if action[0] != action[1]:  # Not a wait action
+                if action[0] != action[1]:  # Not a wait action, so not at vertex anymore
                     self.online_CSTU.current_state['at_vertex'].pop(agent, None)
                     self.online_CSTU.current_state['in_transition'][agent] = action
-                    if actual_time not in self.arrival_times:
-                        self.arrival_times[actual_time] = []
-                    self.arrival_times[actual_time].append((agent, action[1]))
+                if actual_time not in self.arrival_times:
+                    self.arrival_times[actual_time] = []
+                self.arrival_times[actual_time].append((agent, action[1]))
         except ValueError:
             print("error")
 
@@ -119,12 +134,20 @@ class MAPFSimulator:
         Function for verifying if we are at a goal state and can halt the search.
         :return: True if goal state, False otherwise.
         """
-        if len(self.online_CSTU.current_state['in_transition']) > 0:
-            return False  # If even one agent is still moving, this isn't a goal state
+
+        if self.sim_time in self.arrival_times:
+            agent_num = len(self.tu_problem.start_positions)
+            if agent_num == len(self.arrival_times[self.sim_time]):  # All agents are arriving somewhere
+                for presence in self.arrival_times[self.sim_time]:
+                    if presence[1] != self.tu_problem.goal_positions[presence[0]]:
+                        return False
 
         for agent, loc in self.online_CSTU.current_state['at_vertex'].items():
             if loc != self.tu_problem.goal_positions[agent]:  # If even one agent is not at their goal state
                 return False
+
+        if len(self.online_CSTU.current_state['in_transition']) > 0:
+            return False
 
         return True  # All agents are at their goal states
 
@@ -201,13 +224,14 @@ class MAPFSimulator:
         return agent_path_graph, traversed_locs
 
     def print_final_solution(self):
-
+        print('--------------------------------')
         print('Initial Path:')
-        print(f'Total time: {self.online_CSTU.initial_plan.cost}')
-
+        init_cost = self.online_CSTU.initial_plan.cost
+        print(f'Initial Cost: {init_cost}')
+        print(f'Initial Time Uncertainty: {init_cost[1] - init_cost[0]}')
         print('Final Path Taken:')
-        self.final_solution.compute_solution_cost()
-        print(f'Total Cost: {self.final_solution.cost}')
+        print(f'Final Cost: {self.final_solution.cost}')
+        print(f'Final Time Uncertainty: {self.final_solution.cost[1] - self.final_solution.cost[0]}')
 
     def create_initial_solution(self, min_best_case=False, soc=True, time_limit=60, initial_sol=None):
         self.online_CSTU.find_initial_path(min_best_case, soc, time_limit, initial_sol)

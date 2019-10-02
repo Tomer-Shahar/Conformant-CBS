@@ -3,6 +3,7 @@ An online variant of cbstu. During plan execution, the agents receive informatio
 agent's current state. This will allow to re-plan with additional information, hopefully leading to higher quality
 results in terms of Sum of Costs.
 """
+import copy
 
 from pathfinding.planners.cbstu import CBSTUPlanner
 from pathfinding.planners.constraint_A_star import ConstraintAstar
@@ -34,14 +35,14 @@ class OnlineCBSTU:
         """
         if initial_sol:
             self.initial_plan = initial_sol
-            self.current_plan = initial_sol
+            self.current_plan = copy.deepcopy(initial_sol)
             self.offline_cbstu_planner.final_constraints = initial_sol.constraints
         else:
             self.initial_plan = self.offline_cbstu_planner.find_solution(min_best_case, time_limit, soc, use_cat=True)
-            self.current_plan = self.initial_plan
+            self.current_plan = copy.deepcopy(self.initial_plan)
         self.current_state = {'time': 0,
-                              'cost': 0,
-                              'at_vertex': self.tu_problem.start_positions,  # Agents that are at a vertex
+                              'cost': 0,                    # Agents that are at a vertex
+                              'at_vertex': copy.deepcopy(self.tu_problem.start_positions),
                               'in_transition': {}}  # Agents that are transitioning.
 
     def update_current_state(self, curr_time, sensed_agents):

@@ -72,7 +72,7 @@ class CBSTUPlanner:
         self.start_time = 0
         self.planner = Cas(conformed_problem)
 
-    def find_solution(self, min_best_case=True, time_limit=60, soc=True, use_cat=True):
+    def find_solution(self, min_best_case=False, time_limit=60, soc=True, use_cat=False):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -105,7 +105,7 @@ class CBSTUPlanner:
             best_node = self.__get_best_node(open_nodes)
             self.__insert_into_closed_list(closed_nodes, best_node)
             nodes_expanded += 1
-            new_constraints = self.__validate_solution(best_node)
+            new_constraints = self.validate_solution(best_node)
 
             if not new_constraints:  # Meaning that new_constraints is null, i.e there are no new constraints. Solved!
                 best_node.solution.compute_solution_cost(soc)
@@ -139,7 +139,7 @@ class CBSTUPlanner:
         print("Empty open list - No Solution")
         return TimeUncertainSolution.empty_solution()
 
-    def __validate_solution(self, node):
+    def validate_solution(self, node):
         """Given a solution, this function will validate it.
         i.e checking if any conflicts arise. If there are, returns two constraints: For a conflict (a1,a2,v1,v2,t1,t2),
         meaning agents a1 and a2 cannot both be at vertex v1 or v2 or the edge (v1,v2) between t1 and t2, the function
@@ -216,7 +216,7 @@ class CBSTUPlanner:
 
             Constraints will be of the form (agent, conflict_node, time)
         """
-        t = self.__pick_times_to_constrain(interval_i, interval_j, t='max')
+        t = self.__pick_times_to_constrain(interval_i, interval_j)
         return {(agent_i, vertex, t)}, {(agent_j, vertex, t)}
 
     def check_edge_swap_conflict(self, filled_solution, node):
@@ -244,7 +244,6 @@ class CBSTUPlanner:
                 edge = move[1]
                 if edge not in positions:
                     positions[edge] = set()
-                positions[edge].add((agent, move[0]))
                 """
                 if move[0][1] - move[0][0] > 1:  # Edge weight is more than 1
                     if (edge[0], edge) not in positions:
@@ -270,9 +269,21 @@ class CBSTUPlanner:
                             if traversal[0] != agent and (move[0][1]-1, move[0][1]-1) == traversal[1]:
                                 return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
                 """
-                for traversal in positions[edge]:
-                    if traversal[0] != agent and self.strong_overlapping(move[0], traversal[1]):
-                        return self.get_edge_constraint(traversal[0], agent, traversal[1], move[0], edge)
+                if move[0][1] - move[0][0] > 1:  # Edge weight is more than 1
+                    occ_time = move[0][0], move[0][1]-1
+                    positions[edge].add((agent, (move[0][0], move[0][1]-1), move[2]))
+                    for traversal in positions[edge]:
+                        if traversal[0] != agent:
+                            if traversal[2] == move[2] and self.strong_overlapping(occ_time, traversal[1]):
+                                return self.get_edge_constraint(traversal[0], agent, traversal[1], occ_time, edge)
+                            elif traversal[2] != move[2] and Cas.overlapping(occ_time, traversal[1]):
+                                return self.get_edge_constraint(traversal[0], agent, traversal[1], occ_time, edge)
+                else:
+                    # Agent begins to travel at move[0][0] and arrives at move[0][1]
+                    positions[edge].add((agent, move[0], move[2]))
+                    for traversal in positions[edge]:
+                        if traversal[0] != agent and self.strong_overlapping(move[0], traversal[1]):
+                            return self.get_edge_constraint(traversal[0], agent, traversal[1], move[0], edge)
         return None
 
     def get_edge_constraint(self, agent_i, agent_j, interval_i, interval_j, conflict_edge):
@@ -285,6 +296,12 @@ class CBSTUPlanner:
 
         Note: In the case of an edge with a traversal time of 1, theoretically, the agent does not spend any time on it
         and arrives at the end of the edge instantly at 1 time tick. We must address these kind of edges differently.
+        :param agent_i: First agent
+        :param agent_j: Second agent
+        :param interval_i: The interval between BEGINNING of movement until ARRIVAL at next vertex for first agent
+        :param interval_j: Same, but for second agent
+        :param conflict_edge: The edge where the conflict occurs
+        :return: The appropriate constraints
         """
         edge_min, edge_max = 0, 0  # The edge traversal times
         agent_i_constraints = set()
@@ -296,18 +313,17 @@ class CBSTUPlanner:
             if end_vertex == conflict_edge[1]:
                 edge_min, edge_max = travel_time[0], travel_time[1]
                 break
-
+        """
         # The actual times the agents will OCCUPY the edge.
         i_begin_occupation = interval_i[0]
         i_end_occupation = interval_i[1] - 1
         j_begin_occupation = interval_j[0]
         j_end_occupation = interval_j[1] - 1
+        t = self.__pick_times_to_constrain((i_begin_occupation, i_end_occupation), (j_begin_occupation, j_end_occupation))
+        """
 
-        t = self.__pick_times_to_constrain((i_begin_occupation, i_end_occupation), (j_begin_occupation, j_end_occupation)
-                                           , t='max')
-
+        t = self.__pick_times_to_constrain(interval_i, interval_j)
         if edge_min == edge_max == 1:
-            t = t[0] + 1, t[1] + 1
             return {(agent_i, conflict_edge, t)}, {(agent_j, conflict_edge, t)}
 
         agent_i_constraints.add((agent_i, conflict_edge, t))
@@ -330,7 +346,7 @@ class CBSTUPlanner:
                 print("No solution for agent number " + str(agent_id))
                 root.solution = None
         root.solution.add_stationary_moves()  # inserts missing time steps
-        self.__validate_solution(root)
+        self.validate_solution(root)
         if use_cat:
             for agent, conf_plan in root.solution.paths.items():
                 for move in conf_plan.path:

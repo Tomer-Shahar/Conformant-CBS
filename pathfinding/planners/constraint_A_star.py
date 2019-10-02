@@ -114,7 +114,7 @@ class ConstraintAstar:
 
             return can_stay
         except TypeError:
-            print('fudge')
+            print('fudge - type error in can_stay_still')
 
     def dijkstra_solution(self, source_vertex):
         """
@@ -274,17 +274,12 @@ class SingleAgentNode:
         Returns false if move is illegal. Returns true if move is fine.
         """
         edge = min(self.current_position, vertex), max(self.current_position, vertex)
-
-        if (succ_time[0] - self.g_val[0], succ_time[1] - self.g_val[1]) == (1, 1):
-            edge_occupation = self.g_val[0]+1, self.g_val[0]+1
-        else:
-            edge_occupation = self.g_val[0] + 1, succ_time[1] - 1
-
+        edge_occupation = self.calc_edge_time(succ_time)
         for con in constraints:
             if agent == con[0] and \
                     ((vertex == con[1] and ConstraintAstar.overlapping((con[2]), succ_time))
                      or
-                     (edge == con[1] and ConstraintAstar.overlapping((con[2]), edge_occupation))):
+                     (edge == con[1] and ConstraintAstar.overlapping(con[2], edge_occupation))):
                 return False
 
         return True
@@ -296,5 +291,5 @@ class SingleAgentNode:
         :return:
         """
         if (succ_time[0] - self.g_val[0], succ_time[1] - self.g_val[1]) == (1, 1):
-            return 0, 0
-        return self.g_val[0] + 1, succ_time[1] - 1
+            return self.g_val[0], succ_time[1]
+        return self.g_val[0], succ_time[1] - 1
