@@ -61,7 +61,9 @@ class TimeUncertainSolution:
         """
         Returns the maximum between the minimum costs of the different paths in the solution.
         """
-        max_min_time = self.paths[1].cost[0]
+        for agent, path in self.paths.items():
+            max_min_time = path.cost[0]
+            break
         for agent, plan in self.paths.items():
             if plan.cost[0] > max_min_time:
                 max_min_time = plan.cost[0]
@@ -125,7 +127,7 @@ class TimeUncertainSolution:
                 # plan.cost = new_path[-1][0]
             self.paths[agent] = TimeUncertainPlan(agent, new_path, plan.cost)
 
-        self.length = len(self.paths[1].path)
+        self.length = len(next(iter(self.paths.values())).path)
 
     def save_solution(self, tu_problem, uncertainty, soc, min_best_case, folder):
         start = [v for v in tu_problem.start_positions.items()]

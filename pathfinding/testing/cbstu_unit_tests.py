@@ -487,7 +487,7 @@ class TestCcbsPlanner(unittest.TestCase):
 
         ccbs_solver = CBSTUPlanner(blank_problem)
         sol = ccbs_solver.find_solution(True, 1000, True)
-        self.assertEqual(sol.cost, (28, 44))
+        self.assertEqual(sol.cost, (28, 43))
 
     def test_edge_conflict_detection(self):
 
@@ -879,7 +879,7 @@ class TestOnlineCBSTU(unittest.TestCase):
 
         sim = MAPFSimulator(simple_tu, sensing_prob=1)
         sim.create_initial_solution()
-        graphs, constraints = sim.create_plan_graphs_and_constraints()
+        graphs, constraints = sim.online_CSTU.create_plan_graphs_and_constraints()
         sensing_agent = {2: (1, 2)}
         sim.sim_time = 5
         online_cbstu_planner.plan_distributed(graphs, constraints, sensing_agent, sim.sim_time)
@@ -892,9 +892,9 @@ class TestOnlineCBSTU(unittest.TestCase):
 
         for i in range(15):
             blank_problem.generate_problem_instance(uncertainty=2)
-            blank_problem.generate_agents(agent_num=6)
+            blank_problem.generate_agents(agent_num=5)
             sim = MAPFSimulator(blank_problem, sensing_prob=1)
-            sim.begin_execution(communication=False, time_limit=10)
+            sim.begin_execution(communication=False, time_limit=30)
             init_cost = sim.online_CSTU.initial_plan.cost
             final_cost = sim.final_solution.cost
             init_tu = init_cost[1]-init_cost[0]
@@ -987,7 +987,7 @@ class TestOnlineCBSTU(unittest.TestCase):
         self.assertRaises(OutOfTimeError, offline_planner.find_solution, True, 5)
 
     def test_solvable_with_sensing_problem(self):
-        """ A test using Abdallah's example of a problem that is unsolvable without sensing."""
+        """ A test using Abdallah's example of a problem that is unsolvable without sensing. It should solve it"""
         small_tu_map = TimeUncertaintyProblem()
         small_tu_map.map = [[0, 0],
                             [0, 0]]
@@ -1009,7 +1009,7 @@ class TestOnlineCBSTU(unittest.TestCase):
         small_tu_map.fill_heuristic_table()
 
         sim = MAPFSimulator(small_tu_map, sensing_prob=1)
-        sim.begin_execution(time_limit=100, communication=True)
+        sim.begin_execution(time_limit=10, communication=True)
 
     def test_low_sensing_probability(self):
         seed = 1234541

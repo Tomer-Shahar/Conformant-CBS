@@ -101,13 +101,13 @@ print(f'The seed is {seed}')
 tu_problem = TimeUncertaintyProblem('..\\..\\maps\\ost003d.map')
 uncertainty = 1
 tu_problem.generate_problem_instance(uncertainty=uncertainty)
-tu_problem.generate_agents(agent_num=5)
+tu_problem.generate_agents(agent_num=3)
 tu_problem.fill_heuristic_table()
 
 sim = MAPFSimulator(tu_problem, sensing_prob=1)
 soc = True
 min_best_case = False
-comm = False
+comm = True
 sol = TimeUncertainSolution.load_solution(tu_problem, uncertainty, soc, min_best_case, '.\\previous_solutions')
 
 if not sol:
@@ -116,6 +116,7 @@ if not sol:
     sol.save_solution(tu_problem, uncertainty, soc, min_best_case, '.\\previous_solutions')
 
 sim.begin_execution(min_best_case=min_best_case, soc=soc, time_limit=1000, communication=comm, initial_sol=sol)
+sim.print_final_solution()
 final_path = sim.final_solution
 print('Done')
 
