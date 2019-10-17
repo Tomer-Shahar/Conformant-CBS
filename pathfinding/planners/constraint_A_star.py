@@ -170,7 +170,7 @@ class ConstraintAstar:
             if (time_1[0] <= time_2[0] <= time_1[1]) or (time_2[0] <= time_1[0] <= time_2[1]):
                 return True
         except TypeError:
-            print("fudge")
+            print("fudge - type error in overlapping")
 
         return False
 

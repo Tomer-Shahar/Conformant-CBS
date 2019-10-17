@@ -71,8 +71,10 @@ class CBSTUPlanner:
         self.final_constraints = None
         self.start_time = 0
         self.planner = Cas(conformed_problem)
+        self.curr_time = (0, 0)
 
-    def find_solution(self, min_best_case=False, time_limit=60, soc=True, use_cat=False):
+    def find_solution(self, min_best_case=False, time_limit=60, soc=True, use_cat=False, existing_cons=None,
+                      curr_time=(0, 0)):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -85,7 +87,10 @@ class CBSTUPlanner:
         time_limit - Unsurprisingly, the maximum time for this function to run (in seconds)
         """
         self.start_time = time.time()
+        self.curr_time = curr_time
         root = ConstraintNode(use_cat=use_cat)
+        if existing_cons:
+            root.constraints = root.constraints | existing_cons
         self.compute_all_paths_and_conflicts(root, use_cat)
         #  print("Computed root node")
         root.parent = ConstraintNode()
@@ -119,13 +124,14 @@ class CBSTUPlanner:
                 if new_node.constraints in closed_nodes:
                     continue
                 agent = next(iter(new_con_set))[0]  # Ugly line to extract agent index.
-                time_passed = time.time()-self.start_time
+                time_passed = time.time() - self.start_time
                 new_plan = self.planner.compute_agent_path(
                     new_node.constraints, agent,
                     self.startPositions[agent],
                     self.goalPositions[agent],
                     new_node.conflict_table,
-                    min_best_case, time_limit=time_limit-time_passed)  # compute the path for a single agent.
+                    min_best_case, time_limit=time_limit - time_passed,
+                    curr_time=self.curr_time)  # compute the path for a single agent.
                 if new_plan.path:
                     new_node.update_solution(new_plan, use_cat)
                     new_node.solution.compute_solution_cost(soc)  # compute the cost
@@ -173,8 +179,12 @@ class CBSTUPlanner:
             return constraints
 
         visited_nodes = {}  # A dictionary containing all the nodes visited
-        for agent_i in range(1, len(node.solution.paths) + 1):
-            plan_i = node.solution.paths[agent_i]
+        #for agent_i in range(1, len(node.solution.paths) + 1):
+        for agent_i in node.solution.paths.keys():
+            try:
+                plan_i = node.solution.paths[agent_i]
+            except KeyError:
+                print('key error in check vertex conflict')
             for move_i in plan_i.path:
                 interval_i = move_i[0]
                 if not move_i[1] in visited_nodes:  # First time an agent has visited this node
@@ -231,8 +241,8 @@ class CBSTUPlanner:
         time 't'.
         """
 
-        #constraints = self.check_previously_conflicting_agents(filled_solution, node.conflicting_agents)
-        #if constraints:
+        # constraints = self.check_previously_conflicting_agents(filled_solution, node.conflicting_agents)
+        # if constraints:
         #    return constraints
 
         # A dictionary containing the different edges being traversed in the solution and the times and agents
@@ -270,8 +280,8 @@ class CBSTUPlanner:
                                 return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
                 """
                 if move[0][1] - move[0][0] > 1:  # Edge weight is more than 1
-                    occ_time = move[0][0], move[0][1]-1
-                    positions[edge].add((agent, (move[0][0], move[0][1]-1), move[2]))
+                    occ_time = move[0][0], move[0][1] - 1
+                    positions[edge].add((agent, (move[0][0], move[0][1] - 1), move[2]))
                     for traversal in positions[edge]:
                         if traversal[0] != agent:
                             if traversal[2] == move[2] and self.strong_overlapping(occ_time, traversal[1]):
@@ -339,7 +349,8 @@ class CBSTUPlanner:
 
         for agent_id, agent_start in self.startPositions.items():
             agent_plan = self.planner.compute_agent_path(
-                root.constraints, agent_id, agent_start, self.goalPositions[agent_id], root.conflict_table)
+                root.constraints, agent_id, agent_start, self.goalPositions[agent_id], root.conflict_table,
+                curr_time=self.curr_time)
             if agent_plan.path:  # Solution found
                 root.solution.paths[agent_id] = agent_plan
             else:  # No solution for a particular agent
@@ -464,5 +475,3 @@ class CBSTUPlanner:
                     if traversal[0] != agent_j and self.strong_overlapping(move[0], traversal[1]):
                         return self.get_edge_constraint(traversal[0], agent_j, traversal[1], move[0], move[1])
         return None
-
-

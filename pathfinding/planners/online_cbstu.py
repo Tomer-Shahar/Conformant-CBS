@@ -7,6 +7,7 @@ import copy
 
 from pathfinding.planners.cbstu import CBSTUPlanner
 from pathfinding.planners.constraint_A_star import ConstraintAstar
+from pathfinding.planners.utils.map_reader import TimeUncertaintyProblem
 from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
 
 
@@ -48,18 +49,41 @@ class OnlineCBSTU:
     def update_current_state(self, curr_time, sensed_agents):
         """
         Extract new info from the current state, such as where each agent is and what the current time is. Both provide
-        useful information. Some agents will have completed their actions and some will currently be traversing, so they
-        will be moved to the list of agents that are at a vertex.
-        """
-        pass
+        useful information.
 
-    def create_new_plans(self, sensing_agents, curr_time):
+        :param curr_time: Current time in the simulation
+        :param sensed_agents: A dictionary of agents that have sensed
+        :return: The offline planner now has an up to date view of the current state.
         """
-        Replan for the agents that updated their location.
+        self.current_state['time'] = curr_time
+
+    def create_new_centralized_plan(self, curr_time, sensed_agents):
+        """
+        Replan for the agents that updated their location. Must first create a large set of constraints for all agents
+        that are currently replanning.
+
         :return: New plans for the agents that are at a vertex.
         """
-        for agent in sensing_agents:  # Agents that have completed their action, including waiting.
-            pass
+        new_cons = set()
+
+        unsensed_agents = set(self.tu_problem.start_positions.keys()) - set(sensed_agents.keys())
+        for unsensing_agent in unsensed_agents:  # Agents that haven't sensed
+            for move in self.current_plan.paths[unsensing_agent].path:
+                for planning_agent, presence in sensed_agents.items():
+                    new_cons.add((planning_agent, move[1], move[0]))
+
+        self.offline_cbstu_planner.startPositions = sensed_agents
+        new_plans = self.offline_cbstu_planner.find_solution(existing_cons=new_cons, curr_time=(curr_time, curr_time))
+        try:
+            old_plan = copy.deepcopy(self.current_plan)
+            for agent, path in new_plans.paths.items():
+                self.current_plan.paths[agent] = path
+            self.current_plan.add_stationary_moves()
+
+            if old_plan.cost == self.current_plan.cost and old_plan.paths == self.current_plan.paths:
+                print('found same path')
+        except AttributeError:
+            print("attribute error in creating a new central plan")
 
     def at_goal_state(self):
         """
@@ -94,3 +118,72 @@ class OnlineCBSTU:
             self.current_plan.paths[agent] = new_plan
 
         self.current_plan.add_stationary_moves()
+
+    def create_plan_graphs_and_constraints(self):
+        """
+        Create a personal graph for each agent based on its initial solution and a personal set of constraints.
+        This is because when an agent replans without cooperation, it has to follow the original path it had. This
+        ensures no collisions occur.
+
+        :return: Possible graphs for each agent and constraints.
+        """
+
+        agent_graphs = {}  # Maps between an agent and their valid path
+        constraints = {}  # Maps between an agent and constraints RELEVANT TO THEM!!
+        traversed_locations = {}  # All locations that have been traversed in the solution.
+        # Create the graph for each agent
+        for agent, plan in self.initial_plan.paths.items():
+            new_agent_graph, traversed_locations = self.generate_tu_problem_graph(agent, traversed_locations)
+            new_agent_graph.fill_heuristic_table()
+            agent_graphs[agent] = new_agent_graph
+            constraints[agent] = set()
+        # Update their respective constraints
+        for agent, tu_plan in self.initial_plan.paths.items():
+            for move in tu_plan.path:
+                for presence in traversed_locations[move[1]]:
+                    if presence[0] != agent:
+                        constraints[agent].add((agent, move[1], presence[1]))
+
+        return agent_graphs, constraints
+
+    def generate_tu_problem_graph(self, agent, traversed_locs):
+        """
+        Converts an agent's found path to a graph.
+        :param traversed_locs:
+        :param agent: The agent we're building a graph for
+        :return: a TimeUncertaintyProblem object. The edges for it will be the same edges traversed by the agent.
+        """
+
+        agent_path_graph = TimeUncertaintyProblem()
+        agent_path_graph.start_positions[agent] = self.initial_plan.paths[agent].path[0][1]
+        agent_path_graph.goal_positions[agent] = self.initial_plan.paths[agent].path[-1][1]
+        prev_loc = self.initial_plan.paths[agent].path[0]
+        agent_path_graph.edges_and_weights = {}
+        self.safe_add_to_dict(prev_loc[1], (agent, (0, 0)), traversed_locs)  # add the vertex
+
+        for loc in self.initial_plan.paths[agent].path[1:]:
+            edge_weight = (loc[0][0] - prev_loc[0][0], loc[0][1] - prev_loc[0][1])
+
+            # add the vertex to edge dictionary. Must add the edge in both directions
+            self.safe_add_to_dict(prev_loc[1], (loc[1], edge_weight), agent_path_graph.edges_and_weights)
+            self.safe_add_to_dict(loc[1], (prev_loc[1], edge_weight), agent_path_graph.edges_and_weights)
+
+            # Add the edge and node to traversed locations
+            self.safe_add_to_dict(loc[1], (agent, loc[0]), traversed_locs)
+
+            if edge_weight != (1, 1):  # We don't add edges that were traversed instantly.
+                self.safe_add_to_dict((prev_loc[1], loc[1]), (agent, (prev_loc[0][0]+1, loc[0][1]-1)), traversed_locs)
+
+            prev_loc = loc
+
+        return agent_path_graph, traversed_locs
+
+    @staticmethod
+    def safe_add_to_dict(key, value, dict_to_insert):
+        """
+        Adds an item to a given dictionary safely. First check if it's there, and if not creates an empty set and adds
+        it to it.
+        """
+        if key not in dict_to_insert:
+            dict_to_insert[key] = set()
+        dict_to_insert[key].add(value)
