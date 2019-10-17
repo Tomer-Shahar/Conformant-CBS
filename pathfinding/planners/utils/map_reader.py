@@ -1,16 +1,17 @@
-from pathfinding.constraint_A_star import ConstraintAstar
-from pathfinding.maze import Maze
+from pathfinding.planners.constraint_A_star import ConstraintAstar
+from pathfinding.planners.utils.maze import Maze
 import random
 import math
 import os
 import copy
+import json
 
 """
     Rudimentary class that converts a ccbsMap text file into a proper object that can be used by the solver.
 """
 
 
-class ConformantProblem:
+class TimeUncertaintyProblem:
 
     """
     map_file_path - the path to the map file
@@ -42,9 +43,9 @@ class ConformantProblem:
         Generates a map according to the given input. Returns a ccbsMap object. Agents are to be generated later
         when user decides.
         """
-        new_map = ConformantProblem()
+        new_map = TimeUncertaintyProblem()
 
-        new_map.map = ConformantProblem.__generate_map(height, width)
+        new_map.map = TimeUncertaintyProblem.__generate_map(height, width)
         new_map.width = len(new_map.map[0])
         new_map.height = len(new_map.map)
         new_map.generate_edges_and_weights(uncertainty, is_eight_connected)
@@ -237,10 +238,13 @@ class ConformantProblem:
         :param uncertainty: The level of uncertainty in the edge weight.
         :return: The newly formed edge.
         """
-        min_time = random.randint(1, 1 + uncertainty)
-        max_time = random.randint(min_time, 1 + uncertainty)
+        possible_times = []
+        for min_time in range(1, 1 + uncertainty + 1):
+            for max_time in range(min_time, 1 + uncertainty + 1):
+                possible_times.append((min_time, max_time))
+        edge_weight = random.choice(possible_times)
         node = (coordinate[0] + i, coordinate[1] + j)
-        edge = (node, (min_time, max_time))
+        edge = (node, edge_weight)
 
         return edge
 
@@ -335,3 +339,14 @@ class ConformantProblem:
             print("--------------------------------------------")
         else:
             pass
+
+    def write_problem(self, filepath):
+        with open(filepath, 'w') as map_file:
+            json.dump(self, map_file)
+
+    @staticmethod
+    def load_map(filepath):
+        with open(filepath, 'w') as map_file:
+            new_map = json.load(map_file)
+
+        return new_map

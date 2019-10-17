@@ -3,12 +3,14 @@ This class represents the solutions that are stored in each constraint node. The
 agent, the total cost range of the solution and the length (i.e the max length between the different paths).
 """
 import math
-from pathfinding.conformant_plan import ConformantPlan
+import json
+import os
+from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
 
 STAY_STILL_COST = 1
 
 
-class ConformantSolution:
+class TimeUncertainSolution:
 
     def __init__(self):
         self.cost = math.inf, math.inf
@@ -16,6 +18,15 @@ class ConformantSolution:
         self.paths = {}
         self.tuple_solution = None
         self.nodes_expanded = 0
+        self.constraints = set()
+
+    @staticmethod
+    def empty_solution():
+        empty_sol = TimeUncertainSolution()
+        empty_sol.nodes_expanded = -1
+        empty_sol.paths = None
+
+        return empty_sol
 
     def copy_solution(self, other_sol):
 
@@ -39,7 +50,7 @@ class ConformantSolution:
             for agent, plan in self.paths.items():
                 if plan.path is None:
                     return math.inf, math.inf
-
+                plan.compute_cost()
                 min_cost += plan.cost[0]
                 max_cost += plan.cost[1]
             self.cost = min_cost, max_cost
@@ -68,7 +79,8 @@ class ConformantSolution:
         converts each path in solution to a tuple of ( (t1,t2), (u,v) ) where (u,v) is an edge and t1 is when the agent
         began the movement across it and t2 is when the agent completed the movement.
 
-        For easier comparison, 'u' and 'v' will be sorted.
+        For easier comparison, 'u' and 'v' will be sorted. We still maintain 'f' or 'b' to signify what was the original
+        direction. This is necessary in a few very specific conflicts.
         """
         self.tuple_solution = {}
 
@@ -79,7 +91,12 @@ class ConformantSolution:
                 start_time = plan.path[move][0][0]
                 next_vertex = max(plan.path[move][1], plan.path[move + 1][1])
                 finish_time = plan.path[move + 1][0][1]
-                new_path.append(((start_time, finish_time), (start_vertex, next_vertex)))
+                if start_vertex == plan.path[move][1]:
+                    direction = 'f'  # The original beginning vertex was 'start_vertex'
+                else:
+                    direction = 'b'  # The original beginning vertex was 'next_vertex'
+
+                new_path.append(((start_time, finish_time), (start_vertex, next_vertex), direction))
 
             self.tuple_solution[agent] = new_path
 
@@ -106,11 +123,51 @@ class ConformantSolution:
                                         path_max_time + time_step * STAY_STILL_COST), last_move[1])
                     new_path.append(stationary_move)
                 # plan.cost = new_path[-1][0]
-            self.paths[agent] = ConformantPlan(agent, new_path, plan.cost)
+            self.paths[agent] = TimeUncertainPlan(agent, new_path, plan.cost)
 
         self.length = len(self.paths[1].path)
 
+    def save_solution(self, tu_problem, uncertainty, soc, min_best_case, folder):
+        start = [v for v in tu_problem.start_positions.items()]
+        goals = [v for v in tu_problem.goal_positions.items()]
+        file_name = f'sol_soc={soc}_mbc={min_best_case}_start={start}_goals={goals}_' \
+            f'uncertainty={uncertainty}.sol'
+        path = os.path.join(folder, file_name)
 
+        with open(path, 'w+') as sol_file:
+            json_sol = {'paths': {}, 'constraints': None}
+            for agent, path in self.paths.items():
+                json_sol['paths'][agent] = path.path
+            json_sol['constraints'] = list(self.constraints)
+            json.dump(json_sol, sol_file)
+
+    @staticmethod
+    def load_solution(tu_problem, uncertainty, soc, min_best_case, folder):
+        start = [v for v in tu_problem.start_positions.items()]
+        goals = [v for v in tu_problem.goal_positions.items()]
+        file_name = f'sol_soc={soc}_mbc={min_best_case}_start={start}_goals={goals}_' \
+            f'uncertainty={uncertainty}.sol'
+        path = os.path.join(folder, file_name)
+
+        if not os.path.exists(path):
+            return None
+
+        with open(path, 'r') as sol_file:
+            json_sol = json.load(sol_file)
+            tu_sol = TimeUncertainSolution()
+            for agent, path in json_sol['paths'].items():
+                tuple_path = []
+                for presence in path:
+                    tuple_path.append((tuple(presence[0]), tuple(presence[1])))
+                tu_plan = TimeUncertainPlan(int(agent), tuple_path, math.inf)
+                tu_sol.paths[int(agent)] = tu_plan
+            for con in json_sol['constraints']:
+                tuple_con = con[0], tuple(con[1]), tuple(con[2])
+                tu_sol.constraints.add(tuple_con)
+
+            tu_sol.compute_solution_cost()
+            tu_sol.create_movement_tuples()
+            return tu_sol
 """
     def fill_in_solution(self):
         
