@@ -90,7 +90,7 @@ class Experiments:
         oda_queue_cost = [0, 0]
 
         for i in range(rep_num):
-            agent_seed = random.randrange(sys.maxsize)
+            agent_seed = random.randrange(int(sys.maxsize/2))
             random.seed(agent_seed)
             conf_problem.generate_agents(agent_num)
             try:
@@ -205,12 +205,10 @@ class Experiments:
 
         self.file_prefix = f'{num_of_agents} agents -  {self.uncertainty} uncertainty - '
 
-        # self.run_large_open_map(rep_num)
-
-        self.run_corridor_map(rep_num, num_of_agents)
-        #self.run_maze_map(rep_num, num_of_agents)
-        self.run_circular_map(rep_num, num_of_agents)
         self.run_blank_map(rep_num, num_of_agents)
+
+        #self.run_corridor_map(rep_num, num_of_agents)
+        #self.run_circular_map(rep_num, num_of_agents)
 
 if os.name == 'nt':
     exp = Experiments('.\\..\\experiments')
@@ -219,11 +217,10 @@ else:
 
 
 
-for uncertainty_val in range(0, 1, 1):
+for uncertainty_val in range(4, 5, 1):
     if uncertainty_val == 3:
         continue
-    exp.run_experiments_on_same_instance(num_of_agents=6, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
-    exp.run_experiments_on_same_instance(num_of_agents=8, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
-    exp.run_experiments_on_same_instance(num_of_agents=11, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+    exp.run_experiments_on_same_instance(num_of_agents=7, uncertainty=uncertainty_val, time_limit=60, rep_num=30)
+
 
 print("Finished Experiments")
