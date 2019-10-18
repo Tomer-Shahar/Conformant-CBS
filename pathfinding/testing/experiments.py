@@ -226,6 +226,8 @@ class Experiments:
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {comm} - '
         results_file = self.file_prefix + 'small_open_map_results.csv'
         map_file = '..\\..\\maps\\small_blank_map.map'
+        if os.name == 'posix':
+            map_file = './small_blank_map.map'
         print(f"- STARTED ONLINE BLANK MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {comm} -")
 
         map_seed = 96372106
@@ -310,9 +312,8 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-comm = True
 for agent_num in range(8, 14):
-    for tu in range(0, 4):
+    for tu in range(0, 5):
         if tu == 3:
             continue
         for sense in range(0, 101, 25):
