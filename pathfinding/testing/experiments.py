@@ -5,7 +5,7 @@ import os.path
 import sys
 from pathfinding.planners.operator_decomposition_a_star import *
 from pathfinding.simulator import *
-
+from shutil import copyfile
 
 class Experiments:
 
@@ -237,23 +237,24 @@ class Experiments:
         self.run_and_log_online_experiments(tu_problem, map_seed, results_file, sensing_prob, comm)
 
     def run_and_log_online_experiments(self, tu_problem, map_seed, results_file, sensing_prob, comm):
-        results_path = os.path.join(self.output_folder, results_file)
-        with open(results_path, 'w') as result_file:
-            result_file.write('Experiment Number,'
-                              'Map Seed,'
-                              'Number of Agents,'
-                              'Agents Seed,'
-                              'Uncertainty,'
-                              'Timeout,'
-                              'octu Time,'
-                              'initial Min Cost,'
-                              'initial Max Cost,'
-                              'initial uncertainty,'
-                              'octu Min Cost,'
-                              'octu Max Cost,'
-                              'octu uncertainty,'
-                              'Sensing Probability,'
-                              'Communication\n')
+        final_results_path = os.path.join(self.output_folder, results_file)
+        temp_path = os.path.join(self.output_folder, 'IN PROGRESS - ' + results_file)
+        with open(temp_path, 'w') as temp_file:
+            temp_file.write('Experiment Number,'
+                            'Map Seed,'
+                            'Number of Agents,'
+                            'Agents Seed,'
+                            'Uncertainty,'
+                            'Timeout,'
+                            'octu Time,'
+                            'initial Min Cost,'
+                            'initial Max Cost,'
+                            'initial uncertainty,'
+                            'octu Min Cost,'
+                            'octu Max Cost,'
+                            'octu uncertainty,'
+                            'Sensing Probability,'
+                            'Communication\n')
 
         success = 0
         initial_agent_seed = 10637296
@@ -289,7 +290,7 @@ class Experiments:
                 init_tu = -1
                 octu_tu = -1
 
-            with open(os.path.join(self.output_folder, results_file), 'a') as map_result_file:
+            with open(temp_path, 'a') as temp_map_result_file:
                 results = f'{i + 1},' \
                     f'{map_seed},' \
                     f'{self.agents_num},' \
@@ -305,18 +306,23 @@ class Experiments:
                     f'{octu_tu},' \
                     f'{sensing_prob},' \
                     f'{comm}\n'
-                map_result_file.write(results)
+                temp_map_result_file.write(results)
 
-
+        copyfile(temp_path, final_results_path)
+        os.remove(temp_path)
 exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for agent_num in range(8, 14):
-    for tu in range(0, 5):
-        if tu == 3:
-            continue
+comm = False
+
+for tu in range(4, 5):
+    if tu == 3:
+        continue
+    for agent_num in range(5, 10):
         for sense in range(0, 101, 25):
+            if agent_num == 5:
+                sense += 25
             sense_prob = sense / 100
             exp.run_online_experiments(agent_num=agent_num, uncertainty=tu, time_limit=60, reps=50,
                                        sensing_prob=sense_prob, comm=comm)
