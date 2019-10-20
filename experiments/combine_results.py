@@ -154,17 +154,20 @@ def write_simulation_results(map_type, row):
         'Initial Min SOC': row['initial Min Cost'],
         'Initial Max SOC': row['initial Max Cost'],
         'Initial Uncertainty': row['initial uncertainty'],
+        'Initial True Cost': row['initial true cost'],
         'Final Min SOC': row['octu Min Cost'],
         'Final Max SOC': row['octu Max Cost'],
-        'Final Uncertainty': row['octu uncertainty']
+        'Final Uncertainty': row['octu uncertainty'],
+        'Final True Cost': row['final_true_cost'],
     })
 
 
 # Aggregate all of the data into a single large file
 with open(raw_data_file, 'w', newline='') as raw_file:
     fields = ['Map', 'Map Seed', 'Uncertainty', 'Number of Agents', 'Agent Seed', 'With Communication',
-              'Sensing Probability','Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC',
-              'Initial Uncertainty', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty']
+              'Sensing Probability', 'Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC',
+              'Initial Uncertainty', 'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty',
+              'Final True Cost']
     raw_data_writer = csv.DictWriter(raw_file, fieldnames=fields, restval='-', extrasaction='ignore')
     raw_data_writer.writeheader()
     num = 0
@@ -177,7 +180,8 @@ with open(raw_data_file, 'w', newline='') as raw_file:
 with open(average_results_file, 'w', newline='') as avg_file:
     avg_fields = ['Map', 'Uncertainty', 'Number of Agents', 'With Communication', 'Sensing Probability',
                   'Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty',
-                  'Final Min SOC', 'Final Max SOC', 'Final Uncertainty', 'Number of Runs']
+                  'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty', 'Final True Cost',
+                  'Number of Runs']
     average_writer = csv.DictWriter(avg_file, fieldnames=avg_fields)
     average_writer.writeheader()
     for root, dirs, files in os.walk(input_folder):
