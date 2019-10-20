@@ -7,6 +7,7 @@ from pathfinding.planners.operator_decomposition_a_star import *
 from pathfinding.simulator import *
 from shutil import copyfile
 
+
 class Experiments:
 
     def __init__(self, output_folder):
@@ -216,27 +217,31 @@ class Experiments:
         self.run_circular_map(rep_num, num_of_agents)
         self.run_corridor_map(rep_num, num_of_agents, use_cat)
 
-    def run_online_experiments(self, agent_num, sensing_prob, comm, reps, time_limit, uncertainty):
+    def run_online_experiments(self, agent_num, sensing_prob, commy, reps, time_limit, uncertainty):
 
         self.uncertainty = uncertainty
         self.agents_num = agent_num
         self.time_limit = time_limit
         self.reps = reps
         self.file_prefix = \
-            f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {comm} - '
+            f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
+
+        self.run_online_small_map(sensing_prob, commy)
+
+    def run_online_small_map(self, sensing_prob, commy):
         results_file = self.file_prefix + 'small_open_map_results.csv'
         map_file = '..\\..\\maps\\small_blank_map.map'
         if os.name == 'posix':
             map_file = './small_blank_map.map'
-        print(f"- STARTED ONLINE BLANK MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {comm} -")
+        print(f"- STARTED ONLINE BLANK MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} -")
 
         map_seed = 96372106
         random.seed(map_seed)
         tu_problem = TimeUncertaintyProblem(map_file)
         tu_problem.generate_problem_instance(self.uncertainty)
-        self.run_and_log_online_experiments(tu_problem, map_seed, results_file, sensing_prob, comm)
+        self.run_and_log_online_experiments(tu_problem, map_seed, results_file, sensing_prob, commy)
 
-    def run_and_log_online_experiments(self, tu_problem, map_seed, results_file, sensing_prob, comm):
+    def run_and_log_online_experiments(self, tu_problem, map_seed, results_file, sensing_prob, communication):
         final_results_path = os.path.join(self.output_folder, results_file)
         temp_path = os.path.join(self.output_folder, 'IN PROGRESS - ' + results_file)
         with open(temp_path, 'w') as temp_file:
@@ -250,9 +255,11 @@ class Experiments:
                             'initial Min Cost,'
                             'initial Max Cost,'
                             'initial uncertainty,'
+                            'initial true cost,'
                             'octu Min Cost,'
                             'octu Max Cost,'
                             'octu uncertainty,'
+                            'final_true_cost,'
                             'Sensing Probability,'
                             'Communication\n')
 
@@ -276,19 +283,39 @@ class Experiments:
 
             try:
                 start_time = time.time()
-                online_sol = sim.begin_execution(time_limit=self.time_limit, communication=comm)
-                init_cost = sim.online_CSTU.initial_plan.cost
+                online_sol = sim.begin_execution(time_limit=self.time_limit, communication=communication)
                 octu_time = time.time() - start_time
                 success += 1
+                online_sol.create_movement_tuples()
+
                 octu_cost = online_sol.cost
-                init_tu = init_cost[1] - init_cost[0]
                 octu_tu = octu_cost[1] - octu_cost[0]
+                final_true_cost = sim.calc_solution_true_cost(online_sol)
+
+                init_sol = sim.online_CSTU.initial_plan
+                init_cost = init_sol.cost
+                init_tu = init_cost[1] - init_cost[0]
+                init_true_cost = sim.calc_solution_true_cost(init_sol)
+
+                """
+                identical = True
+                for agent, movements in online_sol.tuple_solution.items():
+                    for idx, move in enumerate(movements):
+                        if len(init_sol.tuple_solution[agent]) > idx and move[1] != init_sol.tuple_solution[agent][idx][1]:
+                            print('different solution thank god')
+                            identical = False
+
+                print(f'Identical solutions: {identical}')
+                """
+
             except OutOfTimeError:
                 octu_cost = -1, -1
                 init_cost = -1, -1
                 octu_time = -1
                 init_tu = -1
                 octu_tu = -1
+                init_true_cost = -1
+                final_true_cost = -1
 
             with open(temp_path, 'a') as temp_map_result_file:
                 results = f'{i + 1},' \
@@ -301,30 +328,32 @@ class Experiments:
                     f'{init_cost[0]},' \
                     f'{init_cost[1]},' \
                     f'{init_tu},' \
+                    f'{init_true_cost},' \
                     f'{octu_cost[0]},' \
                     f'{octu_cost[1]},' \
                     f'{octu_tu},' \
+                    f'{final_true_cost},' \
                     f'{sensing_prob},' \
-                    f'{comm}\n'
+                    f'{communication}\n'
                 temp_map_result_file.write(results)
 
         copyfile(temp_path, final_results_path)
         os.remove(temp_path)
+
+
 exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-comm = False
+comm = True
 
-for tu in range(4, 5):
+for tu in range(0, 4):
     if tu == 3:
         continue
-    for agent_num in range(5, 10):
+    for number_of_agents in range(2, 11):
         for sense in range(0, 101, 25):
-            if agent_num == 5:
-                sense += 25
             sense_prob = sense / 100
-            exp.run_online_experiments(agent_num=agent_num, uncertainty=tu, time_limit=60, reps=50,
-                                       sensing_prob=sense_prob, comm=comm)
+            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
+                                       sensing_prob=sense_prob, commy=comm)
 
 print("Finished Experiments")

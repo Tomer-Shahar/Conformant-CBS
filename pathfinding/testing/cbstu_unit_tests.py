@@ -1029,4 +1029,43 @@ class TestOnlineCBSTU(unittest.TestCase):
         min_best_case = False
         comm = False
         sol = TimeUncertainSolution.load_solution(tu_problem, uncertainty, soc, min_best_case, '.\\previous_solutions')
-        sim.begin_execution(min_best_case=min_best_case, soc=soc, time_limit=1000, communication=comm, initial_sol=sol)
+        sim.begin_execution(min_best_case=min_best_case, soc=soc, time_limit=20, communication=comm, initial_sol=sol)
+
+    def test_simple_communication_example(self):
+        """ A test for an example where agents communicate"""
+        random.seed(1113)
+
+        small_tu_map = TimeUncertaintyProblem()
+        small_tu_map.map = [[0, 0, 0],
+                            [0, 0, 0],
+                            [0, 0, 0]]
+        small_tu_map.width = 3
+        small_tu_map.height = 3
+        small_tu_map.edges_and_weights = {
+            (0, 0): [((1, 0), (1, 20))],
+            (0, 1): [((1, 1), (1, 1))],
+            (0, 2): [((1, 2), (7, 7))],
+            (1, 0): [((0, 0), (1, 20)), ((1, 1), (1, 4))],
+            (1, 1): [((0, 1), (1, 1)), ((1, 0), (1, 4)), ((1, 2), (5, 5)), ((2, 1), (1, 1))],
+            (1, 2): [((0, 2), (7, 7)), ((1, 1), (5, 5))],
+            (2, 1): [((1, 1), (1, 1))],
+        }
+
+        small_tu_map.start_positions[1] = (0, 0)
+        small_tu_map.start_positions[2] = (0, 2)
+
+        small_tu_map.goal_positions[1] = (2, 1)
+        small_tu_map.goal_positions[2] = (0, 1)
+        small_tu_map.fill_heuristic_table()
+
+        sim = MAPFSimulator(small_tu_map, sensing_prob=1)
+        final_sol = sim.begin_execution(time_limit=10, communication=True)
+        final_cost = final_sol.cost
+        init_cost = sim.online_CSTU.initial_plan.cost
+
+        true_init_cost = sim.calc_solution_true_cost(sim.online_CSTU.initial_plan)
+        true_final_cost = sim.calc_solution_true_cost(final_sol)
+        self.assertEqual(init_cost, (27, 49))
+        self.assertEqual(true_init_cost, 27)
+        self.assertEqual(final_cost, (16, 16))
+        self.assertEqual(true_final_cost, 16)
