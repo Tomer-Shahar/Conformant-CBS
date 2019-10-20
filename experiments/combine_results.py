@@ -27,6 +27,12 @@ def append_simulation_file(file):
         for row in reader:
             if row['Map Seed'] == '' or row['Experiment Number'] == 'Algorithm':  # Reached end of experiments.
                 break
+            if int(row['Map Seed']) != 96372106:
+                print(f'Wrong map seed, FILE: {file}')
+                return
+            if 10637296 > int(row['Agents Seed']) or int(row['Agents Seed']) > 10637345:
+                print(f'Wrong agent seed, FILE: {file}')
+                return
             num_of_runs += 1
             write_simulation_results(map_type, row)
 

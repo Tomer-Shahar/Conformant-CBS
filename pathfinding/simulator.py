@@ -6,7 +6,6 @@ time. This occurs when the agent is at a node (waiting or having just arrived).
 
 from pathfinding.planners.utils.time_uncertainty_solution import *
 from pathfinding.planners.online_cbstu import *
-from pathfinding.planners.utils.map_reader import *
 from pathfinding.planners.utils.time_error import OutOfTimeError
 import time
 import random
@@ -22,7 +21,12 @@ class MAPFSimulator:
 
         self.tu_problem = tu_problem
         self.sensing_prob = sensing_prob
-        self.online_CSTU = OnlineCBSTU(tu_problem)  # The online solver
+        if self.sensing_prob == 1:
+            full_sense = True
+        else:
+            full_sense = False
+
+        self.online_CSTU = OnlineCBSTU(tu_problem, full_sense)  # The online solver
         self.final_solution = TimeUncertainSolution()  # Maintain the final path taken by agents
         self.arrival_times = {0: []}  # Maintain a dictionary of when agents will arrive to their next destination
         self.fixed_weights = {}  # The actual traversal times
@@ -75,7 +79,7 @@ class MAPFSimulator:
             self.sim_time += 1
 
         self.final_solution.compute_solution_cost()
-        #self.print_final_solution()
+        # self.print_final_solution()
         return self.final_solution
 
     def simulate_sensing_and_broadcast(self):
@@ -119,28 +123,22 @@ class MAPFSimulator:
         removes them from the list of agents that are at a vertex)
         :return: Update the list of arrival times and the online planner state
         """
-        try:  # Agents that are currently in a vertex
-            for agent in list(self.online_CSTU.current_state['at_vertex'].keys()):
-                action = self.get_next_action(agent, self.sim_time)
-                actual_time = self.get_actual_traversal_time(action)
-                self.final_solution.paths[agent].path.append((action[2], action[1]))
-                if action[0] != action[1]:  # Not a wait action, so not at vertex anymore
-                    self.online_CSTU.current_state['at_vertex'].pop(agent, None)
-                    self.online_CSTU.current_state['in_transition'][agent] = action
-                if actual_time not in self.arrival_times:
-                    self.arrival_times[actual_time] = []
-                self.arrival_times[actual_time].append((agent, action[1]))
-        except ValueError:
-            print("error")
+        # Agents that are currently in a vertex
+        for agent in list(self.online_CSTU.current_state['at_vertex'].keys()):
+            action = self.get_next_action(agent)
+            actual_time = self.get_actual_traversal_time(action)
+            self.final_solution.paths[agent].path.append((action[2], action[1]))
+            if action[0] != action[1]:  # Not a wait action, so not at vertex anymore
+                self.online_CSTU.current_state['at_vertex'].pop(agent, None)
+                self.online_CSTU.current_state['in_transition'][agent] = action
+            if actual_time not in self.arrival_times:
+                self.arrival_times[actual_time] = []
+            self.arrival_times[actual_time].append((agent, action[1]))
 
     def get_actual_traversal_time(self, action):
         # Randomly choose real traversal time
-        #actual_time = random.randint(max(self.sim_time + 1, action[2][0]), action[2][1])
         edge_weight = self.real_weights[action[0], action[1]]
-        try:
-            actual_time = edge_weight + self.sim_time
-        except TypeError:
-            print("type error in get actual time")
+        actual_time = edge_weight + self.sim_time
         return actual_time
 
     def at_goal_state(self):
@@ -165,10 +163,9 @@ class MAPFSimulator:
 
         return True  # All agents are at their goal states
 
-    def get_next_action(self, agent, time):
+    def get_next_action(self, agent):
         """
         Extract from the current plan the next action that will be taken.
-        :param time: The current time tick in execution. Useful when agents reach their goal and wait.
         :param agent: The agent for the needed action
         :return: The action done including possible completion times.
         """
@@ -178,7 +175,7 @@ class MAPFSimulator:
             self.online_CSTU.current_plan.paths[agent].path.pop(0)
             return start_location, destination[1], destination[0]
         else:  # Reached the end of the path.
-            return start_location, start_location, (time + 1, time + 1)
+            return start_location, start_location, (self.sim_time + 1, self.sim_time + 1)
 
     def print_final_solution(self):
         print('--------------------------------')
@@ -204,5 +201,27 @@ class MAPFSimulator:
             for vertex_2 in edges:
                 self.fixed_weights[vertex_1].append((vertex_2[0], random.randint(vertex_2[1][0], vertex_2[1][1])))
 
+    def calc_solution_true_cost(self, solution):
+        """
+        Calculates the actual cost of the proposed solution if it were to be executed. Uses the real weights that the
+        simulator keeps for each edge to do so.
+        :param solution:
+        :return:
+        """
 
+        true_cost = 0
 
+        for agent, sol in solution.paths.items():
+            prev_presence = sol.path[0]
+            for curr_presence in sol.path[1:]:
+                if prev_presence[1] != curr_presence[1]:  # It's an actual movement
+                    true_cost += self.real_weights[prev_presence[1], curr_presence[1]]
+                else:  # it's a curr_move
+                    true_cost += 1
+                if curr_presence[1] == self.tu_problem.goal_positions[agent] and \
+                        curr_presence[0] == solution.paths[agent].cost:
+                    # agent reached the goal and doesn't need to move
+                    break  # reached goal
+                prev_presence = curr_presence
+
+        return true_cost

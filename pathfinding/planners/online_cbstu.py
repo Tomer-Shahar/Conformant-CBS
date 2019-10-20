@@ -8,12 +8,11 @@ import copy
 from pathfinding.planners.cbstu import CBSTUPlanner
 from pathfinding.planners.constraint_A_star import ConstraintAstar
 from pathfinding.planners.utils.map_reader import TimeUncertaintyProblem
-from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
 
 
 class OnlineCBSTU:
 
-    def __init__(self, tu_problem):
+    def __init__(self, tu_problem, full_sensing=False):
         """
         Initialize the planner.
         :param tu_problem: a time-uncertainty problem. This is an object that must be capable of updating the current
@@ -25,6 +24,7 @@ class OnlineCBSTU:
         self.initial_plan = None
         self.current_plan = None
         self.current_state = None
+        self.full_sensing = full_sensing
 
     def find_initial_path(self, min_best_case=False, soc=True, time_limit=60, initial_sol=None):
         """
@@ -56,6 +56,22 @@ class OnlineCBSTU:
         :return: The offline planner now has an up to date view of the current state.
         """
         self.current_state['time'] = curr_time
+        if self.full_sensing:  # We can extrapolate a lot of information
+            traversing_agents = set(self.tu_problem.start_positions.keys()) - set(sensed_agents.keys())
+            for agent in traversing_agents:
+                curr_presence = self.current_plan.paths[agent].path[0]
+                if curr_presence[0][1] - curr_presence[0][0] == 0:
+                    continue
+                # At the earliest, the agent will arrive only next time step, so we can update the current plan.
+                time_diff = curr_time + 1 - curr_presence[0][0]
+                presence = self.current_plan.paths[agent].path[0]
+                new_presence = (presence[0][0] + time_diff, presence[0][1]), presence[1]
+                prev_node = self.current_state['in_transition'][agent][0]
+                self.current_state['in_transition'][agent] = prev_node, new_presence[1], new_presence[0]
+
+                for idx, presence in enumerate(self.current_plan.paths[agent].path):
+                    new_presence = (presence[0][0] + time_diff, presence[0][1]), presence[1]
+                    self.current_plan.paths[agent].path[idx] = new_presence
 
     def create_new_centralized_plan(self, curr_time, sensed_agents):
         """
@@ -74,16 +90,9 @@ class OnlineCBSTU:
 
         self.offline_cbstu_planner.startPositions = sensed_agents
         new_plans = self.offline_cbstu_planner.find_solution(existing_cons=new_cons, curr_time=(curr_time, curr_time))
-        try:
-            old_plan = copy.deepcopy(self.current_plan)
-            for agent, path in new_plans.paths.items():
-                self.current_plan.paths[agent] = path
-            self.current_plan.add_stationary_moves()
-
-            if old_plan.cost == self.current_plan.cost and old_plan.paths == self.current_plan.paths:
-                print('found same path')
-        except AttributeError:
-            print("attribute error in creating a new central plan")
+        for agent, path in new_plans.paths.items():
+            self.current_plan.paths[agent] = path
+        self.current_plan.add_stationary_moves()
 
     def at_goal_state(self):
         """
