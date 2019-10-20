@@ -345,7 +345,7 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-comm = True
+comm = False
 
 for tu in range(0, 4):
     if tu == 3:
