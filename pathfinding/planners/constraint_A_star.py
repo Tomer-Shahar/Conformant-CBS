@@ -84,7 +84,10 @@ class ConstraintAstar:
     def __add_node_to_open(self, node):
         self.open_list.push(node, node.f_val[0], node.conflicts_created, node.h_val)
         key_tuple = node.create_tuple()
-        self.open_dict[key_tuple] = node
+        try:
+            self.open_dict[key_tuple] = node
+        except MemoryError:
+            print('memory error in add node to open')
 
         return node
 
