@@ -42,28 +42,29 @@ def calc_averages_and_write(map_type,
                             initial_min_cost,
                             initial_max_cost,
                             initial_uncertainty,
+                            initial_true_cost,
                             final_min_cost,
                             final_max_cost,
                             final_uncertainty,
+                            final_true_cost,
                             uncertainty,
                             sensing_probability,
                             num_of_agents,
                             num_of_runs,
                             octu_success,
                             comm):
-    try:
-        if octu_success > 0:
-            octu_time /= octu_success
-            initial_min_cost /= octu_success
-            initial_max_cost /= octu_success
-            initial_uncertainty /= octu_success
-            final_min_cost /= octu_success
-            final_max_cost /= octu_success
-            final_uncertainty /= octu_success
-    except ZeroDivisionError:
-        print("zero division error")
+    if octu_success > 0:
+        octu_time /= octu_success
+        initial_min_cost /= octu_success
+        initial_max_cost /= octu_success
+        initial_uncertainty /= octu_success
+        initial_true_cost /= octu_success
+        final_min_cost /= octu_success
+        final_max_cost /= octu_success
+        final_uncertainty /= octu_success
+        final_true_cost /= octu_success
 
-    octu_success /= num_of_runs
+        octu_success /= num_of_runs
 
     average_writer.writerow({
         'Map': map_type,
@@ -76,9 +77,11 @@ def calc_averages_and_write(map_type,
         'Initial Min SOC': initial_min_cost,
         'Initial Max SOC': initial_max_cost,
         'Initial Uncertainty': initial_uncertainty,
+        'Initial True Cost': initial_true_cost,
         'Final Min SOC': final_min_cost,
         'Final Max SOC': final_max_cost,
         'Final Uncertainty': final_uncertainty,
+        'Final True Cost': final_true_cost,
         'Number of Runs': num_of_runs
     })
 
@@ -94,9 +97,11 @@ def write_average_results():
         initial_min_cost = 0
         initial_max_cost = 0
         initial_uncertainty = 0
+        initial_true_cost = 0
         final_min_cost = 0
         final_max_cost = 0
         final_uncertainty = 0
+        final_true_cost = 0
         uncertainty = -1
         sensing_probability = -1
         num_of_agents = -1
@@ -117,11 +122,13 @@ def write_average_results():
                 initial_min_cost += float(row['initial Min Cost'])
                 initial_max_cost += float(row['initial Max Cost'])
                 initial_uncertainty += float(row['initial uncertainty'])
+                initial_true_cost += float(row['initial true cost'])
                 final_min_cost += float(row['octu Min Cost'])
                 final_max_cost += float(row['octu Max Cost'])
                 final_uncertainty += float(row['octu uncertainty'])
+                final_true_cost += float(row['final true cost'])
 
-        #if num_of_runs < 50:  # There's a mistake
+        # if num_of_runs < 50:  # There's a mistake
         #    print(f'{run_file} ::: {num_of_runs}')
 
         calc_averages_and_write(map_type,
@@ -129,9 +136,11 @@ def write_average_results():
                                 initial_min_cost,
                                 initial_max_cost,
                                 initial_uncertainty,
+                                initial_true_cost,
                                 final_min_cost,
                                 final_max_cost,
                                 final_uncertainty,
+                                final_true_cost,
                                 uncertainty,
                                 sensing_probability,
                                 num_of_agents,
@@ -158,7 +167,7 @@ def write_simulation_results(map_type, row):
         'Final Min SOC': row['octu Min Cost'],
         'Final Max SOC': row['octu Max Cost'],
         'Final Uncertainty': row['octu uncertainty'],
-        'Final True Cost': row['final_true_cost'],
+        'Final True Cost': row['final true cost'],
     })
 
 
@@ -173,6 +182,8 @@ with open(raw_data_file, 'w', newline='') as raw_file:
     num = 0
     for root, dirs, files in os.walk(input_folder):
         for run_file in files:
+            if 'IN PROGRESS' in run_file:
+                continue
             append_simulation_file(run_file)
             num += 1
 

@@ -99,6 +99,10 @@ class MAPFSimulator:
                 self.online_CSTU.current_state['at_vertex'][arrival[0]] = arrival[1]
                 self.online_CSTU.current_state['in_transition'].pop(arrival[0], None)
 
+        if self.sensing_prob == 0:
+            return {}
+
+
         # Iterate over agents that performed a move action
         for agent, location in self.online_CSTU.current_state['at_vertex'].items():
             if self.sensing_prob >= random.random():  # Agent can sense the current time

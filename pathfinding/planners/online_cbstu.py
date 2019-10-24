@@ -49,29 +49,43 @@ class OnlineCBSTU:
     def update_current_state(self, curr_time, sensed_agents):
         """
         Extract new info from the current state, such as where each agent is and what the current time is. Both provide
-        useful information.
+        useful information. Only called when there is communication amongst agents. For each sensing agent, we can
+        already update all the future potential presences to reflect the new data. If we are using full sensing, we can
+        even update the information for the agents that haven't currently sensed.
 
         :param curr_time: Current time in the simulation
         :param sensed_agents: A dictionary of agents that have sensed
         :return: The offline planner now has an up to date view of the current state.
         """
         self.current_state['time'] = curr_time
-        if self.full_sensing:  # We can extrapolate a lot of information
-            traversing_agents = set(self.tu_problem.start_positions.keys()) - set(sensed_agents.keys())
-            for agent in traversing_agents:
-                curr_presence = self.current_plan.paths[agent].path[0]
-                if curr_presence[0][1] - curr_presence[0][0] == 0:
-                    continue
-                # At the earliest, the agent will arrive only next time step, so we can update the current plan.
+
+        traversing_agents = set(self.tu_problem.start_positions.keys()) - set(sensed_agents.keys())
+
+        for agent in self.tu_problem.start_positions:
+            curr_presence = self.current_plan.paths[agent].path[0]
+            if curr_presence[0][1] - curr_presence[0][0] == 0:  # There was no uncertainty to begin with.
+                continue
+
+            if agent in sensed_agents:  # We can update the future path based on this sense
+                time_inc = curr_time - curr_presence[0][0]
+                time_dec = curr_presence[0][1] - curr_time
+                for idx, presence in enumerate(self.current_plan.paths[agent].path):
+                    new_presence = (presence[0][0] + time_inc, presence[0][1] - time_dec), presence[1]
+                    self.current_plan.paths[agent].path[idx] = new_presence
+
+            # If we have full sense, we can learn about traversing agents as well
+            if agent in traversing_agents and self.full_sensing:
                 time_diff = curr_time + 1 - curr_presence[0][0]
                 presence = self.current_plan.paths[agent].path[0]
                 new_presence = (presence[0][0] + time_diff, presence[0][1]), presence[1]
                 prev_node = self.current_state['in_transition'][agent][0]
+                # At the earliest, the agent will arrive only next time step, so we can update the current plan.
                 self.current_state['in_transition'][agent] = prev_node, new_presence[1], new_presence[0]
 
                 for idx, presence in enumerate(self.current_plan.paths[agent].path):
                     new_presence = (presence[0][0] + time_diff, presence[0][1]), presence[1]
                     self.current_plan.paths[agent].path[idx] = new_presence
+
 
     def create_new_centralized_plan(self, curr_time, sensed_agents):
         """

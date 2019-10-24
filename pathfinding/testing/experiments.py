@@ -259,7 +259,7 @@ class Experiments:
                             'octu Min Cost,'
                             'octu Max Cost,'
                             'octu uncertainty,'
-                            'final_true_cost,'
+                            'final true cost,'
                             'Sensing Probability,'
                             'Communication\n')
 
@@ -346,14 +346,15 @@ if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
 comm = True
-
-for tu in range(0, 4):
-    if tu == 3:
-        continue
-    for number_of_agents in range(2, 11):
+for number_of_agents in range(8, 10):
+    for tu in range(2, 5):
+        if tu == 3 or (tu <= 1 and number_of_agents == 7):
+            continue
         for sense in range(0, 101, 25):
             sense_prob = sense / 100
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
                                        sensing_prob=sense_prob, commy=comm)
+            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
+                                       sensing_prob=sense_prob, commy=not comm)
 
 print("Finished Experiments")
