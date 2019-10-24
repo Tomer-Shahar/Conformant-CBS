@@ -350,7 +350,7 @@ comm = False
 for tu in range(0, 4):
     if tu == 3:
         continue
-    for number_of_agents in range(2, 11):
+    for number_of_agents in range(11, 15):
         for sense in range(0, 101, 25):
             sense_prob = sense / 100
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
