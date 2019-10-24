@@ -345,16 +345,14 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-comm = True
-for number_of_agents in range(8, 10):
+comm = False
+for number_of_agents in range(7, 10):
     for tu in range(2, 5):
-        if tu == 3 or (tu <= 1 and number_of_agents == 7):
+        if tu == 3:
             continue
         for sense in range(0, 101, 25):
             sense_prob = sense / 100
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
                                        sensing_prob=sense_prob, commy=comm)
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
-                                       sensing_prob=sense_prob, commy=not comm)
 
 print("Finished Experiments")
