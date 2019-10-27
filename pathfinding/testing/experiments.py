@@ -345,9 +345,10 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
+
 comm = False
-for number_of_agents in range(7, 10):
-    for tu in range(2, 5):
+for number_of_agents in range(9, 15):
+    for tu in range(0, 5):
         if tu == 3:
             continue
         for sense in range(0, 101, 25):

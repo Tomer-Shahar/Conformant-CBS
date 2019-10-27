@@ -86,7 +86,6 @@ class OnlineCBSTU:
                     new_presence = (presence[0][0] + time_diff, presence[0][1]), presence[1]
                     self.current_plan.paths[agent].path[idx] = new_presence
 
-
     def create_new_centralized_plan(self, curr_time, sensed_agents):
         """
         Replan for the agents that updated their location. Must first create a large set of constraints for all agents
