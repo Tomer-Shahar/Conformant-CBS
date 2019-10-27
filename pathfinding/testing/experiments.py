@@ -346,7 +346,7 @@ if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
 comm = True
-for number_of_agents in range(2, 15):
+for number_of_agents in range(9, 15):
     for tu in range(0, 5):
         if tu == 3:
             continue
