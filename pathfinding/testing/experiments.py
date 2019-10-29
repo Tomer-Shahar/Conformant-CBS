@@ -217,7 +217,7 @@ class Experiments:
         self.run_circular_map(rep_num, num_of_agents)
         self.run_corridor_map(rep_num, num_of_agents, use_cat)
 
-    def run_online_experiments(self, agent_num, sensing_prob, commy, reps, time_limit, uncertainty):
+    def run_online_experiments(self, agent_num, sensing_prob, commy, reps, time_limit, uncertainty, dist):
 
         self.uncertainty = uncertainty
         self.agents_num = agent_num
@@ -226,22 +226,23 @@ class Experiments:
         self.file_prefix = \
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
 
-        self.run_online_small_map(sensing_prob, commy)
+        self.run_online_small_map(sensing_prob, commy, dist)
 
-    def run_online_small_map(self, sensing_prob, commy):
-        results_file = self.file_prefix + 'small_open_map_results.csv'
+    def run_online_small_map(self, sensing_prob, commy, distrubition):
+        results_file = self.file_prefix + f'distribution - {distrubition} - small_open_map_results.csv'
         map_file = '..\\..\\maps\\small_blank_map.map'
         if os.name == 'posix':
             map_file = './small_blank_map.map'
-        print(f"- STARTED ONLINE BLANK MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} -")
+        print(f"- STARTED ONLINE BLANK MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+              f"DISTRIBUTION: {distrubition}")
 
         map_seed = 96372106
         random.seed(map_seed)
         tu_problem = TimeUncertaintyProblem(map_file)
         tu_problem.generate_problem_instance(self.uncertainty)
-        self.run_and_log_online_experiments(tu_problem, map_seed, results_file, sensing_prob, commy)
+        self.run_and_log_online_experiments(tu_problem, map_seed, results_file, sensing_prob, commy, distrubition)
 
-    def run_and_log_online_experiments(self, tu_problem, map_seed, results_file, sensing_prob, communication):
+    def run_and_log_online_experiments(self, tu_problem, map_seed, results_file, sensing_prob, communication, dist):
         final_results_path = os.path.join(self.output_folder, results_file)
         temp_path = os.path.join(self.output_folder, 'IN PROGRESS - ' + results_file)
         with open(temp_path, 'w') as temp_file:
@@ -261,6 +262,7 @@ class Experiments:
                             'octu uncertainty,'
                             'final true cost,'
                             'Sensing Probability,'
+                            'Distribution,'
                             'Communication\n')
 
         success = 0
@@ -279,7 +281,7 @@ class Experiments:
                 i -= 1
                 tu_problem.heuristic_table = None
                 continue
-            sim = MAPFSimulator(tu_problem, sensing_prob)
+            sim = MAPFSimulator(tu_problem, sensing_prob, edge_dist=dist)
 
             try:
                 start_time = time.time()
@@ -296,17 +298,6 @@ class Experiments:
                 init_cost = init_sol.cost
                 init_tu = init_cost[1] - init_cost[0]
                 init_true_cost = sim.calc_solution_true_cost(init_sol)
-
-                """
-                identical = True
-                for agent, movements in online_sol.tuple_solution.items():
-                    for idx, move in enumerate(movements):
-                        if len(init_sol.tuple_solution[agent]) > idx and move[1] != init_sol.tuple_solution[agent][idx][1]:
-                            print('different solution thank god')
-                            identical = False
-
-                print(f'Identical solutions: {identical}')
-                """
 
             except OutOfTimeError:
                 octu_cost = -1, -1
@@ -334,6 +325,7 @@ class Experiments:
                     f'{octu_tu},' \
                     f'{final_true_cost},' \
                     f'{sensing_prob},' \
+                    f'{distribution},' \
                     f'{communication}\n'
                 temp_map_result_file.write(results)
 
@@ -345,14 +337,19 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-comm = False
-for number_of_agents in range(9, 15):
-    for tu in range(0, 5):
+comm = True
+distribution = 'uniform'
+for tu in range(2, 5):
+    for number_of_agents in range(2, 10):
         if tu == 3:
             continue
-        for sense in range(0, 101, 25):
+        for sense in range(100, 101, 25):
             sense_prob = sense / 100
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
-                                       sensing_prob=sense_prob, commy=comm)
+                                       sensing_prob=sense_prob, commy=comm, dist='uniform')
+            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
+                                       sensing_prob=sense_prob, commy=comm, dist='max')
+            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
+                                       sensing_prob=sense_prob, commy=comm, dist='min')
 
 print("Finished Experiments")

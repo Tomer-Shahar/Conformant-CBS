@@ -19,7 +19,6 @@ class OnlineCBSTU:
         state of the world.
         """
         self.tu_problem = tu_problem
-        self.edges_and_weights = tu_problem.edges_and_weights
         self.offline_cbstu_planner = CBSTUPlanner(tu_problem)
         self.initial_plan = None
         self.current_plan = None
@@ -129,7 +128,7 @@ class OnlineCBSTU:
         :param graphs: the path that each agent can plan in.
         :param constraints: A set of constraints for all agents
         :param sensing_agents: Agents that performed a sensing action
-        :return: Creates new plans for each agent that sensed.
+        :return: Creates new plans for each agent that sensed by updating the current plan.
         """
 
         for agent, loc in sensing_agents.items():
