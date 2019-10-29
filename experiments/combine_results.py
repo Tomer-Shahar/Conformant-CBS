@@ -52,7 +52,10 @@ def calc_averages_and_write(map_type,
                             num_of_agents,
                             num_of_runs,
                             octu_success,
-                            comm):
+                            comm,
+                            distribution):
+    reduction_in_tc = -1
+
     if octu_success > 0:
         octu_time /= octu_success
         initial_min_cost /= octu_success
@@ -63,7 +66,7 @@ def calc_averages_and_write(map_type,
         final_max_cost /= octu_success
         final_uncertainty /= octu_success
         final_true_cost /= octu_success
-
+        reduction_in_tc = initial_true_cost - final_true_cost
         octu_success /= num_of_runs
 
     average_writer.writerow({
@@ -82,6 +85,8 @@ def calc_averages_and_write(map_type,
         'Final Max SOC': final_max_cost,
         'Final Uncertainty': final_uncertainty,
         'Final True Cost': final_true_cost,
+        'Reduction in True Cost': reduction_in_tc,
+        'Distribution': distribution,
         'Number of Runs': num_of_runs
     })
 
@@ -113,6 +118,7 @@ def write_average_results():
                 break
             num_of_runs += 1
             uncertainty = row['Uncertainty']
+            distribution = row['Distribution']
             sensing_probability = row['Sensing Probability']
             num_of_agents = row['Number of Agents']
             comm = row['Communication']
@@ -146,7 +152,8 @@ def write_average_results():
                                 num_of_agents,
                                 num_of_runs,
                                 octu_success,
-                                comm)
+                                comm,
+                                distribution)
 
 
 def write_simulation_results(map_type, row):
@@ -167,6 +174,7 @@ def write_simulation_results(map_type, row):
         'Final Min SOC': row['octu Min Cost'],
         'Final Max SOC': row['octu Max Cost'],
         'Final Uncertainty': row['octu uncertainty'],
+        'Distribution': row['Distribution'],
         'Final True Cost': row['final true cost'],
     })
 
@@ -176,7 +184,7 @@ with open(raw_data_file, 'w', newline='') as raw_file:
     fields = ['Map', 'Map Seed', 'Uncertainty', 'Number of Agents', 'Agent Seed', 'With Communication',
               'Sensing Probability', 'Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC',
               'Initial Uncertainty', 'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty',
-              'Final True Cost']
+              'Distribution', 'Final True Cost']
     raw_data_writer = csv.DictWriter(raw_file, fieldnames=fields, restval='-', extrasaction='ignore')
     raw_data_writer.writeheader()
     num = 0
@@ -192,7 +200,7 @@ with open(average_results_file, 'w', newline='') as avg_file:
     avg_fields = ['Map', 'Uncertainty', 'Number of Agents', 'With Communication', 'Sensing Probability',
                   'Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty',
                   'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty', 'Final True Cost',
-                  'Number of Runs']
+                  'Reduction in True Cost', 'Distribution', 'Number of Runs']
     average_writer = csv.DictWriter(avg_file, fieldnames=avg_fields)
     average_writer.writeheader()
     for root, dirs, files in os.walk(input_folder):

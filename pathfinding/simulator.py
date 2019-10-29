@@ -6,6 +6,7 @@ time. This occurs when the agent is at a node (waiting or having just arrived).
 
 from pathfinding.planners.utils.time_uncertainty_solution import *
 from pathfinding.planners.online_cbstu import *
+from pathfinding.planners.online_worst_case_cbs import OnlinePessimisticCBS
 from pathfinding.planners.utils.time_error import OutOfTimeError
 import time
 import random
@@ -13,7 +14,7 @@ import random
 
 class MAPFSimulator:
 
-    def __init__(self, tu_problem, sensing_prob=1):
+    def __init__(self, tu_problem, sensing_prob=1, pessimistic_solver=False, edge_dist='uniform'):
         """
         :param tu_problem: A time uncertainty problem
         :param sensing_prob: The probability to sense at each node
@@ -21,28 +22,51 @@ class MAPFSimulator:
 
         self.tu_problem = tu_problem
         self.sensing_prob = sensing_prob
+        self.communication = True
+
         if self.sensing_prob == 1:
             full_sense = True
         else:
             full_sense = False
-
-        self.online_CSTU = OnlineCBSTU(tu_problem, full_sense)  # The online solver
+        if pessimistic_solver:
+            self.sensing_prob = 1
+            self.communication = False
+            self.online_CSTU = OnlinePessimisticCBS(tu_problem)
+        else:
+            self.online_CSTU = OnlineCBSTU(tu_problem, full_sense)  # The online solver
         self.final_solution = TimeUncertainSolution()  # Maintain the final path taken by agents
         self.arrival_times = {0: []}  # Maintain a dictionary of when agents will arrive to their next destination
         self.fixed_weights = {}  # The actual traversal times
-        self.communication = True
         self.sim_time = 0
         self.real_weights = {}  # The actual times it'll take to traverse the edges.
+        self.generate_real_weights(distribution=edge_dist)
+
+        for agent in self.tu_problem.start_positions:
+            self.final_solution.paths[agent] = TimeUncertainPlan(agent_id=agent,
+                                                                 path=[((0, 0), self.tu_problem.start_positions[agent])]
+                                                                 , cost=(0, 0))
+
+    def generate_real_weights(self, distribution='uniform'):
+        """
+        Assigns a fixed weight for each edge. The weight is chosen based on distribution given.
+        :return: Updates the real_weights parameter.
+        """
+
         for vertex_i, edges in self.tu_problem.edges_and_weights.items():
             self.real_weights[vertex_i, vertex_i] = 1
             for vertex_j in edges:
-                self.real_weights[(vertex_i, vertex_j[0])] = random.randint(vertex_j[1][0], vertex_j[1][1])
-        for agent in self.tu_problem.start_positions:
-            self.final_solution.paths[agent] = TimeUncertainPlan(agent,
-                                                                 [((0, 0), self.tu_problem.start_positions[agent])],
-                                                                 (0, 0))
+                if distribution == 'uniform':
+                    weight = random.randint(vertex_j[1][0], vertex_j[1][1])
+                elif distribution == 'min':
+                    weight = vertex_j[1][0]
+                elif distribution == 'max':
+                    weight = vertex_j[1][1]
+                else:
+                    weight = random.randint(vertex_j[1][0], vertex_j[1][1])
 
-    def begin_execution(self, min_best_case=False, soc=True, time_limit=120, communication=True, initial_sol=False):
+                self.real_weights[(vertex_i, vertex_j[0])] = weight
+
+    def begin_execution(self, min_best_case=False, soc=True, time_limit=60, communication=True, initial_sol=False):
         """
         The main function of the simulator. Finds an initial solution and runs it, occasionally sensing and broadcasting
         if need be.
@@ -101,7 +125,6 @@ class MAPFSimulator:
 
         if self.sensing_prob == 0:
             return {}
-
 
         # Iterate over agents that performed a move action
         for agent, location in self.online_CSTU.current_state['at_vertex'].items():
@@ -193,17 +216,6 @@ class MAPFSimulator:
 
     def create_initial_solution(self, min_best_case=False, soc=True, time_limit=60, initial_sol=None):
         self.online_CSTU.find_initial_path(min_best_case, soc, time_limit, initial_sol)
-
-    def comp_weights(self):
-        """
-        Create fixed weights for the graph.
-        :return:
-        """
-
-        for vertex_1, edges in self.tu_problem.edges_and_weights.items():
-            self.fixed_weights[vertex_1] = []
-            for vertex_2 in edges:
-                self.fixed_weights[vertex_1].append((vertex_2[0], random.randint(vertex_2[1][0], vertex_2[1][1])))
 
     def calc_solution_true_cost(self, solution):
         """

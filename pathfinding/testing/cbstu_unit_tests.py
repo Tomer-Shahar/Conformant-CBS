@@ -1069,3 +1069,45 @@ class TestOnlineCBSTU(unittest.TestCase):
         self.assertEqual(true_init_cost, 27)
         self.assertEqual(final_cost, (16, 16))
         self.assertEqual(true_final_cost, 16)
+
+    def test_communication_bug_2_agents(self):
+        map_seed = 96372106
+        random.seed(map_seed)
+
+        tu_problem = TimeUncertaintyProblem('./small_blank_map.map')
+        tu_problem.generate_problem_instance(uncertainty=4)
+        agent_seed = 10637299
+        random.seed(agent_seed)
+
+        tu_problem.generate_agents(agent_num=2)
+        tu_problem.fill_heuristic_table()
+
+        sim = MAPFSimulator(tu_problem, sensing_prob=0.5)
+        online_sol = sim.begin_execution(time_limit=1000, communication=True)
+
+        initial_tc = sim.calc_solution_true_cost(sim.online_CSTU.initial_plan)
+        final_tc = sim.calc_solution_true_cost(online_sol)
+
+        self.assertEqual(initial_tc, 38)
+        self.assertEqual(final_tc, 42)
+
+    def test_communication_bug_3_agents(self):
+        map_seed = 96372106
+        random.seed(map_seed)
+
+        tu_problem = TimeUncertaintyProblem('./small_blank_map.map')
+        tu_problem.generate_problem_instance(uncertainty=0)
+        agent_seed = 10637315
+        random.seed(agent_seed)
+
+        tu_problem.generate_agents(agent_num=3)
+        tu_problem.fill_heuristic_table()
+
+        sim = MAPFSimulator(tu_problem, sensing_prob=0.5)
+        online_sol = sim.begin_execution(time_limit=1000, communication=True)
+
+        initial_tc = sim.calc_solution_true_cost(sim.online_CSTU.initial_plan)
+        final_tc = sim.calc_solution_true_cost(online_sol)
+
+        self.assertEqual(initial_tc, 14)
+        self.assertEqual(final_tc, 16)
