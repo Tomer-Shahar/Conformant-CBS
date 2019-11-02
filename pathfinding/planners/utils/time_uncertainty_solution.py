@@ -19,6 +19,7 @@ class TimeUncertainSolution:
         self.tuple_solution = None
         self.nodes_expanded = 0
         self.constraints = set()
+        self.time_to_solve = -1
 
     @staticmethod
     def empty_solution():
@@ -32,6 +33,7 @@ class TimeUncertainSolution:
 
         if other_sol.tuple_solution:
             self.tuple_solution = {}
+        self.time_to_solve = other_sol.time_to_solve
 
         for agent, plan in other_sol.paths.items():
             self.paths[agent] = plan
@@ -129,26 +131,23 @@ class TimeUncertainSolution:
 
         self.length = len(next(iter(self.paths.values())).path)
 
-    def save_solution(self, tu_problem, uncertainty, soc, min_best_case, folder):
-        start = [v for v in tu_problem.start_positions.items()]
-        goals = [v for v in tu_problem.goal_positions.items()]
-        file_name = f'sol_soc={soc}_mbc={min_best_case}_start={start}_goals={goals}_' \
-            f'uncertainty={uncertainty}.sol'
+    def save_solution(self, agent_num, uncertainty, sensing, comm, dist, map_type, agent_seed, map_seed, folder):
+        file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
+            f'{sensing} sensing_comm {comm}_{dist} dist_{map_type}.sol'
         path = os.path.join(folder, file_name)
 
         with open(path, 'w+') as sol_file:
-            json_sol = {'paths': {}, 'constraints': None}
+            json_sol = {'paths': {}, 'constraints': None, 'time_to_solve': self.time_to_solve}
             for agent, path in self.paths.items():
                 json_sol['paths'][agent] = path.path
             json_sol['constraints'] = list(self.constraints)
             json.dump(json_sol, sol_file)
 
     @staticmethod
-    def load_solution(tu_problem, uncertainty, soc, min_best_case, folder):
-        start = [v for v in tu_problem.start_positions.items()]
-        goals = [v for v in tu_problem.goal_positions.items()]
-        file_name = f'sol_soc={soc}_mbc={min_best_case}_start={start}_goals={goals}_' \
-            f'uncertainty={uncertainty}.sol'
+    def load_solution(agent_num, uncertainty, sensing, comm, dist, map_type, agent_seed, map_seed, folder):
+        file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
+            f'{sensing} sensing_comm {comm}_{dist} dist_{map_type}.sol'
+
         path = os.path.join(folder, file_name)
 
         if not os.path.exists(path):
@@ -164,41 +163,16 @@ class TimeUncertainSolution:
                 tu_plan = TimeUncertainPlan(int(agent), tuple_path, math.inf)
                 tu_sol.paths[int(agent)] = tu_plan
             for con in json_sol['constraints']:
-                tuple_con = con[0], tuple(con[1]), tuple(con[2])
+                if type(con[1][0]) == int:  # it's a vertex constraint
+                    tuple_con = con[0], tuple(con[1]), tuple(con[2])
+                elif type(con[1][0]) == list:  # it's an edge constraint
+                    edge = tuple(con[1][0]), tuple(con[1][1])
+                    tuple_con = con[0], edge, tuple(con[2])
+                else:
+                    raise TypeError
                 tu_sol.constraints.add(tuple_con)
 
+            tu_sol.time_to_solve = json_sol['time_to_solve']
             tu_sol.compute_solution_cost()
             tu_sol.create_movement_tuples()
             return tu_sol
-"""
-    def fill_in_solution(self):
-        
-        Converts a solution that contains only the vertices of the paths to a solution where the paths is filled with
-        the movements where the agent is travelling an edge. i.e if a path is [(0,time=0),(4,time=3)], we know that the
-        agent was on the edge (0,4) at time 1 and 2 -> [(0,time=0),((0,4),time=1),((0,4),time=2),(4,time=3)]
-    
-        max_time = self.get_max_path_time()
-
-        for agent, plan in self.paths.items():
-            filled_path = []
-            for i in range(0, len(plan.path) - 1):
-                curr_node = plan.path[i]
-                next_node = plan.path[i + 1]
-                if curr_node[0] + 1 == next_node[0]:  # i.e they are sequential
-                    filled_path.append(curr_node)
-                else:
-                    filled_path.append(curr_node)
-                    for time_interval in range(curr_node[0] + 1, next_node[0]):
-                        edge_move = (time_interval, (curr_node[1], next_node[1]))
-                        filled_path.append(edge_move)
-            last_move = plan.path[-1]
-            filled_path.append(last_move)
-            if last_move[0] < max_time:  # The agent is gonna stay at the end at the same position.
-                curr_time = len(filled_path)
-                for time_interval in range(curr_time, max_time + 1):
-                    stationary_move = (time_interval, last_move[1])
-                    filled_path.append(stationary_move)
-            new_path = ConformantPlan(agent, filled_path, max_time)
-            self.paths[agent] = new_path
-"""
-

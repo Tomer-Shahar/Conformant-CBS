@@ -4,6 +4,7 @@ agent's current state. This will allow to re-plan with additional information, h
 results in terms of Sum of Costs.
 """
 import copy
+import time
 
 from pathfinding.planners.cbstu import CBSTUPlanner
 from pathfinding.planners.constraint_A_star import ConstraintAstar
@@ -25,7 +26,7 @@ class OnlineCBSTU:
         self.current_state = None
         self.full_sensing = full_sensing
 
-    def find_initial_path(self, min_best_case=False, soc=True, time_limit=60, initial_sol=None):
+    def find_initial_path(self, min_best_case=False, soc=True, time_limit=300, initial_sol=None):
         """
         Uses the offline planner to find an initial solution. Also creates the current state of the world, where the
         time is 0 and all agents are just in their start positions. During the execution of the plan the current state
@@ -38,7 +39,10 @@ class OnlineCBSTU:
             self.current_plan = copy.deepcopy(initial_sol)
             self.offline_cbstu_planner.final_constraints = initial_sol.constraints
         else:
+            start = time.time()
             self.initial_plan = self.offline_cbstu_planner.find_solution(min_best_case, time_limit, soc, use_cat=True)
+            total_time = time.time() - start
+            self.initial_plan.time_to_solve = total_time
             self.current_plan = copy.deepcopy(self.initial_plan)
         self.current_state = {'time': 0,
                               'cost': 0,                    # Agents that are at a vertex
