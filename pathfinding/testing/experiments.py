@@ -337,13 +337,13 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-comm = True
+comm = False
 distribution = 'uniform'
-for tu in range(2, 5):
-    for number_of_agents in range(2, 10):
+for tu in range(0, 5):
+    for number_of_agents in range(2, 14):
         if tu == 3:
             continue
-        for sense in range(100, 101, 25):
+        for sense in range(0, 76, 25):
             sense_prob = sense / 100
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
                                        sensing_prob=sense_prob, commy=comm, dist='uniform')
