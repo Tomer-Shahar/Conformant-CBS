@@ -290,9 +290,8 @@ class Experiments:
             sim = MAPFSimulator(tu_problem, sensing_prob, edge_dist=dist)
 
             try:
-                loaded_sol = TimeUncertainSolution.load_solution(self.agents_num, self.uncertainty, sensing_prob,
-                                                                 communication, distribution, map_type, agent_seed,
-                                                                 map_seed, sol_folder)
+                loaded_sol = TimeUncertainSolution.load_solution(self.agents_num, self.uncertainty, map_type, agent_seed
+                                                                 , map_seed, sol_folder)
                 if loaded_sol and loaded_sol.time_to_solve == -1:  # It was a timed out solution
                     raise OutOfTimeError
                 start_time = time.time()
@@ -313,13 +312,12 @@ class Experiments:
                 init_true_cost = sim.calc_solution_true_cost(init_sol)
 
                 if not loaded_sol:
-                    init_sol.save_solution(self.agents_num, self.uncertainty, sensing_prob, communication, distribution
-                                           , map_type, agent_seed, map_seed, sol_folder)
+                    init_sol.save_solution(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed,
+                                           sol_folder)
 
             except OutOfTimeError:
                 empty_sol = TimeUncertainSolution()
-                empty_sol.save_solution(self.agents_num, self.uncertainty, sensing_prob, communication, distribution
-                                        , map_type, agent_seed, map_seed, sol_folder)
+                empty_sol.save_solution(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, sol_folder)
                 octu_cost = -1, -1
                 init_cost = -1, -1
                 octu_time = -1

@@ -131,10 +131,10 @@ class TimeUncertainSolution:
 
         self.length = len(next(iter(self.paths.values())).path)
 
-    def save_solution(self, agent_num, uncertainty, sensing, comm, dist, map_type, agent_seed, map_seed, folder):
+    def save_solution(self, agent_num, uncertainty, map_type, agent_seed, map_seed, folder):
         file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
-            f'{sensing} sensing_comm {comm}_{dist} dist_{map_type}.sol'
-        path = os.path.join(folder, file_name)
+            f'{map_type}.sol'
+        path = os.path.join(folder, map_type, f'{agent_num} agents', file_name)
 
         with open(path, 'w+') as sol_file:
             json_sol = {'paths': {}, 'constraints': None, 'time_to_solve': self.time_to_solve}
@@ -144,11 +144,10 @@ class TimeUncertainSolution:
             json.dump(json_sol, sol_file)
 
     @staticmethod
-    def load_solution(agent_num, uncertainty, sensing, comm, dist, map_type, agent_seed, map_seed, folder):
+    def load_solution(agent_num, uncertainty, map_type, agent_seed, map_seed, folder):
         file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
-            f'{sensing} sensing_comm {comm}_{dist} dist_{map_type}.sol'
-
-        path = os.path.join(folder, file_name)
+            f'{map_type}.sol'
+        path = os.path.join(folder, map_type, f'{agent_num} agents', file_name)
 
         if not os.path.exists(path):
             return None
