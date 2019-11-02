@@ -179,12 +179,8 @@ class CBSTUPlanner:
             return constraints
 
         visited_nodes = {}  # A dictionary containing all the nodes visited
-        #for agent_i in range(1, len(node.solution.paths) + 1):
         for agent_i in node.solution.paths.keys():
-            try:
-                plan_i = node.solution.paths[agent_i]
-            except KeyError:
-                print('key error in check vertex conflict')
+            plan_i = node.solution.paths[agent_i]
             for move_i in plan_i.path:
                 interval_i = move_i[0]
                 if not move_i[1] in visited_nodes:  # First time an agent has visited this node
@@ -254,31 +250,6 @@ class CBSTUPlanner:
                 edge = move[1]
                 if edge not in positions:
                     positions[edge] = set()
-                """
-                if move[0][1] - move[0][0] > 1:  # Edge weight is more than 1
-                    if (edge[0], edge) not in positions:
-                        positions[(edge[0], edge)] = set()
-                    if (edge[1], edge) not in positions:
-                        positions[(edge[1], edge)] = set()
-                    if move[2] == 'f':  # The edge tuple order is indeed the order of traversal
-                        positions[(edge[0], edge)].add((agent, (move[0][0], move[0][0])))
-                        positions[(edge[1], edge)].add((agent, (move[0][1]-1, move[0][1]-1)))
-                        for traversal in positions[edge[0], edge]:
-                            if traversal[0] != agent and (move[0][0], move[0][0]) == traversal[1]:
-                                return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
-                        for traversal in positions[edge[1], edge]:
-                            if traversal[0] != agent and (move[0][1]-1, move[0][1]-1) == traversal[1]:
-                                return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
-                    else:  # The edge tuple order is opposite to the actual order of traversal
-                        positions[(edge[1], edge)].add((agent, (move[0][0], move[0][0])))
-                        positions[(edge[0], edge)].add((agent, (move[0][1]-1, move[0][1]-1)))
-                        for traversal in positions[edge[1], edge]:
-                            if traversal[0] != agent and (move[0][0], move[0][0]) == traversal[1]:
-                                return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
-                        for traversal in positions[edge[0], edge]:
-                            if traversal[0] != agent and (move[0][1]-1, move[0][1]-1) == traversal[1]:
-                                return {(traversal[0], edge, traversal[1])}, {(agent, edge, traversal[1])}
-                """
                 if move[0][1] - move[0][0] > 1:  # Edge weight is more than 1
                     occ_time = move[0][0], move[0][1] - 1
                     positions[edge].add((agent, (move[0][0], move[0][1] - 1), move[2]))
