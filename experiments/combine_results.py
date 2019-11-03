@@ -10,7 +10,7 @@ def get_map_type(file_name):
     map_name = file_name.split('-')[-1].split('.csv')[0]
     if 'maze' in map_name:
         return 'Maze'
-    if 'round' in map_name:
+    if 'circular' in map_name:
         return 'Circular'
     if 'open' in map_name:
         return 'Open Map'
@@ -38,6 +38,7 @@ def append_simulation_file(file):
 
 
 def calc_averages_and_write(map_type,
+                            initial_time,
                             octu_time,
                             initial_min_cost,
                             initial_max_cost,
@@ -57,6 +58,7 @@ def calc_averages_and_write(map_type,
     reduction_in_tc = -1
 
     if octu_success > 0:
+        initial_time /= octu_success
         octu_time /= octu_success
         initial_min_cost /= octu_success
         initial_max_cost /= octu_success
@@ -75,7 +77,8 @@ def calc_averages_and_write(map_type,
         'Number of Agents': num_of_agents,
         'With Communication': comm,
         'Sensing Probability': sensing_probability,
-        'Runtime (secs)': octu_time,
+        'Initial Runtime (secs)': initial_time,
+        'Online Runtime (secs)': octu_time,
         'Success': octu_success,
         'Initial Min SOC': initial_min_cost,
         'Initial Max SOC': initial_max_cost,
@@ -98,7 +101,8 @@ def write_average_results():
         map_type = get_map_type(run_file)
 
         # Values that must be added together in order to calculate the average
-        octu_time = 0
+        initial_time = 0
+        online_time = 0
         initial_min_cost = 0
         initial_max_cost = 0
         initial_uncertainty = 0
@@ -124,7 +128,8 @@ def write_average_results():
             comm = row['Communication']
             if float(row['octu Time']) >= 0:  # A successful run
                 octu_success += 1
-                octu_time += float(row['octu Time'])
+                initial_time += float(row['initial time'])
+                online_time += float(row['octu Time'])
                 initial_min_cost += float(row['initial Min Cost'])
                 initial_max_cost += float(row['initial Max Cost'])
                 initial_uncertainty += float(row['initial uncertainty'])
@@ -138,7 +143,8 @@ def write_average_results():
         #    print(f'{run_file} ::: {num_of_runs}')
 
         calc_averages_and_write(map_type,
-                                octu_time,
+                                initial_time,
+                                online_time,
                                 initial_min_cost,
                                 initial_max_cost,
                                 initial_uncertainty,

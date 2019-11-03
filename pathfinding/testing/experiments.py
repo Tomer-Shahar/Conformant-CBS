@@ -226,8 +226,8 @@ class Experiments:
         self.file_prefix = \
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
 
-        #self.run_online_small_map(sensing_prob, commy, dist)
-        self.run_online_circular_map(sensing_prob, commy, dist)
+        self.run_online_small_map(sensing_prob, commy, dist)
+        #self.run_online_circular_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
         results_file = self.file_prefix + f'distribution - {distribution} - small_open_map_results.csv'
@@ -262,7 +262,7 @@ class Experiments:
 
     def run_and_log_online_experiments(self, tu_problem, map_type, map_seed, results_file, sensing_prob, communication,
                                        dist):
-        final_results_path = os.path.join(self.output_folder, results_file)
+        final_results_path = os.path.join(self.output_folder, map_type, f'{self.agents_num} agents', results_file)
         temp_path = os.path.join(self.output_folder, 'IN PROGRESS - ' + results_file)
         with open(temp_path, 'w') as temp_file:
             temp_file.write('Experiment Number,'
@@ -376,8 +376,8 @@ if os.name == 'posix':
 
 comm = True
 distribution = 'uniform'
-for number_of_agents in range(2, 14):
-    for tu in range(0, 5):
+for number_of_agents in range(9, 10):
+    for tu in range(4, 5):
         if tu == 3 or (tu <= 1 and number_of_agents == 2):
             continue
         for sense in range(0, 101, 25):
