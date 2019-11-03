@@ -226,7 +226,8 @@ class Experiments:
         self.file_prefix = \
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
 
-        self.run_online_small_map(sensing_prob, commy, dist)
+        #self.run_online_small_map(sensing_prob, commy, dist)
+        self.run_online_circular_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
         results_file = self.file_prefix + f'distribution - {distribution} - small_open_map_results.csv'
@@ -241,6 +242,22 @@ class Experiments:
         tu_problem = TimeUncertaintyProblem(map_file)
         tu_problem.generate_problem_instance(self.uncertainty)
         self.run_and_log_online_experiments(tu_problem, 'small_open_map', map_seed, results_file, sensing_prob, commy,
+                                            distribution)
+
+    def run_online_circular_map(self, sensing_prob, commy, distribution):
+        map_type = 'circular_map'
+        results_file = self.file_prefix + f'distribution - {distribution} - {map_type}_results.csv'
+        map_file = '..\\..\\maps\\ost003d.map'
+        if os.name == 'posix':
+            map_file = '../../maps/ost003d.map'
+        print(f"- STARTED ONLINE CIRCULAR MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+              f"DISTRIBUTION: {distribution}")
+
+        map_seed = 96372106
+        random.seed(map_seed)
+        tu_problem = TimeUncertaintyProblem(map_file)
+        tu_problem.generate_problem_instance(self.uncertainty)
+        self.run_and_log_online_experiments(tu_problem, map_type, map_seed, results_file, sensing_prob, commy,
                                             distribution)
 
     def run_and_log_online_experiments(self, tu_problem, map_type, map_seed, results_file, sensing_prob, communication,
@@ -361,7 +378,7 @@ comm = True
 distribution = 'uniform'
 for number_of_agents in range(2, 14):
     for tu in range(0, 5):
-        if tu == 3:
+        if tu == 3 or (tu <= 1 and number_of_agents == 2):
             continue
         for sense in range(0, 101, 25):
             sense_prob = sense / 100

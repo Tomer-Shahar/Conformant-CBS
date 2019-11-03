@@ -9,8 +9,11 @@ class OpenListHeap(object):
         self.entry_count = 0
 
     def push(self, item, first_param, second_param, third_param):
-        heapq.heappush(self.internal_heap, (first_param, second_param, third_param, self.entry_count, item))
-        self.entry_count += 1  # Add some uniqueness to items in the heap to avoid comparison between nodes..
+        try:
+            heapq.heappush(self.internal_heap, (first_param, second_param, third_param, self.entry_count, item))
+            self.entry_count += 1  # Add some uniqueness to items in the heap to avoid comparison between nodes..
+        except MemoryError:
+            raise TimeoutError
 
     def pop(self):
         return heapq.heappop(self.internal_heap)[4]

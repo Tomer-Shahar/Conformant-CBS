@@ -1,5 +1,0 @@
-Experiment Number,Map Seed,Number of Agents,Agents Seed,Uncertainty,Timeout,initial time,octu Time,initial Min Cost,initial Max Cost,initial uncertainty,initial true cost,octu Min Cost,octu Max Cost,octu uncertainty,final true cost,Sensing Probability,Distribution,Communication
-1,96372106,4,10637296,4,60,0.04690909385681152,0.048903465270996094,17,33,16,60,45,81,36,60,0.0,uniform,False
-2,96372106,4,10637297,4,60,0.003995656967163086,0.004958391189575195,11,17,6,42,34,51,17,42,0.0,uniform,False
-3,96372106,4,10637298,4,60,0.46074700355529785,0.4627408981323242,17,34,17,72,50,94,44,72,0.0,uniform,False
-4,96372106,4,10637299,4,60,54.90868926048279,54.910682916641235,15,35,20,75,47,96,49,75,0.0,uniform,False

@@ -165,7 +165,8 @@ def write_simulation_results(map_type, row):
         'Agent Seed': row['Agents Seed'],
         'With Communication': row['Communication'],
         'Sensing Probability': row['Sensing Probability'],
-        'Runtime (secs)': row['octu Time'],
+        'Initial Runtime (secs)': row['initial time'],
+        'Online Runtime (secs)': row['octu Time'],
         'Success': 1 if float(row['octu Time']) >= 0 else 0,
         'Initial Min SOC': row['initial Min Cost'],
         'Initial Max SOC': row['initial Max Cost'],
@@ -182,9 +183,9 @@ def write_simulation_results(map_type, row):
 # Aggregate all of the data into a single large file
 with open(raw_data_file, 'w', newline='') as raw_file:
     fields = ['Map', 'Map Seed', 'Uncertainty', 'Number of Agents', 'Agent Seed', 'With Communication',
-              'Sensing Probability', 'Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC',
-              'Initial Uncertainty', 'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty',
-              'Distribution', 'Final True Cost']
+              'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success', 'Initial Min SOC',
+              'Initial Max SOC', 'Initial Uncertainty', 'Initial True Cost', 'Final Min SOC', 'Final Max SOC',
+              'Final Uncertainty', 'Distribution', 'Final True Cost']
     raw_data_writer = csv.DictWriter(raw_file, fieldnames=fields, restval='-', extrasaction='ignore')
     raw_data_writer.writeheader()
     num = 0
@@ -198,9 +199,9 @@ with open(raw_data_file, 'w', newline='') as raw_file:
 # Compute the average results of each setting
 with open(average_results_file, 'w', newline='') as avg_file:
     avg_fields = ['Map', 'Uncertainty', 'Number of Agents', 'With Communication', 'Sensing Probability',
-                  'Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty',
-                  'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty', 'Final True Cost',
-                  'Reduction in True Cost', 'Distribution', 'Number of Runs']
+                  'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC',
+                  'Initial Uncertainty',  'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty',
+                  'Final True Cost', 'Reduction in True Cost', 'Distribution', 'Number of Runs']
     average_writer = csv.DictWriter(avg_file, fieldnames=avg_fields)
     average_writer.writeheader()
     for root, dirs, files in os.walk(input_folder):
