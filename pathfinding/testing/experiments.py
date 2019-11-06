@@ -378,7 +378,7 @@ if os.name == 'posix':
 
 comm = True
 distribution = 'uniform'
-for number_of_agents in range(3, 10):
+for number_of_agents in range(4, 10):
     for tu in range(0, 5):
         if tu == 3 or (tu == 0 and number_of_agents == 3):
             continue

@@ -199,6 +199,8 @@ with open(raw_data_file, 'w', newline='') as raw_file:
         for run_file in files:
             if 'IN PROGRESS' in run_file:
                 continue
+            if 'desktop' in run_file:
+                continue
             append_simulation_file(run_file)
             num += 1
 
@@ -212,6 +214,11 @@ with open(average_results_file, 'w', newline='') as avg_file:
     average_writer.writeheader()
     for root, dirs, files in os.walk(input_folder):
         for run_file in files:
+            if 'IN PROGRESS' in run_file:
+                continue
+            if 'desktop' in run_file:
+                os.remove(os.path.join(root, run_file))
+                continue
             write_average_results()
 
     print(f'Done writing and processing {num} files')
