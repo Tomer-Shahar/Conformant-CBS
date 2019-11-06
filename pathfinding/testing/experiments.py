@@ -2,6 +2,7 @@
 File for running some experiments.
 """
 import os.path
+import gc
 import sys
 from pathfinding.planners.operator_decomposition_a_star import *
 from pathfinding.simulator import *
@@ -226,8 +227,8 @@ class Experiments:
         self.file_prefix = \
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
 
-        self.run_online_small_map(sensing_prob, commy, dist)
-        #self.run_online_circular_map(sensing_prob, commy, dist)
+        #self.run_online_small_map(sensing_prob, commy, dist)
+        self.run_online_circular_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
         results_file = self.file_prefix + f'distribution - {distribution} - small_open_map_results.csv'
@@ -303,6 +304,7 @@ class Experiments:
                 print("Memory Error when filling heuristic table..")
                 i -= 1
                 tu_problem.heuristic_table = None
+                gc.collect()
                 continue
             sim = MAPFSimulator(tu_problem, sensing_prob, edge_dist=dist)
 
@@ -332,7 +334,7 @@ class Experiments:
                     init_sol.save_solution(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed,
                                            sol_folder)
 
-            except OutOfTimeError:
+            except (OutOfTimeError, MemoryError) as e:
                 empty_sol = TimeUncertainSolution()
                 empty_sol.save_solution(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, sol_folder)
                 octu_cost = -1, -1
@@ -376,9 +378,9 @@ if os.name == 'posix':
 
 comm = True
 distribution = 'uniform'
-for number_of_agents in range(9, 10):
-    for tu in range(4, 5):
-        if tu == 3 or (tu <= 1 and number_of_agents == 2):
+for number_of_agents in range(3, 10):
+    for tu in range(0, 5):
+        if tu == 3 or (tu == 0 and number_of_agents == 3):
             continue
         for sense in range(0, 101, 25):
             sense_prob = sense / 100

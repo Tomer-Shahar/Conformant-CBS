@@ -1,4 +1,5 @@
 import heapq
+from pathfinding.planners.utils.time_error import *
 
 
 class OpenListHeap(object):
@@ -13,7 +14,7 @@ class OpenListHeap(object):
             heapq.heappush(self.internal_heap, (first_param, second_param, third_param, self.entry_count, item))
             self.entry_count += 1  # Add some uniqueness to items in the heap to avoid comparison between nodes..
         except MemoryError:
-            raise TimeoutError
+            raise OutOfTimeError('Ran out of memory in the heap :(')
 
     def pop(self):
         return heapq.heappop(self.internal_heap)[4]
