@@ -204,20 +204,25 @@ class SingleAgentNode:
             successor_time = (self.g_val[0] + edge_tuple[1][0], self.g_val[1] + edge_tuple[1][1])
             vertex = edge_tuple[VERTEX_ID]
             if self.legal_move(agent, vertex, successor_time, constraints):
-                confs_created = self.conflicts_created
                 if len(conflict_table) > 0:
+                    confs_created = self.conflicts_created
                     confs_created = self.check_if_conflicts(agent, conflict_table, confs_created, successor_time,
                                                             vertex)
-                successor = (vertex, successor_time, confs_created)
+                    successor = (vertex, successor_time, confs_created)
+                else:
+                    successor = (vertex, successor_time, 0)
+
                 neighbors.append(successor)
 
         still_time = (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST)
         if self.legal_move(agent, self.current_position, still_time, constraints):  # Add the option of not moving.
-            confs_created = self.conflicts_created
             if len(conflict_table) > 0:
+                confs_created = self.conflicts_created
                 confs_created = self.check_if_conflicts(agent, conflict_table, confs_created,
                                                         (still_time[1], still_time[1]), self.current_position)
-            stay_still = (self.current_position, still_time, confs_created)
+                stay_still = (self.current_position, still_time, confs_created)
+            else:
+                stay_still = (self.current_position, still_time, 0)
             neighbors.append(stay_still)
 
         return neighbors

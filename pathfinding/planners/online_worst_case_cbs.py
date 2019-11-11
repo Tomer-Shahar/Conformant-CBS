@@ -30,7 +30,7 @@ class OnlinePessimisticCBS:
     def find_initial_path(self, min_best_case=False, soc=True, time_limit=60, initial_sol=None):
 
         cbstu_planner = CBSTUPlanner(self.tu_problem)
-        self.init_sol = cbstu_planner.find_solution(min_best_case, time_limit, soc, use_cat=True)
+        self.init_sol = cbstu_planner.find_solution(min_best_case, time_limit, soc)
         self.curr_sol = copy.deepcopy(self.init_sol)
         self.current_state = {'time': 0,
                               'cost': 0,                    # Agents that are at a vertex

@@ -40,12 +40,12 @@ class OnlineCBSTU:
             self.offline_cbstu_planner.final_constraints = initial_sol.constraints
         else:
             start = time.time()
-            self.initial_plan = self.offline_cbstu_planner.find_solution(min_best_case, time_limit, soc, use_cat=True)
+            self.initial_plan = self.offline_cbstu_planner.find_solution(min_best_case, time_limit, soc)
             total_time = time.time() - start
             self.initial_plan.time_to_solve = total_time
             self.current_plan = copy.deepcopy(self.initial_plan)
         self.current_state = {'time': 0,
-                              'cost': 0,                    # Agents that are at a vertex
+                              'cost': 0,  # Agents that are at a vertex
                               'at_vertex': copy.deepcopy(self.tu_problem.start_positions),
                               'in_transition': {}}  # Agents that are transitioning.
 
@@ -89,26 +89,27 @@ class OnlineCBSTU:
                     new_presence = (presence[0][0] + time_diff, presence[0][1]), presence[1]
                     self.current_plan.paths[agent].path[idx] = new_presence
 
-    def create_new_centralized_plan(self, curr_time, sensed_agents):
+    def create_new_centralized_plan(self, curr_time, sensing_agents):
         """
         Replan for the agents that updated their location. Must first create a large set of constraints for all agents
         that are currently replanning.
 
         :return: New plans for the agents that are at a vertex.
         """
-        new_cons = set()
 
-        unsensed_agents = set(self.tu_problem.start_positions.keys()) - set(sensed_agents.keys())
-        for unsensing_agent in unsensed_agents:  # Agents that haven't sensed
-            for move in self.current_plan.paths[unsensing_agent].path:
-                for planning_agent, presence in sensed_agents.items():
-                    new_cons.add((planning_agent, move[1], move[0]))
+        unsensed_agents = set(self.tu_problem.start_positions.keys()) - set(sensing_agents.keys())
+        if self.current_plan.cost[1] - self.current_plan.cost[0] > 0:
+            new_cons = set()
+            for unsensing_agent in unsensed_agents:  # Agents that haven't sensed
+                for move in self.current_plan.paths[unsensing_agent].path:
+                    for planning_agent, presence in sensing_agents.items():
+                        new_cons.add((planning_agent, move[1], move[0]))
 
-        self.offline_cbstu_planner.startPositions = sensed_agents
-        new_plans = self.offline_cbstu_planner.find_solution(existing_cons=new_cons, curr_time=(curr_time, curr_time))
-        for agent, path in new_plans.paths.items():
-            self.current_plan.paths[agent] = path
-        self.current_plan.add_stationary_moves()
+            self.offline_cbstu_planner.startPositions = sensing_agents
+            new_plans = self.offline_cbstu_planner.find_solution(existing_cons=new_cons, curr_time=(curr_time, curr_time))
+            for agent, path in new_plans.paths.items():
+                self.current_plan.paths[agent] = path
+            self.current_plan.add_stationary_moves({agent: self.current_plan.paths[agent] for agent in sensing_agents})
 
     def at_goal_state(self):
         """
@@ -124,25 +125,26 @@ class OnlineCBSTU:
 
         return True  # All agents are at their goal states
 
-    def plan_distributed(self, graphs, constraints, sensing_agents, time):
+    def plan_distributed(self, graphs, constraints, sensing_agents, curr_time):
         """
         Lets agents replan after sensing, but without communication. Each agent plans for itself while taking into
         account possible constraints.
-        :param time: current time
+        :param curr_time: current time
         :param graphs: the path that each agent can plan in.
         :param constraints: A set of constraints for all agents
         :param sensing_agents: Agents that performed a sensing action
         :return: Creates new plans for each agent that sensed by updating the current plan.
         """
 
-        for agent, loc in sensing_agents.items():
-            agent_constraints = self.offline_cbstu_planner.final_constraints | constraints[agent]
-            planner = ConstraintAstar(graphs[agent])
-            new_plan = planner.compute_agent_path(agent_constraints, agent, loc, graphs[agent].goal_positions[agent],
-                                                  set(), False, curr_time=(time, time))
-            self.current_plan.paths[agent] = new_plan
+        if self.current_plan.cost[1] - self.current_plan.cost[0] > 0:
+            for agent, loc in sensing_agents.items():
+                agent_constraints = self.offline_cbstu_planner.final_constraints | constraints[agent]
+                planner = ConstraintAstar(graphs[agent])
+                new_plan = planner.compute_agent_path(agent_constraints, agent, loc, graphs[agent].goal_positions[agent],
+                                                      set(), False, curr_time=(curr_time, curr_time))
+                self.current_plan.paths[agent] = new_plan
 
-        self.current_plan.add_stationary_moves()
+        self.current_plan.add_stationary_moves({agent: self.current_plan.paths[agent] for agent in sensing_agents})
 
     def create_plan_graphs_and_constraints(self):
         """
@@ -197,7 +199,8 @@ class OnlineCBSTU:
             self.safe_add_to_dict(loc[1], (agent, loc[0]), traversed_locs)
 
             if edge_weight != (1, 1):  # We don't add edges that were traversed instantly.
-                self.safe_add_to_dict((prev_loc[1], loc[1]), (agent, (prev_loc[0][0]+1, loc[0][1]-1)), traversed_locs)
+                self.safe_add_to_dict((prev_loc[1], loc[1]), (agent, (prev_loc[0][0] + 1, loc[0][1] - 1)),
+                                      traversed_locs)
 
             prev_loc = loc
 

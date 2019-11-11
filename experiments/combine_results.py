@@ -34,7 +34,7 @@ def append_simulation_file(file):
                 print(f'Wrong agent seed, FILE: {file}')
                 return
             num_of_runs += 1
-            write_simulation_results(map_type, row)
+            write_simulation_results(map_type, row, dist=file.split('distribution - ')[1].split(' -')[0])
 
 
 def calc_averages_and_write(map_type,
@@ -94,7 +94,7 @@ def calc_averages_and_write(map_type,
     })
 
 
-def write_average_results():
+def write_average_results(run_file):
     exp_results = os.path.join(root, run_file)
     with open(exp_results, 'r') as exp_file:
         reader = csv.DictReader(exp_file)
@@ -122,7 +122,7 @@ def write_average_results():
                 break
             num_of_runs += 1
             uncertainty = row['Uncertainty']
-            distribution = row['Distribution']
+            distribution = run_file.split('distribution - ')[1].split(' -')[0]  # row['Distribution']
             sensing_probability = row['Sensing Probability']
             num_of_agents = row['Number of Agents']
             comm = row['Communication']
@@ -162,7 +162,9 @@ def write_average_results():
                                 distribution)
 
 
-def write_simulation_results(map_type, row):
+def write_simulation_results(map_type, row, dist=None):
+    if dist != row['Distribution']:
+        print(run_file)
     raw_data_writer.writerow({
         'Map': map_type,
         'Map Seed': row['Map Seed'],
@@ -181,7 +183,7 @@ def write_simulation_results(map_type, row):
         'Final Min SOC': row['octu Min Cost'],
         'Final Max SOC': row['octu Max Cost'],
         'Final Uncertainty': row['octu uncertainty'],
-        'Distribution': row['Distribution'],
+        'Distribution': dist,  # row['Distribution'],
         'Final True Cost': row['final true cost'],
     })
 
@@ -219,6 +221,6 @@ with open(average_results_file, 'w', newline='') as avg_file:
             if 'desktop' in run_file:
                 os.remove(os.path.join(root, run_file))
                 continue
-            write_average_results()
+            write_average_results(run_file)
 
     print(f'Done writing and processing {num} files')

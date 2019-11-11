@@ -94,29 +94,21 @@ total_start = time.time()
 # complex_map.fill_heuristic_table()
 # profile.run('run_map(complex_map, print_sol=False, time_limit=60, use_cbs=True, use_cat=False)', sort=1)
 
-seed = 827229
+seed = 819183
 random.seed(seed)
 print(f'The seed is {seed}')
 
 tu_problem = TimeUncertaintyProblem('..\\..\\maps\\ost003d.map')
-uncertainty = 1
+uncertainty = 0
 tu_problem.generate_problem_instance(uncertainty=uncertainty)
-tu_problem.generate_agents(agent_num=3)
+tu_problem.generate_agents(agent_num=7)
 tu_problem.fill_heuristic_table()
-
-sim = MAPFSimulator(tu_problem, sensing_prob=1)
 soc = True
 min_best_case = False
 comm = True
-sol = TimeUncertainSolution.load_solution(tu_problem, uncertainty, soc, min_best_case, '.\\previous_solutions')
+sim = MAPFSimulator(tu_problem, sensing_prob=1)
+# sim.begin_execution(min_best_case=min_best_case, soc=soc, time_limit=60000, communication=comm)
+profile.run('sim.begin_execution(min_best_case=min_best_case, soc=soc, time_limit=60, communication=comm)', sort=1)
 
-if not sol:
-    planner = CBSTUPlanner(tu_problem)
-    sol = planner.find_solution(time_limit=30)
-    sol.save_solution(tu_problem, uncertainty, soc, min_best_case, '.\\previous_solutions')
-
-sim.begin_execution(min_best_case=min_best_case, soc=soc, time_limit=1000, communication=comm, initial_sol=sol)
-sim.print_final_solution()
-final_path = sim.final_solution
 print('Done')
 

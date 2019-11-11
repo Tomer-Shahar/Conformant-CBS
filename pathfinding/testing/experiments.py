@@ -227,8 +227,8 @@ class Experiments:
         self.file_prefix = \
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
 
-        #self.run_online_small_map(sensing_prob, commy, dist)
-        self.run_online_circular_map(sensing_prob, commy, dist)
+        self.run_online_small_map(sensing_prob, commy, dist)
+        #self.run_online_circular_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
         results_file = self.file_prefix + f'distribution - {distribution} - small_open_map_results.csv'
@@ -311,6 +311,7 @@ class Experiments:
             try:
                 loaded_sol = TimeUncertainSolution.load_solution(self.agents_num, self.uncertainty, map_type, agent_seed
                                                                  , map_seed, sol_folder)
+
                 if loaded_sol and loaded_sol.time_to_solve == -1:  # It was a timed out solution
                     raise OutOfTimeError
                 start_time = time.time()
@@ -344,7 +345,12 @@ class Experiments:
                 octu_tu = -1
                 init_true_cost = -1
                 final_true_cost = -1
-                init_time = -1
+                if loaded_sol:
+                    init_time = loaded_sol.time_to_solve
+                elif sim.online_CSTU.initial_plan:
+                    init_time = sim.online_CSTU.initial_plan.time_to_solve
+                else:
+                    init_time = -1
 
             with open(temp_path, 'a') as temp_map_result_file:
                 results = f'{i + 1},' \
@@ -364,7 +370,7 @@ class Experiments:
                     f'{octu_tu},' \
                     f'{final_true_cost},' \
                     f'{sensing_prob},' \
-                    f'{distribution},' \
+                    f'{dist},' \
                     f'{communication}\n'
                 temp_map_result_file.write(results)
 
@@ -376,20 +382,20 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-comm = True
-distribution = 'uniform'
-for number_of_agents in range(4, 10):
-    for tu in range(0, 5):
-        if tu == 3 or (tu == 0 and number_of_agents == 3):
+comm = False
+
+for tu in range(0, 5):
+    for number_of_agents in range(7, 14):
+        if tu == 3:
             continue
         for sense in range(0, 101, 25):
             sense_prob = sense / 100
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
-                                       sensing_prob=sense_prob, commy=comm, dist='uniform')
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
                                        sensing_prob=sense_prob, commy=comm, dist='max')
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
                                        sensing_prob=sense_prob, commy=comm, dist='min')
+            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
+                                       sensing_prob=sense_prob, commy=comm, dist='uniform')
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,
                                        sensing_prob=sense_prob, commy=not comm, dist='uniform')
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=50,

@@ -104,7 +104,7 @@ class TimeUncertainSolution:
 
             self.tuple_solution[agent] = new_path
 
-    def add_stationary_moves(self):
+    def add_stationary_moves(self, agents_to_update=None):
         """
         Appends to each path the time steps where the agent waits at his goal. We will normalize all the minimum times
         where the agents arrive at their goals, i.e if one agent arrived between (5,10) and another agent between
@@ -115,8 +115,9 @@ class TimeUncertainSolution:
         to move anymore.
         """
         max_min_time = self.get_max_of_min_path_time()
-
-        for agent, plan in self.paths.items():  # Iterate through all plans, fix each one if need be.
+        if agents_to_update is None:
+            agents_to_update = self.paths
+        for agent, plan in agents_to_update.items():  # Iterate through all plans, fix each one if need be.
             new_path = plan.path
             last_move = plan.path[-1]
             path_min_time = last_move[0][0]
