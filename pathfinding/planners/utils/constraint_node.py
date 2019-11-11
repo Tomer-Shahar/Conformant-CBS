@@ -62,7 +62,7 @@ class ConstraintNode:
         Adds new constraints to the parent constraints.
         We use a frozen set so that the constraints can act as a key in the closed list.
         """
-        con_set = set(copy.deepcopy(parent_constraints))
+        con_set = set(copy.deepcopy(parent_constraints))  # ToDo: Can we remove the copy function all together?
         con_set.update(new_constraints)
         new_constraints = frozenset(con_set)
         return new_constraints

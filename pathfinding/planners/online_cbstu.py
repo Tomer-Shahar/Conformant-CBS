@@ -144,7 +144,7 @@ class OnlineCBSTU:
                                                       set(), False, curr_time=(curr_time, curr_time))
                 self.current_plan.paths[agent] = new_plan
 
-        self.current_plan.add_stationary_moves({agent: self.current_plan.paths[agent] for agent in sensing_agents})
+            self.current_plan.add_stationary_moves({agent: self.current_plan.paths[agent] for agent in sensing_agents})
 
     def create_plan_graphs_and_constraints(self):
         """
