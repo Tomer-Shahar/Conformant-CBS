@@ -227,10 +227,10 @@ class Experiments:
         self.file_prefix = \
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
 
-        #self.run_online_small_map(sensing_prob, commy, dist)
+        self.run_online_small_map(sensing_prob, commy, dist)
         #self.run_online_circular_map(sensing_prob, commy, dist)
         #self.run_online_warehouse_map(sensing_prob, commy, dist)
-        self.run_online_maze_map(sensing_prob, commy, dist)
+        #self.run_online_maze_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
         results_file = self.file_prefix + f'distribution - {distribution} - small_open_map_results.csv'
@@ -295,7 +295,7 @@ class Experiments:
                                             distribution)
 
     def run_and_log_online_experiments(self, tu_problem, map_type, map_seed, results_file, sensing_prob, communication,
-                                       dist):
+                                       dist, to_print=False):
         final_results_path = os.path.join(self.output_folder, map_type, f'{self.agents_num} agents', results_file)
         temp_path = os.path.join(self.output_folder, 'IN PROGRESS - ' + results_file)
         with open(temp_path, 'w') as temp_file:
@@ -329,7 +329,8 @@ class Experiments:
         for i in range(self.reps):
             agent_seed = initial_agent_seed + i
             random.seed(agent_seed)
-            print(f'Started run #{i + 1}, agent seed: {agent_seed}, number of agents: {self.agents_num}')
+            if to_print:
+                print(f'Started run #{i + 1}, agent seed: {agent_seed}, number of agents: {self.agents_num}')
             tu_problem.generate_agents(self.agents_num)
             try:
                 tu_problem.fill_heuristic_table()
@@ -412,31 +413,46 @@ class Experiments:
         copyfile(temp_path, final_results_path)
         os.remove(temp_path)
 
-
 exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-comm = False
-reps = 50
 
-for tu in range(0, 5):
-    for number_of_agents in range(3, 9):
+def run_online_combinations(agent_num, time_uncer, sense_prob, reps=50):
+
+            exp.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                       sensing_prob=sense_prob, commy=True, dist='max')
+            exp.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                       sensing_prob=sense_prob, commy=True, dist='min')
+            exp.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                       sensing_prob=sense_prob, commy=True, dist='uniform')
+            exp.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                       sensing_prob=sense_prob, commy=False, dist='max')
+            exp.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                       sensing_prob=sense_prob, commy=False, dist='min')
+            exp.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                       sensing_prob=sense_prob, commy=False, dist='uniform')
+
+
+run_online_combinations(agent_num=5, time_uncer=2, sense_prob=0.25)
+run_online_combinations(agent_num=5, time_uncer=2, sense_prob=0.5)
+run_online_combinations(agent_num=5, time_uncer=2, sense_prob=0.75)
+
+run_online_combinations(agent_num=6, time_uncer=1, sense_prob=0.0)
+run_online_combinations(agent_num=6, time_uncer=1, sense_prob=0.25)
+run_online_combinations(agent_num=6, time_uncer=1, sense_prob=0.5)
+run_online_combinations(agent_num=6, time_uncer=1, sense_prob=0.75)
+run_online_combinations(agent_num=6, time_uncer=1, sense_prob=1.0)
+
+run_online_combinations(agent_num=6, time_uncer=0, sense_prob=0.5)
+run_online_combinations(agent_num=6, time_uncer=0, sense_prob=0.75)
+run_online_combinations(agent_num=6, time_uncer=0, sense_prob=1.0)
+
+for tu in range(2, 3):
+    for number_of_agents in range(5, 6):
         if tu == 3:
             continue
-        for sense in range(0, 101, 50):
-            sense_prob = sense / 100
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=comm, dist='max')
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=comm, dist='min')
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=not comm, dist='max')
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=not comm, dist='min')
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=not comm, dist='uniform')
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=comm, dist='uniform')
-
+        for sense in range(100, 101, 25):
+            break
+            run_online_combinations(number_of_agents, tu, sense)
 print("Finished Experiments")
