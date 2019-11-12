@@ -228,9 +228,9 @@ class Experiments:
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
 
         #self.run_online_small_map(sensing_prob, commy, dist)
-        self.run_online_circular_map(sensing_prob, commy, dist)
+        #self.run_online_circular_map(sensing_prob, commy, dist)
         #self.run_online_warehouse_map(sensing_prob, commy, dist)
-        #self.run_online_maze_map(sensing_prob, commy, dist)
+        self.run_online_maze_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
         results_file = self.file_prefix + f'distribution - {distribution} - small_open_map_results.csv'
@@ -421,22 +421,22 @@ comm = False
 reps = 50
 
 for tu in range(0, 5):
-    for number_of_agents in range(6, 7):
+    for number_of_agents in range(3, 9):
         if tu == 3:
             continue
-        for sense in range(75, 101, 50):
+        for sense in range(0, 101, 50):
             sense_prob = sense / 100
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
                                        sensing_prob=sense_prob, commy=comm, dist='max')
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
                                        sensing_prob=sense_prob, commy=comm, dist='min')
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=comm, dist='uniform')
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=not comm, dist='uniform')
-            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
                                        sensing_prob=sense_prob, commy=not comm, dist='max')
             exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
                                        sensing_prob=sense_prob, commy=not comm, dist='min')
+            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
+                                       sensing_prob=sense_prob, commy=not comm, dist='uniform')
+            exp.run_online_experiments(agent_num=number_of_agents, uncertainty=tu, time_limit=60, reps=reps,
+                                       sensing_prob=sense_prob, commy=comm, dist='uniform')
 
 print("Finished Experiments")
