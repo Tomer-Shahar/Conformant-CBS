@@ -132,7 +132,7 @@ class TimeUncertainSolution:
 
         self.length = len(next(iter(self.paths.values())).path)
 
-    def save_solution(self, agent_num, uncertainty, map_type, agent_seed, map_seed, folder):
+    def save(self, agent_num, uncertainty, map_type, agent_seed, map_seed, folder):
         file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
             f'{map_type}.sol'
         path = os.path.join(folder, map_type, f'{agent_num} agents', file_name)
