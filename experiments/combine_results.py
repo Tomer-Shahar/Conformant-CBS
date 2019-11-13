@@ -14,8 +14,10 @@ def get_map_type(file_name):
         return 'Circular'
     if 'open' in map_name:
         return 'Open Map'
+    if 'warehouse' in map_name:
+        return 'Warehouse Map'
     else:
-        return 'Corridor Map'
+        return 'unknown'
 
 
 def append_simulation_file(file):
@@ -33,8 +35,11 @@ def append_simulation_file(file):
             if 10637296 > int(row['Agents Seed']) or int(row['Agents Seed']) > 10637345:
                 print(f'Wrong agent seed, FILE: {file}')
                 return
+            dist = file.split('distribution - ')[1].split(' -')[0]
+            if dist != row['Distribution']:
+                print(run_file)
             num_of_runs += 1
-            write_simulation_results(map_type, row, dist=file.split('distribution - ')[1].split(' -')[0])
+            write_simulation_results(map_type, row, dist=dist)
 
 
 def calc_averages_and_write(map_type,
@@ -54,7 +59,10 @@ def calc_averages_and_write(map_type,
                             num_of_runs,
                             octu_success,
                             comm,
-                            distribution):
+                            distribution,
+                            reduced_TC,
+                            increased_TC,
+                            same_TC):
     reduction_in_tc = -1
 
     if octu_success > 0:
@@ -90,7 +98,10 @@ def calc_averages_and_write(map_type,
         'Final True Cost': final_true_cost,
         'Reduction in True Cost': reduction_in_tc,
         'Distribution': distribution,
-        'Number of Runs': num_of_runs
+        'Number of Runs': num_of_runs,
+        'Reduced True Cost': reduced_TC,
+        'Increased True Cost': increased_TC,
+        'Same True Cost': same_TC
     })
 
 
@@ -111,6 +122,9 @@ def write_average_results(run_file):
         final_max_cost = 0
         final_uncertainty = 0
         final_true_cost = 0
+        reduced_TC = 0
+        increased_TC = 0
+        same_TC = 0
         uncertainty = -1
         sensing_probability = -1
         num_of_agents = -1
@@ -138,33 +152,23 @@ def write_average_results(run_file):
                 final_max_cost += float(row['octu Max Cost'])
                 final_uncertainty += float(row['octu uncertainty'])
                 final_true_cost += float(row['final true cost'])
+                if final_true_cost < initial_true_cost:
+                    reduced_TC += 1
+                elif final_true_cost > initial_true_cost:
+                    increased_TC += 1
+                else:
+                    same_TC += 1
 
         # if num_of_runs < 50:  # There's a mistake
         #    print(f'{run_file} ::: {num_of_runs}')
 
-        calc_averages_and_write(map_type,
-                                initial_time,
-                                online_time,
-                                initial_min_cost,
-                                initial_max_cost,
-                                initial_uncertainty,
-                                initial_true_cost,
-                                final_min_cost,
-                                final_max_cost,
-                                final_uncertainty,
-                                final_true_cost,
-                                uncertainty,
-                                sensing_probability,
-                                num_of_agents,
-                                num_of_runs,
-                                octu_success,
-                                comm,
-                                distribution)
-
+        calc_averages_and_write(map_type, initial_time,  online_time, initial_min_cost, initial_max_cost,
+                                initial_uncertainty, initial_true_cost, final_min_cost, final_max_cost,
+                                final_uncertainty, final_true_cost, uncertainty, sensing_probability, num_of_agents,
+                                num_of_runs, octu_success, comm, distribution, reduced_TC, increased_TC, same_TC)
 
 def write_simulation_results(map_type, row, dist=None):
-    if dist != row['Distribution']:
-        print(run_file)
+
     raw_data_writer.writerow({
         'Map': map_type,
         'Map Seed': row['Map Seed'],
@@ -185,6 +189,7 @@ def write_simulation_results(map_type, row, dist=None):
         'Final Uncertainty': row['octu uncertainty'],
         'Distribution': dist,  # row['Distribution'],
         'Final True Cost': row['final true cost'],
+        'Change in True Cost': str(int(row['final true cost']) - int(row['initial true cost']))
     })
 
 
@@ -193,7 +198,7 @@ with open(raw_data_file, 'w', newline='') as raw_file:
     fields = ['Map', 'Map Seed', 'Uncertainty', 'Number of Agents', 'Agent Seed', 'With Communication',
               'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success', 'Initial Min SOC',
               'Initial Max SOC', 'Initial Uncertainty', 'Initial True Cost', 'Final Min SOC', 'Final Max SOC',
-              'Final Uncertainty', 'Distribution', 'Final True Cost']
+              'Final Uncertainty', 'Distribution', 'Final True Cost', 'Change in True Cost']
     raw_data_writer = csv.DictWriter(raw_file, fieldnames=fields, restval='-', extrasaction='ignore')
     raw_data_writer.writeheader()
     num = 0
@@ -211,7 +216,8 @@ with open(average_results_file, 'w', newline='') as avg_file:
     avg_fields = ['Map', 'Uncertainty', 'Number of Agents', 'With Communication', 'Sensing Probability',
                   'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC',
                   'Initial Uncertainty',  'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty',
-                  'Final True Cost', 'Reduction in True Cost', 'Distribution', 'Number of Runs']
+                  'Final True Cost', 'Reduction in True Cost', 'Distribution', 'Number of Runs', 'Reduced True Cost',
+                  'Increased True Cost', 'Same True Cost']
     average_writer = csv.DictWriter(avg_file, fieldnames=avg_fields)
     average_writer.writeheader()
     for root, dirs, files in os.walk(input_folder):
