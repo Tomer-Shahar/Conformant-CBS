@@ -228,16 +228,16 @@ class Experiments:
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
 
         #self.run_online_small_map(sensing_prob, commy, dist)
-        self.run_online_circular_map(sensing_prob, commy, dist)
+        #self.run_online_circular_map(sensing_prob, commy, dist)
         #self.run_online_warehouse_map(sensing_prob, commy, dist)
-        #self.run_online_maze_map(sensing_prob, commy, dist)
+        self.run_online_maze_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
         results_file = self.file_prefix + f'distribution - {distribution} - small_open_map_results.csv'
         map_file = '..\\..\\maps\\small_blank_map.map'
         if os.name == 'posix':
             map_file = './small_blank_map.map'
-        print(f"- STARTED ONLINE BLANK MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+        print(f"- STARTED ONLINE BLANK MAP | {self.agents_num} AGENTS | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
               f"DISTRIBUTION: {distribution}")
 
         map_seed = 96372106
@@ -252,7 +252,7 @@ class Experiments:
         map_file = '..\\..\\maps\\kiva.map'
         if os.name == 'posix':
             map_file = './kiva.map'
-        print(f"- STARTED ONLINE WAREHOUSE MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+        print(f"- STARTED ONLINE WAREHOUSE MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
               f"DISTRIBUTION: {distribution}")
 
         map_seed = 96372106
@@ -268,7 +268,7 @@ class Experiments:
         map_file = '..\\..\\maps\\ost003d.map'
         if os.name == 'posix':
             map_file = '../../maps/ost003d.map'
-        print(f"- STARTED ONLINE CIRCULAR MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+        print(f"- STARTED ONLINE CIRCULAR MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
               f"DISTRIBUTION: {distribution}")
 
         map_seed = 96372106
@@ -281,15 +281,12 @@ class Experiments:
     def run_online_maze_map(self, sensing_prob, commy, distribution):
         map_type = 'maze_map'
         results_file = self.file_prefix + f'distribution - {distribution} - {map_type}_results.csv'
-        map_file = '..\\..\\maps\\maze512-16-6.map'
-        if os.name == 'posix':
-            map_file = '../../maps/maze512-16-6.map'
-        print(f"- STARTED ONLINE MAZE MAP | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+        print(f"- STARTED ONLINE MAZE MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
               f"DISTRIBUTION: {distribution}")
 
         map_seed = 96372106
         random.seed(map_seed)
-        tu_problem = TimeUncertaintyProblem(map_file)
+        tu_problem = TimeUncertaintyProblem.generate_rectangle_map(height=20, width=20, uncertainty=self.uncertainty)
         tu_problem.generate_problem_instance(self.uncertainty)
         self.run_and_log_online_experiments(tu_problem, map_type, map_seed, results_file, sensing_prob, commy,
                                             distribution)
