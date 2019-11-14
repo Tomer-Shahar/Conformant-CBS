@@ -367,6 +367,8 @@ class Experiments:
                 online_sol = sim.begin_execution(self.min_best_case, time_limit=self.time_limit,
                                                  communication=communication, initial_sol=loaded_sol)
                 octu_time = time.time() - start_time
+                if not loaded_sol:
+                    octu_time -= sim.online_CSTU.initial_plan.time_to_solve
 
                 success += 1
                 online_sol.create_movement_tuples()
@@ -468,8 +470,8 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for tu in range(0, 4):
-    for number_of_agents in range(2, 10):
+for tu in range(1, 2):
+    for number_of_agents in range(8, 10):
         if number_of_agents == 11:
             continue
         if tu == 3:

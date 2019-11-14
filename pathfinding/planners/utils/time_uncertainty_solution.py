@@ -182,7 +182,8 @@ class TimeUncertainSolution:
                 tu_sol.constraints.add(tuple_con)
 
             tu_sol.time_to_solve = json_sol['time_to_solve']
-            tu_sol.sic = json_sol['sic']
+            if 'sic' in json_sol:
+                tu_sol.sic = json_sol['sic']
             tu_sol.compute_solution_cost()
             tu_sol.create_movement_tuples()
             return tu_sol

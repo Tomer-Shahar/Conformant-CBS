@@ -1,0 +1,1 @@
+{"paths": {}, "constraints": [], "time_to_solve": -1}
