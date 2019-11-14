@@ -117,6 +117,7 @@ class CBSTUPlanner:
                 best_node.solution.nodes_expanded = nodes_expanded
                 self.final_constraints = best_node.constraints
                 best_node.solution.constraints = set(best_node.constraints)
+                best_node.solution.sic = root.solution.cost
                 return best_node.solution
 
             for new_con_set in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"

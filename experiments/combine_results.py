@@ -4,6 +4,7 @@ import csv
 raw_data_file = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\experiments\\All Raw Online Data.csv'
 average_results_file = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\experiments\\Average Online Results.csv'
 input_folder = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\experiments\\Online Runs'
+sol_folder = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\solutions'
 
 
 def get_map_type(file_name):
@@ -53,6 +54,7 @@ def calc_averages_and_write(map_type,
                             final_max_cost,
                             final_uncertainty,
                             final_true_cost,
+                            objective,
                             uncertainty,
                             sensing_probability,
                             num_of_agents,
@@ -96,6 +98,7 @@ def calc_averages_and_write(map_type,
         'Final Max SOC': final_max_cost,
         'Final Uncertainty': final_uncertainty,
         'Final True Cost': final_true_cost,
+        'Objective': objective,
         'Reduction in True Cost': reduction_in_tc,
         'Distribution': distribution,
         'Number of Runs': num_of_runs,
@@ -110,7 +113,6 @@ def write_average_results(run_file):
     with open(exp_results, 'r') as exp_file:
         reader = csv.DictReader(exp_file)
         map_type = get_map_type(run_file)
-
         # Values that must be added together in order to calculate the average
         initial_time = 0
         online_time = 0
@@ -140,6 +142,11 @@ def write_average_results(run_file):
             sensing_probability = row['Sensing Probability']
             num_of_agents = row['Number of Agents']
             comm = row['Communication']
+            try:
+                objective = row['Objective']
+            except KeyError:
+                objective = 'Min Worst Case'
+
             if float(row['octu Time']) >= 0:  # A successful run
                 octu_success += 1
                 initial_time += float(row['initial time'])
@@ -152,9 +159,9 @@ def write_average_results(run_file):
                 final_max_cost += float(row['octu Max Cost'])
                 final_uncertainty += float(row['octu uncertainty'])
                 final_true_cost += float(row['final true cost'])
-                if final_true_cost < initial_true_cost:
+                if float(row['final true cost']) < float(row['initial true cost']):
                     reduced_TC += 1
-                elif final_true_cost > initial_true_cost:
+                elif float(row['final true cost']) > float(row['initial true cost']):
                     increased_TC += 1
                 else:
                     same_TC += 1
@@ -164,10 +171,25 @@ def write_average_results(run_file):
 
         calc_averages_and_write(map_type, initial_time,  online_time, initial_min_cost, initial_max_cost,
                                 initial_uncertainty, initial_true_cost, final_min_cost, final_max_cost,
-                                final_uncertainty, final_true_cost, uncertainty, sensing_probability, num_of_agents,
-                                num_of_runs, octu_success, comm, distribution, reduced_TC, increased_TC, same_TC)
+                                final_uncertainty, final_true_cost, objective, uncertainty, sensing_probability,
+                                num_of_agents, num_of_runs, octu_success, comm, distribution, reduced_TC, increased_TC,
+                                same_TC)
+
 
 def write_simulation_results(map_type, row, dist=None):
+
+    tc_change = int(row['initial true cost']) - int(row['final true cost'])
+    if tc_change > 0:
+        effect = 'Increased True Cost'
+    elif tc_change < 0:
+        effect = 'Reduced True Cost'
+    else:
+        effect = 'No Change'
+
+    try:
+        objective = row['Objective']
+    except KeyError:
+        objective = 'Min Worst Case'
 
     raw_data_writer.writerow({
         'Map': map_type,
@@ -189,16 +211,28 @@ def write_simulation_results(map_type, row, dist=None):
         'Final Uncertainty': row['octu uncertainty'],
         'Distribution': dist,  # row['Distribution'],
         'Final True Cost': row['final true cost'],
-        'Change in True Cost': str(int(row['final true cost']) - int(row['initial true cost']))
+        'Objective': objective,
+        'Change in True Cost': str(int(row['final true cost']) - int(row['initial true cost'])),
+        'Effect on True Cost': effect,
+        'True Cost Change': str(int(row['final true cost']) - int(row['initial true cost']))
     })
 
+
+#for root, dirs, files in os.walk(input_folder):
+#    for file in files:
+#        if 'min best case' in file and 'min worst case' in file:
+#            name_arr = file.split(' - min worst case - min worst case - ')
+#            new_name = ' - '.join(name_arr)
+#            os.rename(os.path.join(root, file), os.path.join(root, new_name))
+#            print('yippy')
 
 # Aggregate all of the data into a single large file
 with open(raw_data_file, 'w', newline='') as raw_file:
     fields = ['Map', 'Map Seed', 'Uncertainty', 'Number of Agents', 'Agent Seed', 'With Communication',
               'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success', 'Initial Min SOC',
               'Initial Max SOC', 'Initial Uncertainty', 'Initial True Cost', 'Final Min SOC', 'Final Max SOC',
-              'Final Uncertainty', 'Distribution', 'Final True Cost', 'Change in True Cost']
+              'Final Uncertainty', 'Distribution', 'Final True Cost', 'Objective', 'Effect on True Cost',
+              'True Cost Change']
     raw_data_writer = csv.DictWriter(raw_file, fieldnames=fields, restval='-', extrasaction='ignore')
     raw_data_writer.writeheader()
     num = 0
@@ -216,8 +250,8 @@ with open(average_results_file, 'w', newline='') as avg_file:
     avg_fields = ['Map', 'Uncertainty', 'Number of Agents', 'With Communication', 'Sensing Probability',
                   'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC',
                   'Initial Uncertainty',  'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty',
-                  'Final True Cost', 'Reduction in True Cost', 'Distribution', 'Number of Runs', 'Reduced True Cost',
-                  'Increased True Cost', 'Same True Cost']
+                  'Final True Cost', 'Objective',  'Reduction in True Cost', 'Distribution', 'Number of Runs',
+                  'Reduced True Cost', 'Increased True Cost', 'Same True Cost']
     average_writer = csv.DictWriter(avg_file, fieldnames=avg_fields)
     average_writer.writeheader()
     for root, dirs, files in os.walk(input_folder):
