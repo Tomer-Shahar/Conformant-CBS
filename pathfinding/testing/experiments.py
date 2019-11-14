@@ -228,9 +228,9 @@ class Experiments:
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
 
         #self.run_online_small_map(sensing_prob, commy, dist)
-        #self.run_online_circular_map(sensing_prob, commy, dist)
+        self.run_online_circular_map(sensing_prob, commy, dist)
         #self.run_online_warehouse_map(sensing_prob, commy, dist)
-        self.run_online_maze_map(sensing_prob, commy, dist)
+        #self.run_online_maze_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
         results_file = self.file_prefix + f'distribution - {distribution} - small_open_map_results.csv'
@@ -268,7 +268,7 @@ class Experiments:
         map_file = '..\\..\\maps\\ost003d.map'
         if os.name == 'posix':
             map_file = '../../maps/ost003d.map'
-        print(f"- STARTED ONLINE CIRCULAR MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+        print(f"- STARTED ONLINE CIRCULAR MAP | {self.agents_num} AGENTS | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
               f"DISTRIBUTION: {distribution}")
 
         map_seed = 96372106
@@ -363,12 +363,12 @@ class Experiments:
                 init_true_cost = sim.calc_solution_true_cost(init_sol)
 
                 if not loaded_sol:
-                    init_sol.save_solution(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed,
+                    init_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed,
                                            sol_folder)
 
             except OutOfTimeError:
                 empty_sol = TimeUncertainSolution()
-                empty_sol.save_solution(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, sol_folder)
+                empty_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, sol_folder)
                 octu_cost = -1, -1
                 init_cost = -1, -1
                 octu_time = -1
@@ -432,8 +432,8 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for tu in range(0, 5):
-    for number_of_agents in range(5, 7):
+for tu in range(1, 5):
+    for number_of_agents in range(2, 7):
         if tu == 3:
             continue
         for sense in range(0, 101, 25):
