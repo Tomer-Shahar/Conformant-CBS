@@ -17,6 +17,7 @@ class Experiments:
             os.makedirs(self.output_folder)
 
         self.num_of_reps = 1
+        self.min_best_case = False
         self.agents_num = 2
         self.uncertainty = 0
         self.time_limit = 300
@@ -191,7 +192,8 @@ class Experiments:
             header = '\nAlgorithm, Average Run Time, Success Rate, Average Cost, Ratio \n'
             map_result_file.write(header)
             ccbs_ratio, oda_queue_ratio = self.calc_ratio(ccbs_total_time, oda_queue_total_time)
-            results = f'CCBS, {ccbs_total_time}, {ccbs_success * 100}%, {ccbs_cost[0]} to {ccbs_cost[1]}, {ccbs_ratio}\n'
+            results = f'CCBS, {ccbs_total_time},' \
+                f' {ccbs_success * 100}%, {ccbs_cost[0]} to {ccbs_cost[1]}, {ccbs_ratio}\n'
             results += f'ODA-queue, {oda_queue_total_time}, {oda_queue_success * 100}%, {oda_queue_cost[0]} to' \
                 f' {oda_queue_cost[1]}, {oda_queue_ratio}\n'
             map_result_file.write(results)
@@ -224,21 +226,28 @@ class Experiments:
         self.agents_num = agent_num
         self.time_limit = time_limit
         self.reps = reps
+        if self.min_best_case:
+            objective = 'min best case'
+        else:
+            objective = 'min worst case'
         self.file_prefix = \
-            f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} - '
+            f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} -' \
+            f' {objective} - distribution - {dist}'
 
         #self.run_online_small_map(sensing_prob, commy, dist)
-        self.run_online_circular_map(sensing_prob, commy, dist)
-        #self.run_online_warehouse_map(sensing_prob, commy, dist)
-        #self.run_online_maze_map(sensing_prob, commy, dist)
+        # self.run_online_circular_map(sensing_prob, commy, dist)
+        self.run_online_warehouse_map(sensing_prob, commy, dist)
+        # self.run_online_maze_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
-        results_file = self.file_prefix + f'distribution - {distribution} - small_open_map_results.csv'
+        map_type = 'small_open_map'
+        results_file = self.file_prefix + f' - {map_type}_results.csv'
         map_file = '..\\..\\maps\\small_blank_map.map'
         if os.name == 'posix':
             map_file = './small_blank_map.map'
-        print(f"- STARTED ONLINE BLANK MAP | {self.agents_num} AGENTS | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
-              f"DISTRIBUTION: {distribution}")
+        print(
+            f"- STARTED ONLINE BLANK MAP | {self.agents_num} AGENTS | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+            f"DISTRIBUTION: {distribution} | MIN BEST TIME: {self.min_best_case}")
 
         map_seed = 96372106
         random.seed(map_seed)
@@ -248,12 +257,14 @@ class Experiments:
                                             distribution)
 
     def run_online_warehouse_map(self, sensing_prob, commy, distribution):
-        results_file = self.file_prefix + f'distribution - {distribution} - warehouse_map_results.csv'
+        map_type = 'warehouse_map'
+        results_file = self.file_prefix + f' - {map_type}_results.csv'
         map_file = '..\\..\\maps\\kiva.map'
         if os.name == 'posix':
             map_file = './kiva.map'
-        print(f"- STARTED ONLINE WAREHOUSE MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
-              f"DISTRIBUTION: {distribution}")
+        print(
+            f"- STARTED ONLINE WAREHOUSE MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+            f"DISTRIBUTION: {distribution} | MIN BEST TIME: {self.min_best_case}")
 
         map_seed = 96372106
         random.seed(map_seed)
@@ -264,12 +275,13 @@ class Experiments:
 
     def run_online_circular_map(self, sensing_prob, commy, distribution):
         map_type = 'circular_map'
-        results_file = self.file_prefix + f'distribution - {distribution} - {map_type}_results.csv'
+        results_file = self.file_prefix + f' - {map_type}_results.csv'
         map_file = '..\\..\\maps\\ost003d.map'
         if os.name == 'posix':
             map_file = '../../maps/ost003d.map'
-        print(f"- STARTED ONLINE CIRCULAR MAP | {self.agents_num} AGENTS | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
-              f"DISTRIBUTION: {distribution}")
+        print(
+            f"- STARTED ONLINE CIRCULAR MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+            f"DISTRIBUTION: {distribution} | MIN BEST TIME: {self.min_best_case}")
 
         map_seed = 96372106
         random.seed(map_seed)
@@ -280,19 +292,24 @@ class Experiments:
 
     def run_online_maze_map(self, sensing_prob, commy, distribution):
         map_type = 'maze_map'
-        results_file = self.file_prefix + f'distribution - {distribution} - {map_type}_results.csv'
-        print(f"- STARTED ONLINE MAZE MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
-              f"DISTRIBUTION: {distribution}")
+        results_file = self.file_prefix + f' - {map_type}_results.csv'
+        map_file = '..\\..\\maps\\maze512-2-0.map'
+        if os.name == 'posix':
+            map_file = '../../maps/maze512-2-0.map'
+        print(
+            f"- STARTED ONLINE MAZE MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+            f"DISTRIBUTION: {distribution} | MIN BEST TIME: {self.min_best_case}")
 
         map_seed = 96372106
         random.seed(map_seed)
-        tu_problem = TimeUncertaintyProblem.generate_rectangle_map(height=20, width=20, uncertainty=self.uncertainty)
+        # tu_problem = TimeUncertaintyProblem.generate_rectangle_map(height=20, width=20, uncertainty=self.uncertainty)
+        tu_problem = TimeUncertaintyProblem(map_file)
         tu_problem.generate_problem_instance(self.uncertainty)
         self.run_and_log_online_experiments(tu_problem, map_type, map_seed, results_file, sensing_prob, commy,
                                             distribution)
 
     def run_and_log_online_experiments(self, tu_problem, map_type, map_seed, results_file, sensing_prob, communication,
-                                       dist, to_print=False):
+                                       dist, to_print=True):
         final_results_path = os.path.join(self.output_folder, map_type, f'{self.agents_num} agents', results_file)
         temp_path = os.path.join(self.output_folder, 'IN PROGRESS - ' + results_file)
         with open(temp_path, 'w') as temp_file:
@@ -314,6 +331,7 @@ class Experiments:
                             'final true cost,'
                             'Sensing Probability,'
                             'Distribution,'
+                            'Objective,'
                             'Communication\n')
 
         success = 0
@@ -340,14 +358,17 @@ class Experiments:
             sim = MAPFSimulator(tu_problem, sensing_prob, edge_dist=dist)
 
             try:
-                loaded_sol = TimeUncertainSolution.load_solution(self.agents_num, self.uncertainty, map_type, agent_seed
-                                                                 , map_seed, sol_folder)
+                loaded_sol = TimeUncertainSolution.load(self.agents_num, self.uncertainty, map_type, agent_seed
+                                                        , map_seed, self.min_best_case, sol_folder)
 
                 if loaded_sol and loaded_sol.time_to_solve == -1:  # It was a timed out solution
                     raise OutOfTimeError
                 start_time = time.time()
-                online_sol = sim.begin_execution(self.time_limit, communication, initial_sol=loaded_sol)
+                online_sol = sim.begin_execution(self.min_best_case, time_limit=self.time_limit,
+                                                 communication=communication, initial_sol=loaded_sol)
                 octu_time = time.time() - start_time
+                if not loaded_sol:
+                    octu_time -= sim.online_CSTU.initial_plan.time_to_solve
 
                 success += 1
                 online_sol.create_movement_tuples()
@@ -363,12 +384,13 @@ class Experiments:
                 init_true_cost = sim.calc_solution_true_cost(init_sol)
 
                 if not loaded_sol:
-                    init_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed,
-                                           sol_folder)
+                    init_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed,self.min_best_case,
+                                  sol_folder)
 
             except OutOfTimeError:
                 empty_sol = TimeUncertainSolution()
-                empty_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, sol_folder)
+                empty_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, self.min_best_case,
+                               sol_folder)
                 octu_cost = -1, -1
                 init_cost = -1, -1
                 octu_time = -1
@@ -386,6 +408,10 @@ class Experiments:
                 break
 
             with open(temp_path, 'a') as temp_map_result_file:
+                if self.min_best_case:
+                    objective = 'Min Best Case'
+                else:
+                    objective = 'Min Worst Case'
                 results = f'{i + 1},' \
                     f'{map_seed},' \
                     f'{self.agents_num},' \
@@ -404,28 +430,40 @@ class Experiments:
                     f'{final_true_cost},' \
                     f'{sensing_prob},' \
                     f'{dist},' \
+                    f'{objective},' \
                     f'{communication}\n'
                 temp_map_result_file.write(results)
 
         copyfile(temp_path, final_results_path)
         os.remove(temp_path)
 
-    def run_online_combinations(self, agent_num, time_uncer, sense_prob, reps=50):
+    def run_online_combinations(self, agent_num, time_uncer, sense_prob, reps=50, do_max=True, do_min=True, do_uni=True,
+                                use_comm=True, no_comm=True, min_best_case=False):
 
-            sense_prob /= 100
+        sense_prob /= 100
+        self.min_best_case = min_best_case
+        if do_max:
+            if use_comm:
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                            sensing_prob=sense_prob, commy=True, dist='max')
+            if no_comm:
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                            sensing_prob=sense_prob, commy=False, dist='max')
+        if do_min:
+            if use_comm:
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                            sensing_prob=sense_prob, commy=True, dist='min')
+            if no_comm:
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                            sensing_prob=sense_prob, commy=False, dist='min')
 
-            self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=True, dist='max')
-            self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=True, dist='min')
-            self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=True, dist='uniform')
-            self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=False, dist='max')
-            self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=False, dist='min')
-            self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
-                                       sensing_prob=sense_prob, commy=False, dist='uniform')
+        if do_uni:
+            if use_comm:
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                            sensing_prob=sense_prob, commy=True, dist='uniform')
+            if no_comm:
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                                            sensing_prob=sense_prob, commy=False, dist='uniform')
 
 
 exp = Experiments('..\\..\\experiments\\Online Runs')
@@ -433,10 +471,15 @@ if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
 for tu in range(1, 5):
-    for number_of_agents in range(2, 7):
+    for number_of_agents in range(2, 10):
+        if number_of_agents == 11:
+            continue
         if tu == 3:
             continue
-        for sense in range(0, 101, 25):
-            exp.run_online_combinations(number_of_agents, tu, sense)
+        for sense in range(0, 101, 50):
+            exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
+                                        use_comm=True, no_comm=True, min_best_case=True)
+            exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
+                                        use_comm=True, no_comm=True, min_best_case=False)
 
 print("Finished Experiments")

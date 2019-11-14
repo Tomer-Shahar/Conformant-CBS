@@ -1,0 +1,11 @@
+Experiment Number,Map Seed,Number of Agents,Agents Seed,Uncertainty,Timeout,initial time,octu Time,initial Min Cost,initial Max Cost,initial uncertainty,initial true cost,octu Min Cost,octu Max Cost,octu uncertainty,final true cost,Sensing Probability,Distribution,Communication
+1,96372106,12,10637296,2,60,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0.25,uniform,True
+2,96372106,12,10637297,2,60,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0.25,uniform,True
+3,96372106,12,10637298,2,60,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0.25,uniform,True
+4,96372106,12,10637299,2,60,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0.25,uniform,True
+5,96372106,12,10637300,2,60,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0.25,uniform,True
+6,96372106,12,10637301,2,60,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0.25,uniform,True
+7,96372106,12,10637302,2,60,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0.25,uniform,True
+8,96372106,12,10637303,2,60,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0.25,uniform,True
+9,96372106,12,10637304,2,60,0.660555362701416,0.021941184997558594,70,102,32,85,77,91,14,84,0.25,uniform,True
+10,96372106,12,10637305,2,60,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0.25,uniform,True

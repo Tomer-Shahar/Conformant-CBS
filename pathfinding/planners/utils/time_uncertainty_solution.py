@@ -20,6 +20,7 @@ class TimeUncertainSolution:
         self.nodes_expanded = 0
         self.constraints = set()
         self.time_to_solve = -1
+        self.sic = -1
 
     @staticmethod
     def empty_solution():
@@ -132,22 +133,30 @@ class TimeUncertainSolution:
 
         self.length = len(next(iter(self.paths.values())).path)
 
-    def save(self, agent_num, uncertainty, map_type, agent_seed, map_seed, folder):
+    def save(self, agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, folder):
+        if min_best_case:
+            objective = 'min best case'
+        else:
+            objective = 'min worst case'
         file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
-            f'{map_type}.sol'
+            f'{objective}_{map_type}.sol'
         path = os.path.join(folder, map_type, f'{agent_num} agents', file_name)
 
         with open(path, 'w+') as sol_file:
-            json_sol = {'paths': {}, 'constraints': None, 'time_to_solve': self.time_to_solve}
+            json_sol = {'paths': {}, 'constraints': None, 'time_to_solve': self.time_to_solve, 'sic': self.sic}
             for agent, path in self.paths.items():
                 json_sol['paths'][agent] = path.path
             json_sol['constraints'] = list(self.constraints)
             json.dump(json_sol, sol_file)
 
     @staticmethod
-    def load_solution(agent_num, uncertainty, map_type, agent_seed, map_seed, folder):
+    def load(agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, folder):
+        if min_best_case:
+            objective = 'min best case'
+        else:
+            objective = 'min worst case'
         file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
-            f'{map_type}.sol'
+            f'{objective}_{map_type}.sol'
         path = os.path.join(folder, map_type, f'{agent_num} agents', file_name)
 
         if not os.path.exists(path):
@@ -173,6 +182,8 @@ class TimeUncertainSolution:
                 tu_sol.constraints.add(tuple_con)
 
             tu_sol.time_to_solve = json_sol['time_to_solve']
+            if 'sic' in json_sol:
+                tu_sol.sic = json_sol['sic']
             tu_sol.compute_solution_cost()
             tu_sol.create_movement_tuples()
             return tu_sol
