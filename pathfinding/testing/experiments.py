@@ -234,9 +234,9 @@ class Experiments:
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} -' \
             f' {objective} - distribution - {dist}'
 
-        #self.run_online_small_map(sensing_prob, commy, dist)
+        self.run_online_small_map(sensing_prob, commy, dist)
         # self.run_online_circular_map(sensing_prob, commy, dist)
-        self.run_online_warehouse_map(sensing_prob, commy, dist)
+        #self.run_online_warehouse_map(sensing_prob, commy, dist)
         # self.run_online_maze_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
@@ -470,8 +470,8 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for tu in range(1, 5):
-    for number_of_agents in range(2, 10):
+for tu in range(0, 5):
+    for number_of_agents in range(2, 12):
         if number_of_agents == 11:
             continue
         if tu == 3:
