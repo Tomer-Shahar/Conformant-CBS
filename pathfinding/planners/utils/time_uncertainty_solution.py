@@ -151,6 +151,11 @@ class TimeUncertainSolution:
 
     @staticmethod
     def load(agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, folder):
+        """
+        Loads a previously computed solution.
+        :param folder: The folder for solutions.
+        :return:
+        """
         if min_best_case:
             objective = 'min best case'
         else:
