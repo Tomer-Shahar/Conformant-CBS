@@ -20,7 +20,7 @@ class TimeUncertainSolution:
         self.nodes_expanded = 0
         self.constraints = set()
         self.time_to_solve = -1
-        self.sic = -1
+        self.sic = -1, -1
 
     @staticmethod
     def empty_solution():

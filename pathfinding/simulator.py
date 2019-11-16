@@ -85,8 +85,9 @@ class MAPFSimulator:
         self.sim_time = 0
         start_time = time.time()
         graphs, constraints = None, {}
+        pos_cons = None
         if not communication:
-            graphs, constraints = self.online_CSTU.create_plan_graphs_and_constraints()
+            graphs, constraints, pos_cons = self.online_CSTU.create_plan_graphs_and_constraints()
 
         while True:
             if time.time() - start_time >= time_limit:
@@ -98,7 +99,7 @@ class MAPFSimulator:
                 if self.communication:
                     self.online_CSTU.create_new_centralized_plan(self.sim_time, sensing_agents)
                 else:
-                    self.online_CSTU.plan_distributed(graphs, constraints, sensing_agents, self.sim_time)
+                    self.online_CSTU.plan_distributed(graphs, constraints, pos_cons, sensing_agents, self.sim_time)
             self.execute_next_step()
             self.sim_time += 1
 

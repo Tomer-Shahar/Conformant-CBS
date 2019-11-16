@@ -418,7 +418,7 @@ class TestCcbsPlanner(unittest.TestCase):
         constraints = {(1, edge, (18, 18))}
         self.single_agent_node = SingleAgentNode(v_1, (16, 0), (17, 17), self.conf_problem, (19, 0), 0)
         successor = (v_2, (18, 18))
-        self.assertFalse(self.single_agent_node.legal_move(agent, successor[0], successor[1], constraints))
+        self.assertFalse(self.single_agent_node.legal_move(agent, successor[0], successor[1], constraints, None))
 
     def test_simple_4_connected_two_agent_map(self):
 
