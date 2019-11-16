@@ -1,1 +1,1 @@
-{"paths": {}, "constraints": [], "time_to_solve": -1, "sic": -1}
+{"paths": {}, "constraints": [], "time_to_solve": -1, "sic": [-1, -1]}
