@@ -332,7 +332,10 @@ class Experiments:
                             'Sensing Probability,'
                             'Distribution,'
                             'Objective,'
-                            'Communication\n')
+                            'Communication,'
+                            'Min SIC,'
+                            'Max SIC\n'
+                            )
 
         success = 0
         initial_agent_seed = 10637296
@@ -383,8 +386,10 @@ class Experiments:
                 init_tu = init_cost[1] - init_cost[0]
                 init_true_cost = sim.calc_solution_true_cost(init_sol)
 
+                min_sic = init_sol.sic[0]
+                max_sic = init_sol.sic[1]
                 if not loaded_sol:
-                    init_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed,self.min_best_case,
+                    init_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, self.min_best_case,
                                   sol_folder)
 
             except OutOfTimeError:
@@ -398,6 +403,8 @@ class Experiments:
                 octu_tu = -1
                 init_true_cost = -1
                 final_true_cost = -1
+                min_sic = -1
+                max_sic = -1
                 if loaded_sol:
                     init_time = loaded_sol.time_to_solve
                 elif sim.online_CSTU.initial_plan:
@@ -431,7 +438,9 @@ class Experiments:
                     f'{sensing_prob},' \
                     f'{dist},' \
                     f'{objective},' \
-                    f'{communication}\n'
+                    f'{communication},' \
+                    f'{min_sic},' \
+                    f'{max_sic}\n'
                 temp_map_result_file.write(results)
 
         copyfile(temp_path, final_results_path)
@@ -470,16 +479,14 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for tu in range(0, 5):
-    for number_of_agents in range(2, 12):
-        if number_of_agents == 11:
-            continue
+for tu in range(4, 5):
+    for number_of_agents in range(2, 3):
         if tu == 3:
             continue
         for sense in range(0, 101, 50):
             exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
-                                        use_comm=True, no_comm=True, min_best_case=True)
+                                        use_comm=False, no_comm=True, min_best_case=True)
             exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
-                                        use_comm=True, no_comm=True, min_best_case=False)
+                                        use_comm=True, no_comm=False, min_best_case=False)
 
 print("Finished Experiments")
