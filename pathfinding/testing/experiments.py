@@ -234,9 +234,9 @@ class Experiments:
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} -' \
             f' {objective} - distribution - {dist}'
 
-        self.run_online_small_map(sensing_prob, commy, dist)
+        #self.run_online_small_map(sensing_prob, commy, dist)
         # self.run_online_circular_map(sensing_prob, commy, dist)
-        #self.run_online_warehouse_map(sensing_prob, commy, dist)
+        self.run_online_warehouse_map(sensing_prob, commy, dist)
         # self.run_online_maze_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
@@ -481,14 +481,14 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for tu in range(4, 5):
-    for number_of_agents in range(3, 6):
+for tu in range(0, 4):
+    for number_of_agents in range(8, 11):
         if tu == 3:
             continue
         for sense in range(0, 101, 50):
             exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
-                                        use_comm=True, no_comm=True, min_best_case=True)
-            exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
                                         use_comm=True, no_comm=True, min_best_case=False)
+            exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
+                                        use_comm=True, no_comm=True, min_best_case=True)
 
 print("Finished Experiments")
