@@ -879,10 +879,10 @@ class TestOnlineCBSTU(unittest.TestCase):
 
         sim = MAPFSimulator(simple_tu, sensing_prob=1)
         sim.create_initial_solution()
-        graphs, constraints = sim.online_CSTU.create_plan_graphs_and_constraints()
+        graphs, constraints, pos_cons = sim.online_CSTU.create_plan_graphs_and_constraints()
         sensing_agent = {2: (1, 2)}
         sim.sim_time = 5
-        online_cbstu_planner.plan_distributed(graphs, constraints, sensing_agent, sim.sim_time)
+        online_cbstu_planner.plan_distributed(graphs, constraints, pos_cons, sensing_agent, sim.sim_time)
         online_cbstu_planner.current_plan.compute_solution_cost(sum_of_costs=True)
         self.assertEqual(online_cbstu_planner.current_plan.cost, (9, 13))  # Test with only agent 2 sensing
 
@@ -986,31 +986,6 @@ class TestOnlineCBSTU(unittest.TestCase):
         offline_planner = CBSTUPlanner(small_tu_map)
         self.assertRaises(OutOfTimeError, offline_planner.find_solution, True, 5)
 
-    def test_solvable_with_sensing_problem(self):
-        """ A test using Abdallah's example of a problem that is unsolvable without sensing. It should solve it"""
-        small_tu_map = TimeUncertaintyProblem()
-        small_tu_map.map = [[0, 0],
-                            [0, 0]]
-        small_tu_map.width = 2
-        small_tu_map.height = 2
-        small_tu_map.edges_and_weights = {
-            (0, 0): [((0, 1), (1, 1)), ((1, 1), (1, 1))],
-            (0, 1): [((0, 0), (1, 1)), ((1, 1), (1, 1))],
-            (1, 0): [((1, 1), (1, 2))],
-            (1, 1): [((1, 0), (1, 2)), ((0, 0), (1, 1)), ((0, 1), (1, 1))]}
-
-        small_tu_map.start_positions[1] = (0, 0)
-        small_tu_map.start_positions[2] = (0, 1)
-        small_tu_map.start_positions[3] = (1, 0)
-
-        small_tu_map.goal_positions[1] = (0, 1)
-        small_tu_map.goal_positions[2] = (1, 1)
-        small_tu_map.goal_positions[3] = (0, 0)
-        small_tu_map.fill_heuristic_table()
-
-        sim = MAPFSimulator(small_tu_map, sensing_prob=1)
-        sim.begin_execution(time_limit=10, communication=True)
-
     def test_low_sensing_probability(self):
         seed = 1234541
         random.seed(seed)
@@ -1028,8 +1003,8 @@ class TestOnlineCBSTU(unittest.TestCase):
         soc = True
         min_best_case = False
         comm = False
-        sol = TimeUncertainSolution.load(tu_problem, uncertainty, soc, min_best_case, '.\\previous_solutions')
-        sim.begin_execution(min_best_case=min_best_case, soc=soc, time_limit=20, communication=comm, initial_sol=sol)
+        #sol = TimeUncertainSolution.load(tu_problem, uncertainty, soc, min_best_case, '.\\previous_solutions')
+        sim.begin_execution(min_best_case=min_best_case, soc=soc, time_limit=20, communication=comm)
 
     def test_simple_communication_example(self):
         """ A test for an example where agents communicate"""
@@ -1106,47 +1081,5 @@ class TestOnlineCBSTU(unittest.TestCase):
         true_final_cost = sim.calc_solution_true_cost(final_sol)
         self.assertEqual(init_cost, (27, 49))
         self.assertEqual(true_init_cost, 27)
-        self.assertEqual(final_cost, (16, 16))
-        self.assertEqual(true_final_cost, 16)
-
-    def test_communication_bug_2_agents(self):
-        map_seed = 96372106
-        random.seed(map_seed)
-
-        tu_problem = TimeUncertaintyProblem('./small_blank_map.map')
-        tu_problem.generate_problem_instance(uncertainty=4)
-        agent_seed = 10637299
-        random.seed(agent_seed)
-
-        tu_problem.generate_agents(agent_num=2)
-        tu_problem.fill_heuristic_table()
-
-        sim = MAPFSimulator(tu_problem, sensing_prob=0.5)
-        online_sol = sim.begin_execution(time_limit=1000, communication=True)
-
-        initial_tc = sim.calc_solution_true_cost(sim.online_CSTU.initial_plan)
-        final_tc = sim.calc_solution_true_cost(online_sol)
-
-        self.assertEqual(initial_tc, 38)
-        self.assertEqual(final_tc, 42)
-
-    def test_communication_bug_3_agents(self):
-        map_seed = 96372106
-        random.seed(map_seed)
-
-        tu_problem = TimeUncertaintyProblem('./small_blank_map.map')
-        tu_problem.generate_problem_instance(uncertainty=0)
-        agent_seed = 10637315
-        random.seed(agent_seed)
-
-        tu_problem.generate_agents(agent_num=3)
-        tu_problem.fill_heuristic_table()
-
-        sim = MAPFSimulator(tu_problem, sensing_prob=0.5)
-        online_sol = sim.begin_execution(time_limit=1000, communication=True)
-
-        initial_tc = sim.calc_solution_true_cost(sim.online_CSTU.initial_plan)
-        final_tc = sim.calc_solution_true_cost(online_sol)
-
-        self.assertEqual(initial_tc, 14)
-        self.assertEqual(final_tc, 16)
+        self.assertEqual(final_cost, (27, 27))
+        self.assertEqual(true_final_cost, 27)

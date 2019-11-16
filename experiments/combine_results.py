@@ -177,9 +177,6 @@ def write_average_results(run_file):
                 else:
                     same_tc += 1
 
-        # if num_of_runs < 50:  # There's a mistake
-        #    print(f'{run_file} ::: {num_of_runs}')
-
         calc_averages_and_write(map_type, initial_time,  online_time, initial_min_cost, initial_max_cost,
                                 initial_uncertainty, initial_true_cost, final_min_cost, final_max_cost,
                                 final_uncertainty, final_true_cost, objective, uncertainty, sensing_probability,
