@@ -20,7 +20,7 @@ class TimeUncertainSolution:
         self.nodes_expanded = 0
         self.constraints = set()
         self.time_to_solve = -1
-        self.sic = -1
+        self.sic = -1, -1
 
     @staticmethod
     def empty_solution():
@@ -151,11 +151,6 @@ class TimeUncertainSolution:
 
     @staticmethod
     def load(agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, folder):
-        """
-        Loads a previously computed solution.
-        :param folder: The folder for solutions.
-        :return:
-        """
         if min_best_case:
             objective = 'min best case'
         else:

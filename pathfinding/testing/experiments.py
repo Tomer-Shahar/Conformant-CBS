@@ -234,9 +234,9 @@ class Experiments:
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} -' \
             f' {objective} - distribution - {dist}'
 
-        #self.run_online_small_map(sensing_prob, commy, dist)
+        self.run_online_small_map(sensing_prob, commy, dist)
         # self.run_online_circular_map(sensing_prob, commy, dist)
-        self.run_online_warehouse_map(sensing_prob, commy, dist)
+        #self.run_online_warehouse_map(sensing_prob, commy, dist)
         # self.run_online_maze_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
@@ -363,6 +363,8 @@ class Experiments:
             try:
                 loaded_sol = TimeUncertainSolution.load(self.agents_num, self.uncertainty, map_type, agent_seed
                                                         , map_seed, self.min_best_case, sol_folder)
+                if loaded_sol and loaded_sol.time_to_solve != -1 and loaded_sol.sic == (-1, -1):
+                    loaded_sol = None
 
                 if loaded_sol and loaded_sol.time_to_solve == -1:  # It was a timed out solution
                     raise OutOfTimeError
@@ -479,14 +481,14 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for tu in range(0, 5):
-    for number_of_agents in range(2, 10):
+for tu in range(0, 4):
+    for number_of_agents in range(11, 13):
         if tu == 3:
             continue
         for sense in range(100, 101, 50):
             exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
-                                        use_comm=False, no_comm=True, min_best_case=True)
-            exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
                                         use_comm=False, no_comm=True, min_best_case=False)
+            exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
+                                        use_comm=False, no_comm=True, min_best_case=True)
 
 print("Finished Experiments")

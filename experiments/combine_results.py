@@ -1,6 +1,5 @@
+import os
 import csv
-from pathfinding.planners.utils.time_uncertainty_solution import *
-import pandas as pd
 
 raw_data_file = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\experiments\\All Raw Online Data.csv'
 average_results_file = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\experiments\\Average Online Results.csv'
@@ -65,7 +64,9 @@ def calc_averages_and_write(map_type,
                             distribution,
                             reduced_TC,
                             increased_TC,
-                            same_TC):
+                            same_TC,
+                            min_sic,
+                            max_sic):
     reduction_in_tc = -1
 
     if octu_success > 0:
@@ -80,6 +81,8 @@ def calc_averages_and_write(map_type,
         final_uncertainty /= octu_success
         final_true_cost /= octu_success
         reduction_in_tc = initial_true_cost - final_true_cost
+        min_sic /= octu_success
+        max_sic /= octu_success
         octu_success /= num_of_runs
 
     average_writer.writerow({
@@ -105,7 +108,9 @@ def calc_averages_and_write(map_type,
         'Number of Runs': num_of_runs,
         'Reduced True Cost': reduced_TC,
         'Increased True Cost': increased_TC,
-        'Same True Cost': same_TC
+        'Same True Cost': same_TC,
+        'Min SIC': min_sic,
+        'Max SIC': max_sic
     })
 
 
@@ -125,14 +130,16 @@ def write_average_results(run_file):
         final_max_cost = 0
         final_uncertainty = 0
         final_true_cost = 0
-        reduced_TC = 0
-        increased_TC = 0
-        same_TC = 0
+        reduced_tc = 0
+        increased_tc = 0
+        same_tc = 0
         uncertainty = -1
         sensing_probability = -1
         num_of_agents = -1
         num_of_runs = 0
         octu_success = 0
+        min_sic = 0
+        max_sic = 0
 
         for row in reader:
             if row['Map Seed'] == '':  # Reached end of experiments.
@@ -160,12 +167,14 @@ def write_average_results(run_file):
                 final_max_cost += float(row['octu Max Cost'])
                 final_uncertainty += float(row['octu uncertainty'])
                 final_true_cost += float(row['final true cost'])
+                min_sic += float(row['Min SIC'])
+                max_sic += float(row['Max SIC'])
                 if float(row['final true cost']) < float(row['initial true cost']):
-                    reduced_TC += 1
+                    reduced_tc += 1
                 elif float(row['final true cost']) > float(row['initial true cost']):
-                    increased_TC += 1
+                    increased_tc += 1
                 else:
-                    same_TC += 1
+                    same_tc += 1
 
         # if num_of_runs < 50:  # There's a mistake
         #    print(f'{run_file} ::: {num_of_runs}')
@@ -173,8 +182,8 @@ def write_average_results(run_file):
         calc_averages_and_write(map_type, initial_time,  online_time, initial_min_cost, initial_max_cost,
                                 initial_uncertainty, initial_true_cost, final_min_cost, final_max_cost,
                                 final_uncertainty, final_true_cost, objective, uncertainty, sensing_probability,
-                                num_of_agents, num_of_runs, octu_success, comm, distribution, reduced_TC, increased_TC,
-                                same_TC)
+                                num_of_agents, num_of_runs, octu_success, comm, distribution, reduced_tc, increased_tc,
+                                same_tc, min_sic, max_sic)
 
 
 def write_simulation_results(map_type, row, dist=None):
@@ -187,10 +196,7 @@ def write_simulation_results(map_type, row, dist=None):
     else:
         effect = 'No Change'
 
-    try:
-        objective = row['Objective']
-    except KeyError:
-        objective = 'Min Worst Case'
+    objective = row['Objective']
 
     raw_data_writer.writerow({
         'Map': map_type,
@@ -215,78 +221,19 @@ def write_simulation_results(map_type, row, dist=None):
         'Objective': objective,
         'Change in True Cost': str(int(row['final true cost']) - int(row['initial true cost'])),
         'Effect on True Cost': effect,
-        'True Cost Change': str(int(row['final true cost']) - int(row['initial true cost']))
+        'True Cost Change': str(int(row['final true cost']) - int(row['initial true cost'])),
+        'Min SIC': str(row['Min SIC']),
+        'Max SIC': str(row['Max SIC'])
     })
 
 
-def create_sic_dict():
-    sic_dict = {'small_open_Map': {}, 'circular_map': {}, 'warehouse_map': {}}
-    for map_type in sic_dict:
-        for agents in range(2, 14):
-            sic_dict[map_type][str(agents)] = {}
-            for tu in ['0', '1', '2', '4']:
-                sic_dict[map_type][str(agents)][tu] = {}
-                for seed in range(10637296, 10637346):
-                    sic_dict[map_type][str(agents)][tu][str(seed)] = {'min best case': -1, 'min worst case': -1}
-    for root, dirs, files in os.walk(sol_folder):
-        if 'circular' in root or 'maze' in root:
-            continue
-        for file in files:
-            file_arr = file.split('_')
-            map_seed = file_arr[0].split()[2]
-            agent_num = file_arr[1].split()[0]
-            agent_seed = file_arr[2].split()[2]
-            uncertainty = file_arr[3].split()[0]
-            objective = file_arr[4] == 'min best case'
-            if 'warehouse' in file:
-                map_type = 'warehouse_map'
-            elif 'small' in file:
-                map_type = 'small_open_map'
-            else:
-                map_type = 'circular_map'
-            tu_sol = TimeUncertainSolution.load(agent_num, uncertainty, map_type, agent_seed, map_seed, objective,
-                                                sol_folder)
-            sic_dict[map_type][agent_num][uncertainty][agent_seed][file_arr[4]] = tu_sol.sic
-
-    return sic_dict
-
-def append_sic_values():
-    sic_dict = create_sic_dict()
-    for root, dirs, files in os.walk(input_folder):
-        if 'circular' in root or 'maze' in root:
-            continue
-        for exp_file in files:
-            df = pd.read_csv(os.path.join(root, exp_file))
-            df['Min SIC'] = []
-            df['Max SIC'] = []
-            with open(os.path.join(root, exp_file), 'a', newline='') as exp_result:
-                writer = csv.writer(exp_result, lineterminator='\n')
-                reader = csv.reader(exp_result)
-                row = next(reader)
-                map_seed = row['Map Seed']
-                agent_num = row['Map Seed']
-                agent_seed = row['Map Seed']
-                uncertainty = row['Map Seed']
-                objective = row['Map Seed']
-                row.append('Min SIC, Max SIC')
-                all = []
-                all.append(row)
-                if 'warehouse' in exp_file:
-                    map_type = 'warehouse_map'
-                elif 'small' in exp_file:
-                    map_type = 'small_open_map'
-                else:
-                    map_type = 'circular_map'
-                for row in reader:
-                    min_sic = sic_dict[map_type][agent_num][uncertainty][agent_seed][objective][0]
-                    max_sic = sic_dict[map_type][agent_num][uncertainty][agent_seed][objective][1]
-                    row.append()
-                    all.append(row)
-
-                writer.writerows(all)
-
-#append_sic_values()
-
+#for root, dirs, files in os.walk(input_folder):
+#    for file in files:
+#        if 'min best case' in file and 'min worst case' in file:
+#            name_arr = file.split(' - min worst case - min worst case - ')
+#            new_name = ' - '.join(name_arr)
+#            os.rename(os.path.join(root, file), os.path.join(root, new_name))
+#            print('yippy')
 
 # Aggregate all of the data into a single large file
 with open(raw_data_file, 'w', newline='') as raw_file:
