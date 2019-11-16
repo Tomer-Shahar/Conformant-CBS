@@ -480,15 +480,13 @@ if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
 for tu in range(0, 5):
-    for number_of_agents in range(2, 3):
-        if number_of_agents == 11:
-            continue
+    for number_of_agents in range(2, 10):
         if tu == 3:
             continue
-        for sense in range(0, 101, 50):
+        for sense in range(100, 101, 50):
             exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
-                                        use_comm=True, no_comm=True, min_best_case=True)
+                                        use_comm=False, no_comm=True, min_best_case=True)
             exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
-                                        use_comm=True, no_comm=True, min_best_case=False)
+                                        use_comm=False, no_comm=True, min_best_case=False)
 
 print("Finished Experiments")

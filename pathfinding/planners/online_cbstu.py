@@ -5,7 +5,7 @@ results in terms of Sum of Costs.
 """
 import copy
 import time
-
+from collections import defaultdict
 from pathfinding.planners.cbstu import CBSTUPlanner
 from pathfinding.planners.constraint_A_star import ConstraintAstar
 from pathfinding.planners.utils.map_reader import TimeUncertaintyProblem
@@ -106,7 +106,8 @@ class OnlineCBSTU:
                         new_cons.add((planning_agent, move[1], move[0]))
 
             self.offline_cbstu_planner.startPositions = sensing_agents
-            new_plans = self.offline_cbstu_planner.find_solution(existing_cons=new_cons, curr_time=(curr_time, curr_time))
+            new_plans = self.offline_cbstu_planner.find_solution(existing_cons=new_cons,
+                                                                 curr_time=(curr_time, curr_time))
             for agent, path in new_plans.paths.items():
                 self.current_plan.paths[agent] = path
             self.current_plan.add_stationary_moves({agent: self.current_plan.paths[agent] for agent in sensing_agents})
@@ -125,7 +126,7 @@ class OnlineCBSTU:
 
         return True  # All agents are at their goal states
 
-    def plan_distributed(self, graphs, constraints, sensing_agents, curr_time):
+    def plan_distributed(self, graphs, constraints, pos_cons, sensing_agents, curr_time):
         """
         Lets agents replan after sensing, but without communication. Each agent plans for itself while taking into
         account possible constraints.
@@ -140,8 +141,10 @@ class OnlineCBSTU:
             for agent, loc in sensing_agents.items():
                 agent_constraints = self.offline_cbstu_planner.final_constraints | constraints[agent]
                 planner = ConstraintAstar(graphs[agent])
-                new_plan = planner.compute_agent_path(agent_constraints, agent, loc, graphs[agent].goal_positions[agent],
-                                                      set(), False, curr_time=(curr_time, curr_time))
+                new_plan = planner.compute_agent_path(agent_constraints, agent, loc,
+                                                      graphs[agent].goal_positions[agent],
+                                                      set(), False, curr_time=(curr_time, curr_time),
+                                                      pos_cons=pos_cons[agent])
                 self.current_plan.paths[agent] = new_plan
 
             self.current_plan.add_stationary_moves({agent: self.current_plan.paths[agent] for agent in sensing_agents})
@@ -150,20 +153,20 @@ class OnlineCBSTU:
         """
         Create a personal graph for each agent based on its initial solution and a personal set of constraints.
         This is because when an agent replans without cooperation, it has to follow the original path it had. This
-        ensures no collisions occur.
+        ensures no collisions occur in combination with returning appropriate constraints and also positive constraints,
+        ensuring that an agent only occupies vertices in the allowed time.
 
-        :return: Possible graphs for each agent and constraints.
+        :return: Possible graphs for each agent, negative constraints and positive constraints.
         """
 
         agent_graphs = {}  # Maps between an agent and their valid path
-        constraints = {}  # Maps between an agent and constraints RELEVANT TO THEM!!
-        traversed_locations = {}  # All locations that have been traversed in the solution.
+        constraints = defaultdict(set)  # Maps between an agent and constraints RELEVANT TO THEM!!
+        traversed_locations = defaultdict(set)  # All locations that have been traversed in the solution.
         # Create the graph for each agent
         for agent, plan in self.initial_plan.paths.items():
-            new_agent_graph, traversed_locations = self.generate_tu_problem_graph(agent, traversed_locations)
+            new_agent_graph, traversed_locations = self.__generate_tu_problem_graph(agent, traversed_locations)
             new_agent_graph.fill_heuristic_table()
             agent_graphs[agent] = new_agent_graph
-            constraints[agent] = set()
         # Update their respective constraints
         for agent, tu_plan in self.initial_plan.paths.items():
             for move in tu_plan.path:
@@ -171,9 +174,9 @@ class OnlineCBSTU:
                     if presence[0] != agent:
                         constraints[agent].add((agent, move[1], presence[1]))
 
-        return agent_graphs, constraints
+        return agent_graphs, constraints, self.__generate_pos_cons()
 
-    def generate_tu_problem_graph(self, agent, traversed_locs):
+    def __generate_tu_problem_graph(self, agent, traversed_locs):
         """
         Converts an agent's found path to a graph.
         :param traversed_locs:
@@ -185,26 +188,42 @@ class OnlineCBSTU:
         agent_path_graph.start_positions[agent] = self.initial_plan.paths[agent].path[0][1]
         agent_path_graph.goal_positions[agent] = self.initial_plan.paths[agent].path[-1][1]
         prev_loc = self.initial_plan.paths[agent].path[0]
-        agent_path_graph.edges_and_weights = {}
-        self.safe_add_to_dict(prev_loc[1], (agent, (0, 0)), traversed_locs)  # add the vertex
+        agent_path_graph.edges_and_weights = defaultdict(set)
+        traversed_locs[prev_loc[1]].add((agent, (0, 0)))
+        # self.safe_add_to_dict(prev_loc[1], (agent, (0, 0)), traversed_locs)  # add the vertex
 
         for loc in self.initial_plan.paths[agent].path[1:]:
             edge_weight = (loc[0][0] - prev_loc[0][0], loc[0][1] - prev_loc[0][1])
 
             # add the vertex to edge dictionary. Must add the edge in both directions
-            self.safe_add_to_dict(prev_loc[1], (loc[1], edge_weight), agent_path_graph.edges_and_weights)
-            self.safe_add_to_dict(loc[1], (prev_loc[1], edge_weight), agent_path_graph.edges_and_weights)
+            agent_path_graph.edges_and_weights[prev_loc[1]].add((loc[1], edge_weight))
+            agent_path_graph.edges_and_weights[loc[1]].add((prev_loc[1], edge_weight))
+            # self.safe_add_to_dict(prev_loc[1], (loc[1], edge_weight), agent_path_graph.edges_and_weights)
+            # self.safe_add_to_dict(loc[1], (prev_loc[1], edge_weight), agent_path_graph.edges_and_weights)
 
             # Add the edge and node to traversed locations
-            self.safe_add_to_dict(loc[1], (agent, loc[0]), traversed_locs)
-
+            # self.safe_add_to_dict(loc[1], (agent, loc[0]), traversed_locs)
+            traversed_locs[loc[1]].add((agent, loc[0]))
             if edge_weight != (1, 1):  # We don't add edges that were traversed instantly.
-                self.safe_add_to_dict((prev_loc[1], loc[1]), (agent, (prev_loc[0][0] + 1, loc[0][1] - 1)),
-                                      traversed_locs)
+                # self.safe_add_to_dict((prev_loc[1], loc[1]), (agent, (prev_loc[0][0] + 1, loc[0][1] - 1)),
+                #                      traversed_locs)
+                traversed_locs[(prev_loc[1], loc[1])].add((agent, (prev_loc[0][0] + 1, loc[0][1] - 1)))
 
             prev_loc = loc
 
         return agent_path_graph, traversed_locs
+
+    def __generate_pos_cons(self):
+        """
+        Generates positive constraints for each agent. These are constraints that agents must fulfill during planning.
+        :return: A dictionary of positive constraints of the form (agent, vertex, time)
+        """
+        pos_cons = defaultdict(set)
+        for agent, path in self.initial_plan.paths.items():
+            for move in path.path:
+                pos_cons[agent].update(set([(agent, move[1], i) for i in range(move[0][0], move[0][1]+1)]))
+
+        return pos_cons
 
     @staticmethod
     def safe_add_to_dict(key, value, dict_to_insert):

@@ -36,7 +36,7 @@ class ConstraintAstar:
     """
 
     def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table,
-                           min_best_case=True, time_limit=200000, curr_time=(0, 0)):
+                           min_best_case=True, time_limit=200000, curr_time=(0, 0), pos_cons=None):
 
         self.open_list = OpenListHeap()
         self.open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
@@ -55,7 +55,7 @@ class ConstraintAstar:
             if best_node.current_position == goal_pos and self.__can_stay_still(agent, best_node, constraints):
                 return best_node.calc_path(agent)
 
-            successors = best_node.expand(agent, constraints, conf_table, self.tu_problem)
+            successors = best_node.expand(agent, constraints, conf_table, self.tu_problem, pos_cons)
             for neighbor in successors:
                 if neighbor in self.closed_set:
                     continue
@@ -197,13 +197,13 @@ class SingleAgentNode:
     at times t0+1, t0+2 or t0+3.
     """
 
-    def expand(self, agent, constraints, conflict_table, search_map):
+    def expand(self, agent, constraints, conflict_table, search_map, pos_cons):
         neighbors = []
 
         for edge_tuple in search_map.edges_and_weights[self.current_position]:
             successor_time = (self.g_val[0] + edge_tuple[1][0], self.g_val[1] + edge_tuple[1][1])
             vertex = edge_tuple[VERTEX_ID]
-            if self.legal_move(agent, vertex, successor_time, constraints):
+            if self.legal_move(agent, vertex, successor_time, constraints, pos_cons):
                 if len(conflict_table) > 0:
                     confs_created = self.conflicts_created
                     confs_created = self.check_if_conflicts(agent, conflict_table, confs_created, successor_time,
@@ -214,8 +214,8 @@ class SingleAgentNode:
 
                 neighbors.append(successor)
 
-        still_time = (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST)
-        if self.legal_move(agent, self.current_position, still_time, constraints):  # Add the option of not moving.
+        still_time = (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST) # Add the option of not moving.
+        if self.legal_move(agent, self.current_position, still_time, constraints, pos_cons):
             if len(conflict_table) > 0:
                 confs_created = self.conflicts_created
                 confs_created = self.check_if_conflicts(agent, conflict_table, confs_created,
@@ -270,7 +270,7 @@ class SingleAgentNode:
 
         return False
 
-    def legal_move(self, agent, vertex, succ_time, constraints):
+    def legal_move(self, agent, vertex, succ_time, constraints, pos_cons):
 
         """
         A function that checks if a certain movement is legal. First we check for vertex constraints and then edge
@@ -283,13 +283,16 @@ class SingleAgentNode:
         """
         edge = min(self.current_position, vertex), max(self.current_position, vertex)
         edge_occupation = self.calc_edge_time(succ_time)
+        if pos_cons:  # Only check positive constraints if it exists
+            for tick in range(succ_time[0], succ_time[1]+1):
+                if (agent, vertex, tick) not in pos_cons:
+                    return False
         for con in constraints:
             if agent == con[0] and \
                     ((vertex == con[1] and ConstraintAstar.overlapping((con[2]), succ_time))
                      or
                      (edge == con[1] and ConstraintAstar.overlapping(con[2], edge_occupation))):
                 return False
-
         return True
 
     def calc_edge_time(self, succ_time):
