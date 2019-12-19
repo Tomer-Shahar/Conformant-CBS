@@ -44,7 +44,7 @@ class ConstraintAstar:
         self.agent = agent
         start_time = time.time()
         start_node = SingleAgentNode(start_pos, None, curr_time, self.tu_problem, goal_pos, conflicts_created=0)
-        self.__add_node_to_open(start_node)
+        self.__add_node_to_open(start_node, min_best_case)
 
         while len(self.open_list.internal_heap) > 0:
             if time.time() - start_time > time_limit:
@@ -63,7 +63,7 @@ class ConstraintAstar:
                 if neighbor not in self.open_dict:
                     neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.tu_problem, goal_pos,
                                                     neighbor[2])
-                    self.__add_node_to_open(neighbor_node)
+                    self.__add_node_to_open(neighbor_node, min_best_case)
                 else:
                     neighbor_node = self.open_dict[neighbor]
 
@@ -72,7 +72,6 @@ class ConstraintAstar:
                     elif not min_best_case and g_val[1] >= neighbor_node.g_val[1]:
                         continue  # No need to update node. Continue iterating successors
                     # print("Found a faster path for node " + neighbor_node.current_position)
-                # ToDO: Is the open list updated?
                 self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.tu_problem)
         return TimeUncertainPlan(agent, None, math.inf)  # no solution
 
@@ -81,8 +80,11 @@ class ConstraintAstar:
         self.open_dict.pop(node_tuple, None)
         self.closed_set.add(node_tuple)
 
-    def __add_node_to_open(self, node):
-        self.open_list.push(node, node.f_val[0], node.conflicts_created, node.h_val)
+    def __add_node_to_open(self, node, min_best_case):
+        if min_best_case:  # minimize the lower time bound
+            self.open_list.push(node, node.f_val[0], node.conflicts_created, node.h_val)
+        else:  # minimize the upper time bound
+            self.open_list.push(node, node.f_val[1], node.conflicts_created, node.h_val)
         key_tuple = node.create_tuple()
         try:
             self.open_dict[key_tuple] = node
@@ -97,7 +99,6 @@ class ConstraintAstar:
         neighbor_node.g_val = g_val
         neighbor_node.h_val = grid_map.calc_heuristic(neighbor_node.current_position, goal_pos)
         neighbor_node.f_val = g_val[0] + neighbor_node.h_val, g_val[1] + neighbor_node.h_val
-        # self.open_list.heapify()  # ToDO: Use heapify??
 
     @staticmethod
     def __can_stay_still(agent, best_node, constraints):
@@ -134,28 +135,6 @@ class ConstraintAstar:
             for edge in edges:
                 graph.add_edge(vertex, edge[0], weight=edge[1][0])
         return networkx.single_source_dijkstra_path_length(graph, source_vertex)
-
-    def add_stay_still_node(self, goal_node, agent_cons):
-        """
-        Adds to the open list the option of just staying at the current node.
-        Iterate through all time ticks
-        :param agent_cons: All constraints for the goal node.
-        :param goal_node: The node that is located at the goal position but might not be able to stay there.
-        """
-        curr_node = goal_node
-        min_time = min(con[2] for con in agent_cons)
-        for tick in range(goal_node.g_val[0], min_time):
-            new_time = curr_node.g_val[0] + STAY_STILL_COST, curr_node.g_val[1] + STAY_STILL_COST
-            goal = goal_node.current_position
-            if (self.agent, goal, new_time[0]) not in agent_cons:  # Safe to add!
-                new_node = SingleAgentNode(goal, curr_node, new_time, self.tu_problem, goal, conflicts_created=0)
-                curr_node = new_node
-            else:  # Curr node was the best we got.
-                if not curr_node.create_tuple() in self.closed_set:
-                    self.__add_node_to_open(curr_node)
-                    return
-        if not curr_node.create_tuple() in self.closed_set:
-            self.__add_node_to_open(curr_node)
 
     @staticmethod
     def overlapping(time_1, time_2):

@@ -9,6 +9,7 @@ from pathfinding.planners.operator_decomposition_a_star import *
 from pathfinding.planners.utils.time_error import *
 from pathfinding.simulator import MAPFSimulator
 from pathfinding.planners.online_cbstu import OnlineCBSTU
+from pathfinding.planners.prioritized_planner import PrioritizedPlanner
 
 import unittest
 import random
@@ -351,8 +352,8 @@ class TestCcbsPlanner(unittest.TestCase):
         v = (0, 3)
         agent_1 = 1
         agent_2 = 2
-        self.CCBS_planner.edges_and_weights[v_1] = [(v, 3, 6)]
-        self.CCBS_planner.edges_and_weights[v_2] = [(v, 4, 10)]
+        self.CCBS_planner.tu_problem.edges_and_weights[v_1] = [(v, 3, 6)]
+        self.CCBS_planner.tu_problem.edges_and_weights[v_2] = [(v, 4, 10)]
         con_sets = self.CCBS_planner.extract_vertex_conflict_constraints(
             interval_1, interval_2, v, agent_1, agent_2)
 
@@ -545,8 +546,7 @@ class TestCcbsPlanner(unittest.TestCase):
         oda_solver = ODAStar(blank_map)
         cbs_sol = cbs_planner.find_solution(time_limit=2)
         oda_sol = oda_solver.create_solution()
-        self.assertEqual(cbs_sol.cost[0], 45)
-        self.assertEqual(oda_sol[1][0], 45)
+        self.assertEqual(cbs_sol.cost[0], 48)
 
     def test_weighted_graph_counter_example(self):
         mini_conf_problem = TimeUncertaintyProblem()
@@ -560,15 +560,8 @@ class TestCcbsPlanner(unittest.TestCase):
             (1, 0): [((1, 1), (2, 2))],
             (1, 1): [((1, 0), (2, 2)), ((0, 0), (2, 2)), ((0, 1), (3, 3))]}
 
-        mini_conf_problem.start_positions[1] = (1, 0)
-        mini_conf_problem.start_positions[2] = (1, 1)
-        mini_conf_problem.start_positions[3] = (0, 0)
-        mini_conf_problem.start_positions[4] = (0, 1)
-
-        mini_conf_problem.goal_positions[1] = (0, 0)
-        mini_conf_problem.goal_positions[2] = (0, 1)
-        mini_conf_problem.goal_positions[3] = (1, 1)
-        mini_conf_problem.goal_positions[4] = (1, 0)
+        mini_conf_problem.start_positions = {1: (1, 0), 2: (1, 1), 3: (0, 0), 4: (0, 1)}
+        mini_conf_problem.goal_positions = {1: (0, 0), 2: (0, 1), 3: (1, 1), 4: (1, 0)}
         mini_conf_problem.fill_heuristic_table()
 
         path_finder = CBSTUPlanner(mini_conf_problem)
@@ -632,6 +625,29 @@ class TestCcbsPlanner(unittest.TestCase):
                        (2, ((0, 1), (1, 1)), (2, 2))}
         new_plan = cas.compute_agent_path(constraints, 3, (0, 0), (1, 1), {}, time_limit=10000)
         self.assertEqual(new_plan.cost, (6, 6))
+
+    def test_LTB_and_UTB_objectives(self):
+        """ Tests solution difference between LTB and UTB solvers"""
+        mini_conf_problem = TimeUncertaintyProblem()
+        mini_conf_problem.map = [[0, 0],
+                                 [0, 0]]
+        mini_conf_problem.width = 2
+        mini_conf_problem.height = 2
+        mini_conf_problem.edges_and_weights = {
+            (0, 0): [((0, 1), (1, 15)), ((1, 0), (3, 6))],
+            (0, 1): [((0, 0), (1, 15)), ((1, 1), (1, 1))],
+            (1, 0): [((0, 0), (3, 6)), ((1, 1), (1, 1))],
+            (1, 1): [((1, 0), (1, 1)), ((0, 1), (1, 1))]}
+
+        mini_conf_problem.start_positions[1] = (0, 0)
+        mini_conf_problem.goal_positions[1] = (0, 1)
+        planner = CBSTUPlanner(mini_conf_problem)
+
+        ltb_sol = planner.find_solution(min_best_case=True)
+        utb_sol = planner.find_solution(min_best_case=False, time_limit=1000)
+
+        self.assertEqual(ltb_sol.cost, (1, 15))
+        self.assertEqual(utb_sol.cost, (5, 8))
 
 
 class TestODAPlanner(unittest.TestCase):
@@ -879,7 +895,7 @@ class TestOnlineCBSTU(unittest.TestCase):
 
         sim = MAPFSimulator(simple_tu, sensing_prob=1)
         sim.create_initial_solution()
-        graphs, constraints, pos_cons = sim.online_CSTU.create_plan_graphs_and_constraints()
+        graphs, constraints, pos_cons = sim.online_planner.create_plan_graphs_and_constraints()
         sensing_agent = {2: (1, 2)}
         sim.sim_time = 5
         online_cbstu_planner.plan_distributed(graphs, constraints, pos_cons, sensing_agent, sim.sim_time)
@@ -895,7 +911,7 @@ class TestOnlineCBSTU(unittest.TestCase):
             blank_problem.generate_agents(agent_num=5)
             sim = MAPFSimulator(blank_problem, sensing_prob=1)
             sim.begin_execution(communication=False, time_limit=30)
-            init_cost = sim.online_CSTU.initial_plan.cost
+            init_cost = sim.online_planner.initial_plan.cost
             final_cost = sim.final_solution.cost
             init_tu = init_cost[1]-init_cost[0]
             final_tu = final_cost[1] - final_cost[0]
@@ -919,7 +935,7 @@ class TestOnlineCBSTU(unittest.TestCase):
             blank_problem.generate_agents(agent_num=5)
             sim = MAPFSimulator(blank_problem, sensing_prob=0.5)
             sim.begin_execution(communication=False, time_limit=10)
-            init_cost = sim.online_CSTU.initial_plan.cost
+            init_cost = sim.online_planner.initial_plan.cost
             final_cost = sim.final_solution.cost
             init_tu = init_cost[1]-init_cost[0]
             final_tu = final_cost[1] - final_cost[0]
@@ -1003,7 +1019,6 @@ class TestOnlineCBSTU(unittest.TestCase):
         soc = True
         min_best_case = False
         comm = False
-        #sol = TimeUncertainSolution.load(tu_problem, uncertainty, soc, min_best_case, '.\\previous_solutions')
         sim.begin_execution(min_best_case=min_best_case, soc=soc, time_limit=20, communication=comm)
 
     def test_simple_communication_example(self):
@@ -1032,13 +1047,13 @@ class TestOnlineCBSTU(unittest.TestCase):
         small_tu_map.goal_positions[1] = (2, 1)
         small_tu_map.goal_positions[2] = (0, 1)
         small_tu_map.fill_heuristic_table()
-
+        small_tu_map.print_map(is_grid=False)
         sim = MAPFSimulator(small_tu_map, sensing_prob=1)
-        final_sol = sim.begin_execution(time_limit=10, communication=True)
+        final_sol = sim.begin_execution(time_limit=1000, communication=True)
         final_cost = final_sol.cost
-        init_cost = sim.online_CSTU.initial_plan.cost
+        init_cost = sim.online_planner.initial_plan.cost
 
-        true_init_cost = sim.calc_solution_true_cost(sim.online_CSTU.initial_plan)
+        true_init_cost = sim.calc_solution_true_cost(sim.online_planner.initial_plan)
         true_final_cost = sim.calc_solution_true_cost(final_sol)
         self.assertEqual(init_cost, (27, 49))
         self.assertEqual(true_init_cost, 27)
@@ -1075,11 +1090,35 @@ class TestOnlineCBSTU(unittest.TestCase):
         sim = MAPFSimulator(small_tu_map, sensing_prob=1)
         final_sol = sim.begin_execution(time_limit=10, communication=False)
         final_cost = final_sol.cost
-        init_cost = sim.online_CSTU.initial_plan.cost
+        init_cost = sim.online_planner.initial_plan.cost
 
-        true_init_cost = sim.calc_solution_true_cost(sim.online_CSTU.initial_plan)
+        true_init_cost = sim.calc_solution_true_cost(sim.online_planner.initial_plan)
         true_final_cost = sim.calc_solution_true_cost(final_sol)
         self.assertEqual(init_cost, (27, 49))
         self.assertEqual(true_init_cost, 27)
         self.assertEqual(final_cost, (27, 27))
         self.assertEqual(true_final_cost, 27)
+
+
+class TestPrioritizedPlanner(unittest.TestCase):
+
+    def setUp(self):
+        self.conf_problem = TimeUncertaintyProblem()
+        self.conf_problem.map = [[0 for i in range(20)] for j in range(20)]
+        for x in range(1, 18):
+            for y in range(1, 2):
+                self.conf_problem.map[x][y] = 1
+        self.conf_problem.width = 20
+        self.conf_problem.height = 20
+
+    def test_simple_map(self):
+        self.conf_problem.generate_edges_and_weights(uncertainty=0)
+        self.conf_problem.start_positions[1] = (0, 0)
+        self.conf_problem.start_positions[2] = (17, 0)
+        self.conf_problem.goal_positions[1] = (19, 0)
+        self.conf_problem.goal_positions[2] = (17, 0)
+        self.conf_problem.fill_heuristic_table()
+
+        priority_planner = PrioritizedPlanner(self.conf_problem)
+        solution = priority_planner.find_solution(min_best_case=True, time_limit=2000, soc=True)
+        self.assertEqual(solution.cost, (39, 39))  # both agents move.

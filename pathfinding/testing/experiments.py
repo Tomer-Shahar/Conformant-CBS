@@ -263,7 +263,7 @@ class Experiments:
         if os.name == 'posix':
             map_file = './kiva.map'
         print(
-            f"- STARTED ONLINE WAREHOUSE MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+            f"- STARTED ONLINE WAREHOUSE MAP | {self.agents_num} AGENTS | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
             f"DISTRIBUTION: {distribution} | MIN BEST TIME: {self.min_best_case}")
 
         map_seed = 96372106
@@ -280,7 +280,7 @@ class Experiments:
         if os.name == 'posix':
             map_file = '../../maps/ost003d.map'
         print(
-            f"- STARTED ONLINE CIRCULAR MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+            f"- STARTED ONLINE CIRCULAR MAP | {self.agents_num} AGENTS | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
             f"DISTRIBUTION: {distribution} | MIN BEST TIME: {self.min_best_case}")
 
         map_seed = 96372106
@@ -297,7 +297,7 @@ class Experiments:
         if os.name == 'posix':
             map_file = '../../maps/maze512-2-0.map'
         print(
-            f"- STARTED ONLINE MAZE MAP | {self.agents_num} AGENTS  UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
+            f"- STARTED ONLINE MAZE MAP | {self.agents_num} AGENTS | UNCERTAINTY: {self.uncertainty} | SENSE: {sensing_prob} | COMM: {commy} | "
             f"DISTRIBUTION: {distribution} | MIN BEST TIME: {self.min_best_case}")
 
         map_seed = 96372106
@@ -334,7 +334,8 @@ class Experiments:
                             'Objective,'
                             'Communication,'
                             'Min SIC,'
-                            'Max SIC\n'
+                            'Max SIC,'
+                            'True SIC\n'
                             )
 
         success = 0
@@ -373,7 +374,7 @@ class Experiments:
                                                  communication=communication, initial_sol=loaded_sol)
                 octu_time = time.time() - start_time
                 if not loaded_sol:
-                    octu_time -= sim.online_CSTU.initial_plan.time_to_solve
+                    octu_time -= sim.online_planner.initial_plan.time_to_solve
 
                 success += 1
                 online_sol.create_movement_tuples()
@@ -382,7 +383,7 @@ class Experiments:
                 octu_tu = octu_cost[1] - octu_cost[0]
                 final_true_cost = sim.calc_solution_true_cost(online_sol)
 
-                init_sol = sim.online_CSTU.initial_plan
+                init_sol = sim.online_planner.initial_plan
                 init_time = init_sol.time_to_solve
                 init_cost = init_sol.cost
                 init_tu = init_cost[1] - init_cost[0]
@@ -390,6 +391,9 @@ class Experiments:
 
                 min_sic = init_sol.sic[0]
                 max_sic = init_sol.sic[1]
+                root_sol = sim.online_planner.offline_cbstu_planner.create_root(self.min_best_case).solution
+                true_sic = sim.calc_solution_true_cost(root_sol)
+
                 if not loaded_sol:
                     init_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, self.min_best_case,
                                   sol_folder)
@@ -407,10 +411,11 @@ class Experiments:
                 final_true_cost = -1
                 min_sic = -1
                 max_sic = -1
+                true_sic = -1
                 if loaded_sol:
                     init_time = loaded_sol.time_to_solve
-                elif sim.online_CSTU.initial_plan:
-                    init_time = sim.online_CSTU.initial_plan.time_to_solve
+                elif sim.online_planner.initial_plan:
+                    init_time = sim.online_planner.initial_plan.time_to_solve
                 else:
                     init_time = -1
             except MemoryError:
@@ -442,7 +447,8 @@ class Experiments:
                     f'{objective},' \
                     f'{communication},' \
                     f'{min_sic},' \
-                    f'{max_sic}\n'
+                    f'{max_sic}' \
+                    f'{true_sic}\n'
                 temp_map_result_file.write(results)
 
         copyfile(temp_path, final_results_path)
@@ -481,13 +487,13 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for tu in range(0, 4):
-    for number_of_agents in range(8, 11):
+for tu in range(2, 3):
+    for number_of_agents in range(6, 7):
         if tu == 3:
             continue
         for sense in range(0, 101, 50):
             exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
-                                        use_comm=True, no_comm=True, min_best_case=False)
+                                        use_comm=True, no_comm=False, min_best_case=False)
             exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
                                         use_comm=True, no_comm=True, min_best_case=True)
 

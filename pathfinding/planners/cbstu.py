@@ -47,31 +47,18 @@ class CBSTUPlanner:
     The class that represents the cbs solver. The input is a conformedMap - a map that also contains the weights
     of the edges and the time step range to complete the transfer.
 
-    map - the map the search is conducted on
-
-    edge_weights_and_timeSteps - a 2 dimensional array where each cell A[i,j] contains the weight of the edge from
-    i to j, and the time range in the format of (i,j,(t1,t2)) where t1 is the minimal time and t2 is the maximal time.
-    A null cell means the movement is impossible.
-
-    startPositions - a list containing all the start positions.
-    goalPositions - a list containing all goal positions.
-    (Each position is represented as a (x,y) tuple.
-
     constraints - a set of constraints.
 
     """
 
-    def __init__(self, conformed_problem):
+    def __init__(self, tu_problem):
 
-        self.map = conformed_problem.map
-        self.edges_and_weights = conformed_problem.edges_and_weights
-        self.paths = {}
-        self.startPositions = conformed_problem.start_positions
-        self.goalPositions = conformed_problem.goal_positions
+        self.tu_problem = tu_problem
         self.final_constraints = None
         self.start_time = 0
-        self.planner = Cas(conformed_problem)
+        self.planner = Cas(tu_problem)
         self.curr_time = (0, 0)
+        self.root = None
 
     def find_solution(self, min_best_case=False, time_limit=60, soc=True, use_cat=False, existing_cons=None,
                       curr_time=(0, 0)):
@@ -88,17 +75,17 @@ class CBSTUPlanner:
         """
         self.start_time = time.time()
         self.curr_time = curr_time
-        root = ConstraintNode(use_cat=use_cat)
+        self.root = ConstraintNode(use_cat=use_cat)
         if existing_cons:
-            root.constraints = root.constraints | existing_cons
-        self.compute_all_paths_and_conflicts(root, use_cat)
+            self.root.constraints = self.root.constraints | existing_cons
+        self.compute_all_paths_and_conflicts(self.root, use_cat, min_best_case)
         #  print("Computed root node")
-        root.parent = ConstraintNode()
-        if not root.solution:
+        self.root.parent = ConstraintNode()
+        if not self.root.solution:
             print("No solution for cbs root node")
             return None
-        root.solution.compute_solution_cost()
-        open_nodes = [root]  # initialize the list with root
+        self.root.solution.compute_solution_cost()
+        open_nodes = [self.root]  # initialize the list with root
         nodes_expanded = 0
         closed_nodes = set()
         while open_nodes:
@@ -117,7 +104,7 @@ class CBSTUPlanner:
                 best_node.solution.nodes_expanded = nodes_expanded
                 self.final_constraints = best_node.constraints
                 best_node.solution.constraints = set(best_node.constraints)
-                best_node.solution.sic = root.solution.cost
+                best_node.solution.sic = self.root.solution.cost
                 return best_node.solution
 
             for new_con_set in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
@@ -128,8 +115,8 @@ class CBSTUPlanner:
                 time_passed = time.time() - self.start_time
                 new_plan = self.planner.compute_agent_path(
                     new_node.constraints, agent,
-                    self.startPositions[agent],
-                    self.goalPositions[agent],
+                    self.tu_problem.start_positions[agent],
+                    self.tu_problem.goal_positions[agent],
                     new_node.conflict_table,
                     min_best_case, time_limit=time_limit - time_passed,
                     curr_time=self.curr_time)  # compute the path for a single agent.
@@ -145,6 +132,18 @@ class CBSTUPlanner:
                 open_nodes.sort(key=lambda k: k.solution.cost[1], reverse=True)
         print("Empty open list - No Solution")
         return TimeUncertainSolution.empty_solution()
+
+    def create_root(self, min_best_case, use_cat=False):
+        self.root = ConstraintNode(use_cat=use_cat)
+        self.compute_all_paths_and_conflicts(self.root, use_cat, min_best_case)
+        #  print("Computed root node")
+        self.root.parent = ConstraintNode()
+        if not self.root.solution:
+            print("No solution for cbs root node")
+            return None
+        self.root.solution.compute_solution_cost()
+
+        return self.root
 
     def validate_solution(self, node):
         """Given a solution, this function will validate it.
@@ -165,7 +164,7 @@ class CBSTUPlanner:
         if new_edge_swap_constraints:
             return new_edge_swap_constraints
 
-        return self.check_edge_chase_conflict(node.solution)
+        return None
 
     def __check_vertex_conflict(self, node):  # ToDo: reduce runtime of this
         """
@@ -289,20 +288,12 @@ class CBSTUPlanner:
         agent_i_constraints = set()
         agent_j_constraints = set()
         start_vertex = conflict_edge[0]
-        for movement in self.edges_and_weights[start_vertex]:
+        for movement in self.tu_problem.edges_and_weights[start_vertex]:
             end_vertex = movement[0]
             travel_time = movement[1]
             if end_vertex == conflict_edge[1]:
                 edge_min, edge_max = travel_time[0], travel_time[1]
                 break
-        """
-        # The actual times the agents will OCCUPY the edge.
-        i_begin_occupation = interval_i[0]
-        i_end_occupation = interval_i[1] - 1
-        j_begin_occupation = interval_j[0]
-        j_end_occupation = interval_j[1] - 1
-        t = self.__pick_times_to_constrain((i_begin_occupation, i_end_occupation), (j_begin_occupation, j_end_occupation))
-        """
 
         t = self.__pick_times_to_constrain(interval_i, interval_j)
         if edge_min == edge_max == 1:
@@ -313,16 +304,16 @@ class CBSTUPlanner:
 
         return agent_i_constraints, agent_j_constraints
 
-    def compute_all_paths_and_conflicts(self, root, use_cat):
+    def compute_all_paths_and_conflicts(self, root, use_cat, min_best_case=False):
         """
         A function that computes the paths for all agents, i.e a solution. Used for the root node before any constraints
         are added.
         """
 
-        for agent_id, agent_start in self.startPositions.items():
+        for agent_id, agent_start in self.tu_problem.start_positions.items():
             agent_plan = self.planner.compute_agent_path(
-                root.constraints, agent_id, agent_start, self.goalPositions[agent_id], root.conflict_table,
-                curr_time=self.curr_time)
+                root.constraints, agent_id, agent_start, self.tu_problem.goal_positions[agent_id], root.conflict_table,
+                min_best_case=min_best_case, curr_time=self.curr_time)
             if agent_plan.path:  # Solution found
                 root.solution.paths[agent_id] = agent_plan
             else:  # No solution for a particular agent
@@ -379,12 +370,6 @@ class CBSTUPlanner:
     def __insert_into_closed_list(closed_nodes, new_node):
 
         closed_nodes.add(new_node.constraints)
-
-    def check_edge_chase_conflict(self, filled_solution):
-        """
-        Return "Edge Chase" type conflicts
-        """
-        return None
 
     @staticmethod
     def __pick_times_to_constrain(interval_i, interval_j, t='max'):
