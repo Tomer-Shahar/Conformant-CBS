@@ -36,7 +36,7 @@ class ConstraintAstar:
     """
 
     def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table,
-                           min_best_case=True, time_limit=200000, curr_time=(0, 0), pos_cons=None):
+                           min_best_case=True, time_limit=5, curr_time=(0, 0), pos_cons=None, suboptimal=False):
 
         self.open_list = OpenListHeap()
         self.open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
@@ -52,7 +52,7 @@ class ConstraintAstar:
             best_node = self.open_list.pop()  # removes from open_list
             self.__remove_node_from_open(best_node)
 
-            if best_node.current_position == goal_pos and self.__can_stay_still(agent, best_node, constraints):
+            if best_node.current_position == goal_pos and self.__can_stay(agent, best_node, constraints, suboptimal):
                 return best_node.calc_path(agent)
 
             successors = best_node.expand(agent, constraints, conf_table, self.tu_problem, pos_cons)
@@ -100,27 +100,26 @@ class ConstraintAstar:
         neighbor_node.h_val = grid_map.calc_heuristic(neighbor_node.current_position, goal_pos)
         neighbor_node.f_val = g_val[0] + neighbor_node.h_val, g_val[1] + neighbor_node.h_val
 
-    @staticmethod
-    def __can_stay_still(agent, best_node, constraints):
+    def __can_stay(self, agent, best_node, constraints, suboptimal):
         """
         A function that verifies that the agent has reached the goal at an appropriate time. Useful when an agent
         reaches the goal in, for example, 5-8 time units however in the solution it takes another agent 10-15 time
         units.
         Therefor we must verify what happens if this agent stands still all this time (there might be a conflict!)
         """
-        try:
-            can_stay = True
-            agent_cons = set()
-            for con in constraints:  # ToDo: Iterate over all constraints or send the max time to stand?
-                if con[0] == agent and con[1] == best_node.current_position and best_node.g_val[0] <= con[2][1]:
-                    agent_cons.add(con)
-                    can_stay = False
 
-            return can_stay
-        except TypeError:
-            print('fudge - type error in can_stay_still')
+        for con in constraints:  # ToDo: Iterate over all constraints or send the max time to stand?
+            if con[0] == agent and con[1] == best_node.current_position and best_node.g_val[0] <= con[2][1]:
+                if suboptimal:
+                    self.__create_wait_node(best_node, con[2][0])
+                    self.open_dict = {}
+                    self.open_list = OpenListHeap()
+                return False  # A constraint was found
 
-    def dijkstra_solution(self, source_vertex):
+        return True
+
+
+    def dijkstra_solution(self, source_vertex, min_best_case=False):
         """
         A function that calculates, using Dijkstra's algorithm, the distance from each point in the map to the given
         goal. This will be used as a perfect heuristic. It receives as input the goal position and returns a dictionary
@@ -133,7 +132,11 @@ class ConstraintAstar:
         graph = networkx.Graph()
         for vertex, edges in self.tu_problem.edges_and_weights.items():
             for edge in edges:
-                graph.add_edge(vertex, edge[0], weight=edge[1][0])
+                if min_best_case:
+                    graph.add_edge(vertex, edge[0], weight=edge[1][0])
+                else:
+                    graph.add_edge(vertex, edge[0], weight=edge[1][1])
+
         return networkx.single_source_dijkstra_path_length(graph, source_vertex)
 
     @staticmethod
@@ -156,17 +159,41 @@ class ConstraintAstar:
 
         return False
 
+    def __create_wait_node(self, best_node, con_time):
+        """
+        Function called when an agent has a constraint on their goal vertex in the future. We change the current state
+        to be one where the agent simply waits at the goal and then continue the search from there.
+        :param best_node: The current state
+        :param con_time: The time of the constraint on the goal
+        :return: Changes the current state.
+        """
+        curr_pos = best_node.current_position
+        temp_best = SingleAgentNode(curr_pos, best_node.prev_node, best_node.g_val, self.tu_problem, curr_pos,
+                                    best_node.conflicts_created)
+        delta = best_node.g_val[1] - best_node.g_val[0]
+        g_val = (best_node.g_val[0] + 1, best_node.g_val[0] + 1 + delta)
+        prev_node = SingleAgentNode(curr_pos, temp_best, g_val, self.tu_problem, curr_pos, best_node.conflicts_created)
+        for g in range(prev_node.g_val[0]+1, con_time-1):
+            g_val = g, g + delta
+            curr_node = SingleAgentNode(curr_pos, prev_node, g_val, self.tu_problem, curr_pos, best_node.conflicts_created)
+            prev_node = curr_node
+
+        best_node.prev_node = prev_node
+        best_node.g_val = g_val[0] + 1, g_val[1] + 1
+        best_node.f_val = best_node.g_val
+        return False
+
 
 class SingleAgentNode:
     """
     The class that represents the nodes being created during the search for a single agent.
     """
 
-    def __init__(self, current_position, prev_node, time_span, grid_map, goal, conflicts_created):
+    def __init__(self, current_position, prev_node, g, grid_map, goal, conflicts_created):
         self.current_position = current_position
         self.prev_node = prev_node
         self.h_val = grid_map.calc_heuristic(current_position, goal)
-        self.g_val = time_span  # The time to reach the node.
+        self.g_val = g  # The time to reach the node.
         self.f_val = self.g_val[0] + self.h_val, self.g_val[1] + self.h_val  # heuristic val + cost of predecessor
         self.conflicts_created = conflicts_created
 
@@ -249,7 +276,7 @@ class SingleAgentNode:
 
         return False
 
-    def legal_move(self, agent, vertex, succ_time, constraints, pos_cons):
+    def legal_move(self, agent, vertex, succ_time, constraints, pos_cons):  # ToDo: reduce this bottleneck
 
         """
         A function that checks if a certain movement is legal. First we check for vertex constraints and then edge

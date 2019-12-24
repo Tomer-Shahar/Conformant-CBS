@@ -459,7 +459,9 @@ class TestCcbsPlanner(unittest.TestCase):
         complex_conf_prob.goal_positions[1] = (2, 1)
         complex_conf_prob.goal_positions[2] = (1, 1)
         complex_conf_prob.fill_heuristic_table()
-
+        complex_conf_prob.width = 3
+        complex_conf_prob.height = 3
+        #complex_conf_prob.print_map(is_grid=False)
         ccbs_planner = CBSTUPlanner(complex_conf_prob)
         solution = ccbs_planner.find_solution(min_best_case=True, time_limit=10, soc=True)
         self.assertEqual(solution.cost, (13, 20))
@@ -544,9 +546,8 @@ class TestCcbsPlanner(unittest.TestCase):
         blank_map.fill_heuristic_table()
         cbs_planner = CBSTUPlanner(blank_map)
         oda_solver = ODAStar(blank_map)
-        cbs_sol = cbs_planner.find_solution(time_limit=2)
-        oda_sol = oda_solver.create_solution()
-        self.assertEqual(cbs_sol.cost[0], 48)
+        cbs_sol = cbs_planner.find_solution(time_limit=2, min_best_case=True)
+        self.assertEqual(cbs_sol.cost[0], 45)
 
     def test_weighted_graph_counter_example(self):
         mini_conf_problem = TimeUncertaintyProblem()
@@ -1079,13 +1080,13 @@ class TestOnlineCBSTU(unittest.TestCase):
             (1, 2): [((0, 2), (7, 7)), ((1, 1), (5, 5))],
             (2, 1): [((1, 1), (1, 1))],
         }
-
         small_tu_map.start_positions[1] = (0, 0)
         small_tu_map.start_positions[2] = (0, 2)
 
         small_tu_map.goal_positions[1] = (2, 1)
         small_tu_map.goal_positions[2] = (0, 1)
         small_tu_map.fill_heuristic_table()
+        # small_tu_map.print_map(is_grid=False)
 
         sim = MAPFSimulator(small_tu_map, sensing_prob=1)
         final_sol = sim.begin_execution(time_limit=10, communication=False)
@@ -1122,3 +1123,99 @@ class TestPrioritizedPlanner(unittest.TestCase):
         priority_planner = PrioritizedPlanner(self.conf_problem)
         solution = priority_planner.find_solution(min_best_case=True, time_limit=2000, soc=True)
         self.assertEqual(solution.cost, (39, 39))  # both agents move.
+
+        self.conf_problem.start_positions[1] = (17, 0)
+        self.conf_problem.start_positions[2] = (0, 0)
+        self.conf_problem.goal_positions[1] = (17, 0)
+        self.conf_problem.goal_positions[2] = (19, 0)
+        self.conf_problem.fill_heuristic_table()
+
+        priority_planner = PrioritizedPlanner(self.conf_problem)
+        solution = priority_planner.find_solution(min_best_case=True, time_limit=2000, soc=True)
+        self.assertEqual(solution.cost, (19, 19))  # only agent 2 moves.
+
+    def test_large_unweighted_map(self):
+        seed = 12345678
+        random.seed(seed)
+        blank_problem = TimeUncertaintyProblem()
+        width, height = 50, 50
+        blank_problem.map = [[1 for i in range(width)] for j in range(height)]
+        blank_problem.width = width
+        blank_problem.height = height
+        for i in range(1, width-1):
+            for j in range(1, height-1):
+                blank_problem.map[i][j] = 0
+        seed = 2025421785
+        random.seed(seed)
+        blank_problem.generate_edges_and_weights(uncertainty=0)
+        blank_problem.generate_agents(30)
+        blank_problem.fill_heuristic_table()
+        priority_planner = PrioritizedPlanner(blank_problem)
+        sol = priority_planner.find_solution(True, 10, True)
+        self.assertEqual(sol.cost[0], 918)
+
+    def test_blank_map(self):
+
+        seed = 12345678
+        random.seed(seed)
+        map_file = '.\\small_blank_map.map'
+        blank_problem = TimeUncertaintyProblem(map_file)
+        blank_problem.generate_problem_instance(1)
+        seed = 2025421785
+        random.seed(seed)
+        blank_problem.generate_agents(2)
+        blank_problem.fill_heuristic_table()
+        priority_planner = PrioritizedPlanner(blank_problem)
+        sol = priority_planner.find_solution(True, 1000, True)
+        self.assertEqual(sol.cost[0], 16)
+
+        seed = 12345678
+        random.seed(seed)
+        blank_problem.generate_problem_instance(uncertainty=2)
+        seed = 1432200775
+        random.seed(seed)
+        blank_problem.generate_agents(agent_num=3)
+        blank_problem.fill_heuristic_table()
+
+        priority_planner = PrioritizedPlanner(blank_problem)
+        sol = priority_planner.find_solution(True, 1000, True)
+        self.assertEqual(sol.cost, 48)
+
+    def test_harder_setting(self):
+
+        map_file = '.\\small_blank_map.map'
+        blank_problem = TimeUncertaintyProblem(map_file)
+        random.seed(1000)
+        blank_problem.generate_problem_instance(uncertainty=4)
+        blank_problem.generate_agents(10)
+        blank_problem.fill_heuristic_table()
+        priority_planner = PrioritizedPlanner(blank_problem)
+        sol = priority_planner.find_solution(min_best_case=False, time_limit=10)
+        self.assertNotEqual(sol.cost, (math.inf, math.inf))
+
+    def test_even_harder_setting(self):
+
+        map_file = '.\\small_blank_map.map'
+        blank_problem = TimeUncertaintyProblem(map_file)
+        random.seed(1000)
+        blank_problem.generate_problem_instance(uncertainty=2)
+        blank_problem.generate_agents(17)
+        blank_problem.fill_heuristic_table()
+
+        priority_planner = PrioritizedPlanner(blank_problem)
+        sol = priority_planner.find_solution(min_best_case=False, time_limit=20)
+        self.assertNotEqual(sol.cost, (math.inf, math.inf))
+
+    def test_large_map(self):
+
+        map_file = '..\\..\\maps\\ost003d.map'
+        circular_map = TimeUncertaintyProblem(map_file)
+        random.seed(2928)
+        circular_map.generate_problem_instance(uncertainty=0)
+        circular_map.generate_agents(12)
+        mbc = False
+        circular_map.fill_heuristic_table(min_best_case=mbc)
+        priority_planner = PrioritizedPlanner(circular_map)
+        sol = priority_planner.find_solution(min_best_case=mbc, time_limit=60)
+        self.assertNotEqual(sol.cost, (math.inf, math.inf))
+
