@@ -24,7 +24,7 @@ class ConstraintAstar:
         self.open_list = OpenListHeap()
         self.open_dict = {}
         self.closed_set = set()
-        self.agent = 1
+        self.agent = -1
 
     """
     Computes the path for a particular agent in a given node. The node should contain the new constraint for this
@@ -35,27 +35,30 @@ class ConstraintAstar:
     *** Currently naive implementation (basic A* with constraints)****
     """
 
-    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table,
-                           min_best_case=True, time_limit=5, curr_time=(0, 0), pos_cons=None, suboptimal=False):
+    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table, min_best_case=True, time_limit=5,
+                           curr_time=(0, 0), pos_cons=None, suboptimal=False):
 
         self.open_list = OpenListHeap()
         self.open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
         self.closed_set = set()
         self.agent = agent
         start_time = time.time()
-        start_node = SingleAgentNode(start_pos, None, curr_time, self.tu_problem, goal_pos, conflicts_created=0)
+        start_node = SingleAgentNode(start_pos, None, curr_time, self.tu_problem, goal_pos, confs_created=0)
         self.__add_node_to_open(start_node, min_best_case)
 
         while len(self.open_list.internal_heap) > 0:
             if time.time() - start_time > time_limit:
-                raise OutOfTimeError('Ran out of time :-(')
+                return TimeUncertainPlan(agent, None, math.inf)  # no solution
             best_node = self.open_list.pop()  # removes from open_list
-            self.__remove_node_from_open(best_node)
 
-            if best_node.current_position == goal_pos and self.__can_stay(agent, best_node, constraints, suboptimal):
+            if best_node.current_position == goal_pos and \
+                    self.__can_stay(agent, best_node, constraints, suboptimal):
                 return best_node.calc_path(agent)
 
-            successors = best_node.expand(agent, constraints, conf_table, self.tu_problem, pos_cons)
+            successors = best_node.expand(agent, constraints, conf_table, self.tu_problem, pos_cons, suboptimal)
+
+            self.__remove_node_from_open(best_node)
+
             for neighbor in successors:
                 if neighbor in self.closed_set:
                     continue
@@ -82,9 +85,9 @@ class ConstraintAstar:
 
     def __add_node_to_open(self, node, min_best_case):
         if min_best_case:  # minimize the lower time bound
-            self.open_list.push(node, node.f_val[0], node.conflicts_created, node.h_val)
+            self.open_list.push(node, node.f_val[0], node.h_val, node.confs_created)
         else:  # minimize the upper time bound
-            self.open_list.push(node, node.f_val[1], node.conflicts_created, node.h_val)
+            self.open_list.push(node, node.f_val[1], node.h_val, node.confs_created)
         key_tuple = node.create_tuple()
         try:
             self.open_dict[key_tuple] = node
@@ -106,18 +109,29 @@ class ConstraintAstar:
         reaches the goal in, for example, 5-8 time units however in the solution it takes another agent 10-15 time
         units.
         Therefor we must verify what happens if this agent stands still all this time (there might be a conflict!)
+        :param agent: The agent that's searching
+        :param best_node: The current path
+        :param constraints: A set of constraints
+        :param suboptimal: If true, constraints apply to all agents and not the typical (agent, vertex, time) setting.
+        this means that constraints are just (vertex, time) and apply to all agents. Used in prioritized planning since
+        there is no need to iterate over all of the constraints.
+        :return: True if the agent can stay in the current place, False otherwise.
         """
-
+        if suboptimal:
+            if best_node.current_position in constraints:
+                #max_t = max(t[1] for t in constraints[best_node.current_position])
+                for tick in sorted(constraints[best_node.current_position], key=lambda k: k[1]):
+                    if best_node.g_val[0] <= tick[1]:
+                        self.__create_wait_node(best_node, tick[1])
+                        self.open_dict = {}
+                        self.open_list = OpenListHeap()
+                        return False
+            return True
         for con in constraints:  # ToDo: Iterate over all constraints or send the max time to stand?
             if con[0] == agent and con[1] == best_node.current_position and best_node.g_val[0] <= con[2][1]:
-                if suboptimal:
-                    self.__create_wait_node(best_node, con[2][0])
-                    self.open_dict = {}
-                    self.open_list = OpenListHeap()
                 return False  # A constraint was found
 
         return True
-
 
     def dijkstra_solution(self, source_vertex, min_best_case=False):
         """
@@ -151,13 +165,7 @@ class ConstraintAstar:
            a<-->b
         ===> A <= a <= B or a <= A <= b
         """
-        try:
-            if (time_1[0] <= time_2[0] <= time_1[1]) or (time_2[0] <= time_1[0] <= time_2[1]):
-                return True
-        except TypeError:
-            print("fudge - type error in overlapping")
-
-        return False
+        return (time_1[0] <= time_2[0] <= time_1[1]) or (time_2[0] <= time_1[0] <= time_2[1])
 
     def __create_wait_node(self, best_node, con_time):
         """
@@ -169,19 +177,18 @@ class ConstraintAstar:
         """
         curr_pos = best_node.current_position
         temp_best = SingleAgentNode(curr_pos, best_node.prev_node, best_node.g_val, self.tu_problem, curr_pos,
-                                    best_node.conflicts_created)
+                                    best_node.confs_created)
         delta = best_node.g_val[1] - best_node.g_val[0]
         g_val = (best_node.g_val[0] + 1, best_node.g_val[0] + 1 + delta)
-        prev_node = SingleAgentNode(curr_pos, temp_best, g_val, self.tu_problem, curr_pos, best_node.conflicts_created)
+        prev_node = SingleAgentNode(curr_pos, temp_best, g_val, self.tu_problem, curr_pos, best_node.confs_created)
         for g in range(prev_node.g_val[0]+1, con_time-1):
             g_val = g, g + delta
-            curr_node = SingleAgentNode(curr_pos, prev_node, g_val, self.tu_problem, curr_pos, best_node.conflicts_created)
+            curr_node = SingleAgentNode(curr_pos, prev_node, g_val, self.tu_problem, curr_pos, best_node.confs_created)
             prev_node = curr_node
 
         best_node.prev_node = prev_node
         best_node.g_val = g_val[0] + 1, g_val[1] + 1
         best_node.f_val = best_node.g_val
-        return False
 
 
 class SingleAgentNode:
@@ -189,13 +196,13 @@ class SingleAgentNode:
     The class that represents the nodes being created during the search for a single agent.
     """
 
-    def __init__(self, current_position, prev_node, g, grid_map, goal, conflicts_created):
+    def __init__(self, current_position, prev_node, g, grid_map, goal, confs_created):
         self.current_position = current_position
         self.prev_node = prev_node
         self.h_val = grid_map.calc_heuristic(current_position, goal)
         self.g_val = g  # The time to reach the node.
         self.f_val = self.g_val[0] + self.h_val, self.g_val[1] + self.h_val  # heuristic val + cost of predecessor
-        self.conflicts_created = conflicts_created
+        self.confs_created = confs_created
 
     """
     The function that creates all the possible vertices an agent can go to from the current node. For example,
@@ -203,15 +210,15 @@ class SingleAgentNode:
     at times t0+1, t0+2 or t0+3.
     """
 
-    def expand(self, agent, constraints, conflict_table, search_map, pos_cons):
+    def expand(self, agent, constraints, conflict_table, search_map, pos_cons, suboptimal):
         neighbors = []
 
         for edge_tuple in search_map.edges_and_weights[self.current_position]:
             successor_time = (self.g_val[0] + edge_tuple[1][0], self.g_val[1] + edge_tuple[1][1])
             vertex = edge_tuple[VERTEX_ID]
-            if self.legal_move(agent, vertex, successor_time, constraints, pos_cons):
+            if self.legal_move(agent, vertex, successor_time, constraints, pos_cons, suboptimal):
                 if len(conflict_table) > 0:
-                    confs_created = self.conflicts_created
+                    confs_created = self.confs_created
                     confs_created = self.check_if_conflicts(agent, conflict_table, confs_created, successor_time,
                                                             vertex)
                     successor = (vertex, successor_time, confs_created)
@@ -220,10 +227,10 @@ class SingleAgentNode:
 
                 neighbors.append(successor)
 
-        still_time = (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST) # Add the option of not moving.
-        if self.legal_move(agent, self.current_position, still_time, constraints, pos_cons):
+        still_time = (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST)  # Add the option of not moving.
+        if self.legal_move(agent, self.current_position, still_time, constraints, pos_cons, suboptimal):
             if len(conflict_table) > 0:
-                confs_created = self.conflicts_created
+                confs_created = self.confs_created
                 confs_created = self.check_if_conflicts(agent, conflict_table, confs_created,
                                                         (still_time[1], still_time[1]), self.current_position)
                 stay_still = (self.current_position, still_time, confs_created)
@@ -259,24 +266,9 @@ class SingleAgentNode:
         Converts a node object into a tuple.
         (vertex, time)
         """
-        return self.current_position, self.g_val, self.conflicts_created
+        return self.current_position, self.g_val, self.confs_created
 
-    @staticmethod
-    def is_single_tick_move_illegal(agent, edge, vertex, succ_time, constraints):
-        if succ_time[0] == succ_time[1]:
-            return (agent, edge, succ_time[0]) in constraints or (agent, vertex, succ_time[0]) in constraints
-
-    def is_movement_in_constraints(self, agent, vertex, edge, constraints, succ_time):
-        for con in constraints:
-            if agent == con[0] and \
-                    ((vertex == con[1] and ConstraintAstar.overlapping((con[2], con[2]), succ_time))
-                     or
-                     (edge == con[1] and ConstraintAstar.overlapping((con[2], con[2]), (self.g_val[0], succ_time[1])))):
-                return True
-
-        return False
-
-    def legal_move(self, agent, vertex, succ_time, constraints, pos_cons):  # ToDo: reduce this bottleneck
+    def legal_move(self, agent, vertex, succ_time, constraints, pos_cons, suboptimal):  # ToDo: reduce this bottleneck
 
         """
         A function that checks if a certain movement is legal. First we check for vertex constraints and then edge
@@ -288,17 +280,30 @@ class SingleAgentNode:
         Returns false if move is illegal. Returns true if move is fine.
         """
         edge = min(self.current_position, vertex), max(self.current_position, vertex)
-        edge_occupation = self.calc_edge_time(succ_time)
+        edge_time = self.calc_edge_time(succ_time)
+        if suboptimal:
+            if edge in constraints:
+                for tick in constraints[edge]:
+                    if (tick[0] <= edge_time[0] <= tick[1]) or (edge_time[0] <= tick[0] <= edge_time[1]):
+                        return False
+            if vertex in constraints:
+                for tick in constraints[vertex]:
+                    if (tick[0] <= succ_time[0] <= tick[1]) or (succ_time[0] <= tick[0] <= succ_time[1]):
+                        return False
+            return True
         if pos_cons:  # Only check positive constraints if it exists
             for tick in range(succ_time[0], succ_time[1]+1):
                 if (agent, vertex, tick) not in pos_cons:
                     return False
-        for con in constraints:
-            if agent == con[0] and \
-                    ((vertex == con[1] and ConstraintAstar.overlapping((con[2]), succ_time))
-                     or
-                     (edge == con[1] and ConstraintAstar.overlapping(con[2], edge_occupation))):
-                return False
+
+        if edge in constraints:
+            for con in constraints[edge]:
+                if con[0] == agent and ((con[1][0] <= edge_time[0] <= con[1][1]) or (edge_time[0] <= con[1][1] <= edge_time[1])):
+                    return False
+        if vertex in constraints:
+            for con in constraints[vertex]:
+                if con[0] == agent and ((con[1][0] <= succ_time[0] <= con[1][1]) or (succ_time[0] <= con[1][1] <= succ_time[1])):
+                    return False
         return True
 
     def calc_edge_time(self, succ_time):
