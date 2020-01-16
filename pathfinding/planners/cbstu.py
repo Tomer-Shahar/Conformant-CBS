@@ -102,8 +102,7 @@ class CBSTUPlanner:
                 print(f'Number of CT nodes in open: {len(open_nodes.internal_heap)}')
                 return self.create_solution(best_node, len(closed_nodes), soc)
 
-            print(f'Conflicting agents: {best_node.conflicting_agents} at location {next(iter(new_constraints[0]))[1]}'
-                  f' and time {next(iter(new_constraints[0]))[2]} ')
+            #print(f'Conflicting agents: {best_node.conflicting_agents} at location {next(iter(new_constraints[0]))[1]} and time {next(iter(new_constraints[0]))[2]} ')
             for new_con_set in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
                 new_node = ConstraintNode(new_constraints=new_con_set, parent=best_node)
                 if frozenset(new_node.constraints) in closed_nodes:
@@ -156,7 +155,8 @@ class CBSTUPlanner:
         return self.root
 
     def validate_solution(self, node):
-        """Given a solution, this function will validate it.
+        """
+        Given a solution, this function will validate it.
         i.e checking if any conflicts arise. If there are, returns two constraints: For a conflict (a1,a2,v1,v2,t1,t2),
         meaning agents a1 and a2 cannot both be at vertex v1 or v2 or the edge (v1,v2) between t1 and t2, the function
         will return ((a1,v1,v2,t1,t2), (a2,v1,v2,t1,t2))
@@ -173,7 +173,7 @@ class CBSTUPlanner:
             node.add_conflicting_agents(new_constraints[0], new_constraints[1])
             return new_constraints
 
-        # Check for the trickier edge conflicts
+        # Check for edge conflicts
         new_edge_swap_constraints = self.check_edge_swap_conflict(node.solution, node)
         if new_edge_swap_constraints:
             node.add_conflicting_agents(new_edge_swap_constraints[0], new_edge_swap_constraints[1])
