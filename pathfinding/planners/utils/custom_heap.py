@@ -17,7 +17,9 @@ class OpenListHeap(object):
             raise OutOfTimeError('Ran out of memory in the heap :(')
 
     def pop(self):
-        return heapq.heappop(self.internal_heap)[4]
-
+        try:
+            return heapq.heappop(self.internal_heap)[4]
+        except IndexError:
+            print('Thunder Child')
     def heapify(self):
         heapq.heapify(self.internal_heap)

@@ -5,12 +5,12 @@ agent, the total cost range of the solution and the length (i.e the max length b
 import math
 import json
 import os
-from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
+from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertaintyPlan
 
 STAY_STILL_COST = 1
 
 
-class TimeUncertainSolution:
+class TimeUncertaintySolution:
 
     def __init__(self):
         self.cost = math.inf, math.inf
@@ -24,7 +24,7 @@ class TimeUncertainSolution:
 
     @staticmethod
     def empty_solution():
-        empty_sol = TimeUncertainSolution()
+        empty_sol = TimeUncertaintySolution()
         empty_sol.nodes_expanded = -1
         empty_sol.paths = None
         return empty_sol
@@ -128,7 +128,7 @@ class TimeUncertainSolution:
                                         path_max_time + time_step * STAY_STILL_COST), last_move[1])
                     new_path.append(stationary_move)
                 # plan.cost = new_path[-1][0]
-            self.paths[agent] = TimeUncertainPlan(agent, new_path, plan.cost)
+            self.paths[agent] = TimeUncertaintyPlan(agent, new_path, plan.cost)
 
         self.length = len(next(iter(self.paths.values())).path)
 
@@ -168,12 +168,12 @@ class TimeUncertainSolution:
 
         with open(path, 'r') as sol_file:
             json_sol = json.load(sol_file)
-            tu_sol = TimeUncertainSolution()
+            tu_sol = TimeUncertaintySolution()
             for agent, path in json_sol['paths'].items():
                 tuple_path = []
                 for presence in path:
                     tuple_path.append((tuple(presence[0]), tuple(presence[1])))
-                tu_plan = TimeUncertainPlan(int(agent), tuple_path, math.inf)
+                tu_plan = TimeUncertaintyPlan(int(agent), tuple_path, math.inf)
                 tu_sol.paths[int(agent)] = tu_plan
             for con in json_sol['constraints']:
                 if type(con[1][0]) == int:  # it's a vertex constraint

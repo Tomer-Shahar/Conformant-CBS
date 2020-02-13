@@ -28,7 +28,7 @@ class ODAStar:
         self.objective = 'min_best_case'
         self.max_nodes = 115000 + 340000
 
-    def create_solution(self, time_limit=5, objective='min_best_case', sic=True, min_time_policy=True):
+    def find_solution(self, time_limit=5, objective='min_best_case', sic=True, min_time_policy=True):
         """
         Computes a solution for the given conformant problem. Returns a tuple
         solution, cost
@@ -62,7 +62,6 @@ class ODAStar:
 
             for neighbor in successors:
                 neighbor_tuple = neighbor.create_tuple()
-
                 if neighbor_tuple in self.closed_set:  # Has been expanded.
                     continue
                 if neighbor_tuple not in self.open_dict:  # Reached for the first time.

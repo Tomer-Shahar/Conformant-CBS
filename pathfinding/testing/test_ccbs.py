@@ -35,12 +35,12 @@ def run_map(problem, sic_heuristic=False, print_sol=True, time_limit=180, use_cb
         else:
             print("Not using Conflict Avoidance Table")
         ccbs_planner = CBSTUPlanner(problem)
-        solution = ccbs_planner.find_solution(soc=sic_heuristic, time_limit=time_limit, use_cat=use_cat)
+        solution = ccbs_planner.find_solution(soc=sic_heuristic, time_lim=time_limit, use_cat=use_cat)
         if print_sol:
             print_solution(solution)
     else:
         oda_solver = ODAStar(problem)
-        solution = oda_solver.create_solution(time_limit=time_limit)
+        solution = oda_solver.find_solution(time_limit=time_limit)
 
 def run_test_map():
     print("----------- Small custom map ---------------")
@@ -58,14 +58,14 @@ def run_test_map():
 
 map_file = '..\\..\\maps\\ost003d.map'
 circular_map = TimeUncertaintyProblem(map_file)
-random.seed(1000)
+random.seed(23213)
 circular_map.generate_problem_instance(uncertainty=0)
-circular_map.generate_agents(5)
+circular_map.generate_agents(15)
 mbc = False
 circular_map.fill_heuristic_table(min_best_case=mbc)
 cbstu_planner = CBSTUPlanner(circular_map)
 print('start CBS')
-profile.run('sol = cbstu_planner.find_solution(min_best_case=mbc, time_limit=600, use_cat=True)', sort=1)
+profile.run('sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=60, use_cat=True)', sort=1)
 
 print('Done')
 

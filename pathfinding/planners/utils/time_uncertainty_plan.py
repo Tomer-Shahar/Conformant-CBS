@@ -5,7 +5,7 @@ Class representing a conformant plan.
 import math
 
 
-class TimeUncertainPlan:
+class TimeUncertaintyPlan:
 
     def __init__(self, agent_id, path, cost):
         """

@@ -112,7 +112,7 @@ class Experiments:
 
             try:
                 start_time = time.time()
-                ccbs_sol = ccbs_planner.find_solution(min_best_case=True, time_limit=self.time_limit, soc=True,
+                ccbs_sol = ccbs_planner.find_solution(min_best_case=True, time_lim=self.time_limit, soc=True,
                                                       use_cat=use_cat)
                 if ccbs_sol:
                     ccbs_time = time.time() - start_time
@@ -128,8 +128,8 @@ class Experiments:
 
             try:
                 start_time = time.time()
-                oda_star_queue_sol = oda_planner.create_solution(1, objective='min_best_case', sic=True,
-                                                                 min_time_policy=True)  # ToDO: CHANGE BACK TIME LIMIT
+                oda_star_queue_sol = oda_planner.find_solution(1, objective='min_best_case', sic=True,
+                                                               min_time_policy=True)  # ToDO: CHANGE BACK TIME LIMIT
                 if oda_star_queue_sol:
                     oda_queue_time = time.time() - start_time
                     oda_queue_success += 1
@@ -362,8 +362,8 @@ class Experiments:
             sim = MAPFSimulator(tu_problem, sensing_prob, edge_dist=dist)
 
             try:
-                loaded_sol = TimeUncertainSolution.load(self.agents_num, self.uncertainty, map_type, agent_seed
-                                                        , map_seed, self.min_best_case, sol_folder)
+                loaded_sol = TimeUncertaintySolution.load(self.agents_num, self.uncertainty, map_type, agent_seed
+                                                          , map_seed, self.min_best_case, sol_folder)
                 if loaded_sol and loaded_sol.time_to_solve != -1 and loaded_sol.sic == (-1, -1):
                     loaded_sol = None
 
@@ -399,7 +399,7 @@ class Experiments:
                                   sol_folder)
 
             except OutOfTimeError:
-                empty_sol = TimeUncertainSolution()
+                empty_sol = TimeUncertaintySolution()
                 empty_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, self.min_best_case,
                                sol_folder)
                 octu_cost = -1, -1

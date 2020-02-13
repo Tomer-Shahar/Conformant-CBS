@@ -3,7 +3,7 @@ A simple implementation of a prioritized planner that can deal with time uncerta
 """
 
 
-from pathfinding.planners.utils.time_uncertainty_solution import TimeUncertainSolution
+from pathfinding.planners.utils.time_uncertainty_solution import TimeUncertaintySolution
 from pathfinding.planners.constraint_A_star import *
 from collections import defaultdict
 
@@ -26,7 +26,7 @@ class PrioritizedPlanner:
             self.curr_cons = existing_cons
         self.start_time = time.time()
         self.curr_time = curr_time
-        final_solution = TimeUncertainSolution()
+        final_solution = TimeUncertaintySolution()
         for agent, start in self.tu_problem.start_positions.items():
             time_passed = time.time() - self.start_time
             if time_passed > time_limit:
@@ -39,7 +39,7 @@ class PrioritizedPlanner:
             if to_print:
                 print(f'Time to compute agent {agent}\'s path: {time.time() - begin_time}')
             if not agent_path.path:
-                return TimeUncertainSolution.empty_solution()
+                return TimeUncertaintySolution.empty_solution()
             final_solution.paths[agent] = agent_path
             final_solution.add_stationary_moves()
             final_solution.create_movement_tuples()

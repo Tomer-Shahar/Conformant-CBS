@@ -130,6 +130,7 @@ class OnlineCBSTU:
         """
         Lets agents replan after sensing, but without communication. Each agent plans for itself while taking into
         account possible constraints.
+        :param pos_cons: Positive constraints. These must be fulfilled by agents when replanning.
         :param curr_time: current time
         :param graphs: the path that each agent can plan in.
         :param constraints: A set of constraints for all agents
@@ -139,7 +140,12 @@ class OnlineCBSTU:
 
         if self.current_plan.cost[1] - self.current_plan.cost[0] > 0:
             for agent, loc in sensing_agents.items():
-                agent_constraints = self.offline_cbstu_planner.final_constraints | constraints[agent]
+                agent_constraints = copy.deepcopy(self.offline_cbstu_planner.final_constraints)
+                for con_agent, cons in constraints.items():
+                    for con in cons:
+                        if con[1] not in agent_constraints:
+                            agent_constraints[con[1]] = []
+                        agent_constraints[con[1]].append((con_agent, con[2]))
                 planner = ConstraintAstar(graphs[agent])
                 new_plan = planner.compute_agent_path(agent_constraints, agent, loc,
                                                       graphs[agent].goal_positions[agent],

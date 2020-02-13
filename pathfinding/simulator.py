@@ -34,7 +34,7 @@ class MAPFSimulator:
             self.online_planner = OnlinePessimisticCBS(tu_problem)
         else:
             self.online_planner = OnlineCBSTU(tu_problem, full_sense)  # The online solver
-        self.final_solution = TimeUncertainSolution()  # Maintain the final path taken by agents
+        self.final_solution = TimeUncertaintySolution()  # Maintain the final path taken by agents
         self.arrival_times = {0: []}  # Maintain a dictionary of when agents will arrive to their next destination
         self.fixed_weights = {}  # The actual traversal times
         self.sim_time = 0
@@ -42,9 +42,9 @@ class MAPFSimulator:
         self.generate_real_weights(distribution=edge_dist)
 
         for agent in self.tu_problem.start_positions:
-            self.final_solution.paths[agent] = TimeUncertainPlan(agent_id=agent,
-                                                                 path=[((0, 0), self.tu_problem.start_positions[agent])]
-                                                                 , cost=(0, 0))
+            self.final_solution.paths[agent] = TimeUncertaintyPlan(agent_id=agent,
+                                                                   path=[((0, 0), self.tu_problem.start_positions[agent])]
+                                                                   , cost=(0, 0))
 
     def generate_real_weights(self, distribution='uniform'):
         """

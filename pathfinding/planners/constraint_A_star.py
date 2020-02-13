@@ -6,7 +6,7 @@ Currently a naive implementation of A*
 """
 
 from pathfinding.planners.utils.custom_heap import OpenListHeap
-from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertainPlan
+from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertaintyPlan
 import math
 import networkx
 import time
@@ -22,7 +22,7 @@ class ConstraintAstar:
         self.tu_problem = tu_problem
         self.open_list = OpenListHeap()
         self.open_dict = {}
-        self.closed_set = set()
+        self.closed_list = set()
         self.agent = -1
 
     """
@@ -39,7 +39,7 @@ class ConstraintAstar:
 
         self.open_list = OpenListHeap()
         self.open_dict = {}  # A dictionary mapping node tuple to the actual node. Used for faster access..
-        self.closed_set = set()
+        self.closed_list = set()
         self.agent = agent
         start_time = time.time()
         start_node = SingleAgentNode(start_pos, None, curr_time, self.tu_problem, goal_pos, confs_created=0)
@@ -47,11 +47,14 @@ class ConstraintAstar:
 
         while len(self.open_list.internal_heap) > 0:
             if time.time() - start_time > time_limit:
-                return TimeUncertainPlan(agent, None, math.inf)  # no solution
+                return TimeUncertaintyPlan(agent, None, math.inf)  # no solution
             best_node = self.open_list.pop()  # removes from open_list
 
             if best_node.current_position == goal_pos and \
                     self.__can_stay(agent, best_node, constraints, suboptimal):
+                if self.tu_problem.calc_heuristic(start_pos, goal_pos) > 0:
+                    ratio = len(self.closed_list) / self.tu_problem.calc_heuristic(start_pos, goal_pos)
+                    #print(f'Ratio: {ratio}')
                 return best_node.calc_path(agent)
 
             successors = best_node.expand(agent, constraints, conf_table, self.tu_problem, pos_cons, suboptimal)
@@ -59,34 +62,34 @@ class ConstraintAstar:
             self.__remove_node_from_open(best_node)
 
             for neighbor in successors:
-                if neighbor in self.closed_set:
+                if neighbor in self.closed_list:
                     continue
                 g_val = neighbor[1]
                 if neighbor not in self.open_dict:
                     neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.tu_problem, goal_pos,
                                                     neighbor[2])
                     self.__add_node_to_open(neighbor_node, min_best_case)
-                else:
+                else:  # We've already reached this node but haven't expanded it.
                     neighbor_node = self.open_dict[neighbor]
 
                     if min_best_case and g_val[0] >= neighbor_node.g_val[0]:
                         continue  # No need to update node. Continue iterating successors
                     elif not min_best_case and g_val[1] >= neighbor_node.g_val[1]:
                         continue  # No need to update node. Continue iterating successors
-                    # print("Found a faster path for node " + neighbor_node.current_position)
+                    print("****** Found a faster path for node *******" + neighbor_node.current_position)
                     self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.tu_problem)
-        return TimeUncertainPlan(agent, None, math.inf)  # no solution
+        return TimeUncertaintyPlan(agent, None, math.inf)  # no solution
 
     def __remove_node_from_open(self, node):
         node_tuple = node.create_tuple()
         self.open_dict.pop(node_tuple, None)
-        self.closed_set.add(node_tuple)
+        self.closed_list.add(node_tuple)
 
     def __add_node_to_open(self, node, min_best_case):
         if min_best_case:  # minimize the lower time bound
-            self.open_list.push(node, node.g_val[0] + node.h_val, node.confs_created, -node.g_val)
-        else:  # minimize the upper time bound
-            self.open_list.push(node, node.g_val[1] + node.h_val, node.confs_created, -node.g_val)
+            self.open_list.push(node, node.g_val[0] + node.h_val, node.confs_created, -node.g_val[0])
+        else:  # minimize the upper time bound ToDo: What is a better tie breaker? g or conflicts?
+            self.open_list.push(node, node.g_val[1] + node.h_val, node.confs_created, -node.g_val[1])
         key_tuple = node.create_tuple()
         self.open_dict[key_tuple] = node
 
@@ -125,7 +128,8 @@ class ConstraintAstar:
             return True
         if best_node.current_position in constraints:
             for con in constraints[best_node.current_position]:
-                if con[0] == agent and best_node.g_val[0] <= con[2][1]:
+                if con[0] == agent and best_node.g_val[0] <= con[1][1]:
+                    #print('found goal constraint')
                     return False  # A constraint was found
 
         return True
@@ -198,6 +202,7 @@ class SingleAgentNode:
         self.h_val = grid_map.calc_heuristic(current_position, goal)
         self.g_val = g  # The time to reach the node.
         self.confs_created = confs_created
+        self.f_val = self.g_val[0] + self.h_val, self.g_val[1] + self.h_val
 
     """
     The function that creates all the possible vertices an agent can go to from the current node. For example,
@@ -207,6 +212,16 @@ class SingleAgentNode:
 
     def expand(self, agent, constraints, conflict_table, search_map, pos_cons, suboptimal):
         neighbors = []
+
+        still_time = (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST)  # Add the option of not moving.
+        if self.legal_move(agent, self.current_position, still_time, constraints, pos_cons, suboptimal):
+            if len(conflict_table) > 0:
+                confs_created = self.confs_created + self.count_conflicts(agent, conflict_table, (still_time[1], still_time[1]),
+                                                                          (self.current_position, self.current_position))
+                stay_still = (self.current_position, still_time, confs_created)
+            else:
+                stay_still = (self.current_position, still_time, 0)
+            neighbors.append(stay_still)
 
         for edge_tuple in search_map.edges_and_weights[self.current_position]:
             successor_time = (self.g_val[0] + edge_tuple[1][0], self.g_val[1] + edge_tuple[1][1])
@@ -220,16 +235,6 @@ class SingleAgentNode:
                     successor = (vertex, successor_time, 0)
 
                 neighbors.append(successor)
-
-        still_time = (self.g_val[0] + STAY_STILL_COST, self.g_val[1] + STAY_STILL_COST)  # Add the option of not moving.
-        if self.legal_move(agent, self.current_position, still_time, constraints, pos_cons, suboptimal):
-            if len(conflict_table) > 0:
-                confs_created = self.confs_created + self.count_conflicts(agent, conflict_table, (still_time[1], still_time[1]),
-                                                                          (self.current_position, self.current_position))
-                stay_still = (self.current_position, still_time, confs_created)
-            else:
-                stay_still = (self.current_position, still_time, 0)
-            neighbors.append(stay_still)
 
         return neighbors
 
@@ -268,7 +273,7 @@ class SingleAgentNode:
             move = (curr_node.g_val, curr_node.current_position)
             path.insert(0, move)
             curr_node = curr_node.prev_node
-        return TimeUncertainPlan(agent, path, self.g_val)
+        return TimeUncertaintyPlan(agent, path, self.g_val)
 
     def create_tuple(self):
         """
