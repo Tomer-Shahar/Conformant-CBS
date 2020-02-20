@@ -31,6 +31,7 @@ The goal is to find an optimal solution that guarantees that no two agents will 
 Written by: Tomer Shahar, AI search lab, department of Software & Information Systems Engineering.
 -- August 2018
 """
+import math
 import time
 
 from pathfinding.planners.constraint_A_star import ConstraintAstar as Cas
@@ -66,7 +67,7 @@ class CBSTUPlanner:
         self.use_cat = True
 
     def find_solution(self, min_best_case=False, time_lim=60, soc=True, use_cat=True, existing_cons=None,
-                      curr_time=(0, 0)):
+                      curr_time=(0, 0), use_pc=True):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -78,39 +79,35 @@ class CBSTUPlanner:
         paths. Otherwise the cost is the longest path in the solution.
         time_limit - Unsurprisingly, the maximum time for this function to run (in seconds)
         """
-        self.start_time = time.time()
-        self.curr_time = curr_time
-        self.min_best_case = min_best_case
-        self.soc = soc
-        self.use_cat = use_cat
-        self.root = self.create_root(use_cat, soc, existing_cons)
-        self.__insert_open_node(self.root)  # initialize the list with root
-
-        if not self.root.sol:
-            return None
-
+        self.__initialize_class_variables(curr_time, min_best_case, soc, use_cat)
+        if not self.create_root(use_cat, soc, existing_cons):
+            return TimeUncertaintySolution.empty_solution()
+        count = 0
         while self.open_nodes:
+            count += 1
             if time.time() - self.start_time > time_lim:
-                print(f'Number of CT nodes expanded: {len(self.closed_nodes)}')
-                print(f'Number of CT nodes in open: {len(self.open_nodes.internal_heap)}')
                 raise OutOfTimeError('Ran out of time :-(')
 
             best_node = self.open_nodes.pop()
             self.__insert_into_closed_list(best_node)
             if best_node.conflicts['count'] == 0:  # Meaning that there are no conflicts.
+                print(f'Number of pops: {count}')
                 return self.create_solution(best_node)
-
-            new_constraints, is_cardinal = self.find_cardinal_conflict(best_node, time_lim)
-
-            if not is_cardinal and self.find_bypass(best_node, new_constraints, time_lim):
+            new_constraints, c1, c2, is_cardinal = self.find_best_conflict(best_node, time_lim, use_pc)
+            if not is_cardinal and self.can_bypass(best_node, new_constraints, c1, c2):
                 continue
-            for new_con_set in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
-                new_cn = self.__generate_constraint_node(new_con_set, best_node, time_lim)
-                if new_cn:  # If a solution wasn't found, it'll be null.
-                    self.__insert_open_node(new_cn)
-
+            if use_pc:
+                self.__insert_open_node(c1)
+                self.__insert_open_node(c2)
         print("Empty open list - No Solution")
         return TimeUncertaintySolution.empty_solution()
+
+    def __initialize_class_variables(self, curr_time, min_best_case, soc, use_cat):
+        self.start_time = time.time()
+        self.curr_time = curr_time
+        self.min_best_case = min_best_case
+        self.soc = soc
+        self.use_cat = use_cat
 
     def create_solution(self, best_node):
         """
@@ -120,13 +117,14 @@ class CBSTUPlanner:
         """
         # print(f'Number of CT nodes expanded: {len(self.closed_nodes)}')
         # print(f'Number of CT nodes in open: {len(self.open_nodes.internal_heap)}')
-        best_node.solution.time_to_solve = time.time() - self.start_time
-        best_node.solution.compute_solution_cost(self.soc)
-        best_node.solution.nodes_expanded = len(self.closed_nodes)
+        best_node.sol.time_to_solve = time.time() - self.start_time
+        best_node.sol.compute_solution_cost(self.soc)
+        best_node.sol.nodes_expanded = len(self.closed_nodes)
         self.final_constraints = best_node.constraints
-        best_node.solution.constraints = set(best_node.constraints)
-        best_node.solution.sic = self.root.solution.cost
-        return best_node.solution
+        best_node.sol.constraints = {(conf[0], node, conf[1]) for node, confs in best_node.constraints.items() for conf
+                                     in confs}
+        best_node.sol.sic = self.root.sol.cost
+        return best_node.sol
 
     def create_root(self, use_cat=False, sum_of_costs=True, existing_cons=None):
         self.root = Cn(use_cat=use_cat)
@@ -137,18 +135,23 @@ class CBSTUPlanner:
         self.root.sol.compute_solution_cost(sum_of_costs)
         if existing_cons:
             self.root.constraints = Cn.append_constraints(self.root.constraints, existing_cons)
+        self.__insert_open_node(self.root)  # initialize the list with root
         return self.root
 
-    def find_cardinal_conflict(self, node, time_lim):
+    def find_best_conflict(self, node, time_lim, use_pc):
         """
         Tries to find cardinal, semi-cardinal or non-cardinal conflicts in the given node, in that order of priority.
         If the conflict found is cardinal, the function will return a tuple of <constraint, True> otherwise it will
         return <constraint, False> in order to assess later on if it's cardinal or not.
+        :param use_pc: Whether to use prioritizing conflicts or not.
         :param time_lim: The time limit to pass over. This function can be quite long
         :param node: The node who we're searching a solution for.
         :return: A tuple of the constraint and a boolean indicating if it's cardinal or not (for the bypass)
         """
-        constraint = None
+        if not use_pc:
+            self.generate_children_nodes(node, time_lim)
+            return None, None, None, True
+        cons_and_children, semi_cardinals, non_cardinals = None, [], []
         start = time.time()
         for loc, conflicts in node.conflicts.items():
             if loc == 'count':
@@ -156,15 +159,22 @@ class CBSTUPlanner:
             if time.time() - start > time_lim:
                 raise OutOfTimeError('Ran out of time when searching for cardinal conflicts')
             for conf in conflicts:
-                constraints_to_check, conf_type = self.get_conflict_type(conf + (loc,), node, time_lim)
+                new_constraint, c1, c2, conf_type = self.get_conflict_type(conf + (loc,), node, time_lim)
                 if conf_type == 'cardinal':
-                    return constraints_to_check, True
-                elif conf_type == 'semi_cardinal':
-                    constraint = constraints_to_check, False
-                elif constraint is None:  # Only update a non-cardinal conflict if we haven't found even a semi one
-                    constraint = constraints_to_check, False
+                    return new_constraint, c1, c2, True
+                elif conf_type == 'semi-cardinal':
+                    semi_cardinals.append((new_constraint, c1, c2, False))
+                elif cons_and_children is None:  # Only update a non-cardinal conf if we haven't found even a semi one
+                    non_cardinals.append((new_constraint, c1, c2, False))
 
-        return constraint
+        return semi_cardinals[0] if len(semi_cardinals) > 0 else non_cardinals[0]
+
+    def generate_children_nodes(self, node, time_lim):
+        new_constraints = self.find_single_conflict(node)
+        for new_conf in new_constraints:
+            c = self.generate_constraint_node(new_conf, node, time_lim)
+            if c.sol.cost[0] < math.inf:
+                self.__insert_open_node(c)
 
     def get_conflict_type(self, conflict, node, time_lim):
         """
@@ -174,24 +184,25 @@ class CBSTUPlanner:
         :param node: The node whose children we are generating
         :return: a tuple <constraints, conflict type>
         """
-        if type(conflict[4][0]) == int:
+        if type(conflict[4][0]) == int:  # Vertex constraint
             constraints = self.extract_vertex_constraints(*conflict)
-        else:
-            constraints = self.extract_edge_constraint(*conflict)
-        c1 = self.__generate_constraint_node(next(iter(constraints[0])), node, time_lim)  # ToDo: Make sure this works + fill new conflicts!!
-        c2 = self.__generate_constraint_node(next(iter(constraints[1])), node, time_lim)
-        if self.min_best_case:
-            node_cost, c1_cost, c2_cost = node.solution.cost[0], c1.sol.cost[0], c2.sol.cost[0]
-        else:
-            node_cost, c1_cost, c2_cost = node.solution.cost[1], c1.sol.cost[1], c2.sol.cost[1]
-        if node_cost + 1 == c1_cost == c2_cost:
-            return constraints, 'cardinal'
-        elif c1_cost + c2_cost == 2 * node_cost + 1:
-            return constraints, 'semi-cardinal'
-        else:
-            return constraints, 'non-cardinal'
+        else:  # Edge constraint
+            constraints = self.extract_edge_constraints(*conflict)
+        c1 = self.generate_constraint_node(constraints[0], node, time_lim)
+        c2 = self.generate_constraint_node(constraints[1], node, time_lim)
 
-    def find_conflict(self, node):
+        if self.min_best_case:
+            node_cost, c1_cost, c2_cost = node.sol.cost[0], c1.sol.cost[0], c2.sol.cost[0]
+        else:
+            node_cost, c1_cost, c2_cost = node.sol.cost[1], c1.sol.cost[1], c2.sol.cost[1]
+        if node_cost < c1_cost and node_cost < c2_cost:
+            return constraints, c1, c2, 'cardinal'
+        elif (c1_cost > node_cost and c2_cost == node_cost) or (c2_cost > node_cost and c1_cost == node_cost):
+            return constraints, c1, c2, 'semi-cardinal'
+        else:
+            return constraints, c1, c2, 'non-cardinal'
+
+    def find_single_conflict(self, node):
         """
         Given a solution, this function will validate it.
         i.e checking if any conflicts arise. If there are, returns two constraints: For a conflict (a1,a2,v1,v2,t1,t2),
@@ -202,21 +213,27 @@ class CBSTUPlanner:
         the conflict found is cardinal or not (True for cardinal, False otherwise)
         """
         # node.solution.add_stationary_moves()  # inserts missing time steps
-        node.solution.create_movement_tuples()
-        constraints = self.__check_previously_conflicting_agents(node.solution, node.conflicting_agents)
+        node.sol.create_movement_tuples()
+        constraints = self.__check_previously_conflicting_agents(node.sol, node.conflicting_agents)
         if constraints:
             return constraints
 
-        new_vertex_constraints = node.__find_all_vertex_conflicts()
-        if new_vertex_constraints:
-            node.add_conflicting_agents(new_vertex_constraints[0], new_vertex_constraints[1])
-            return new_vertex_constraints
+        new_vertex_constraints = node.find_all_vertex_conflicts()
+        if new_vertex_constraints['count'] > 0:
+            for vertex, conflicts in new_vertex_constraints.items():
+                if vertex == 'count': continue
+                for conflict in conflicts:
+                    node.add_conflicting_agents(conflict[0], conflict[1])
+                    return self.extract_vertex_constraints(*conflict, vertex)
 
         # Check for edge conflicts
-        new_edge_swap_constraints = node.__find_all_edge_conflicts()
-        if new_edge_swap_constraints:
-            node.add_conflicting_agents(new_edge_swap_constraints[0], new_edge_swap_constraints[1])
-            return new_edge_swap_constraints
+        new_edge_swap_constraints = node.find_all_edge_conflicts()
+        if new_edge_swap_constraints['count'] > 0:
+            for edge, conflicts in new_edge_swap_constraints.items():
+                if edge == 'count': continue
+                for conflict in conflicts:
+                    node.add_conflicting_agents(conflict[0], conflict[1])
+                    return self.extract_edge_constraints(*conflict, edge)
 
         return None
 
@@ -231,7 +248,7 @@ class CBSTUPlanner:
         """
         for occupancy in visited_nodes[move_i[1]]:  # Iterate over the times agents have been at this node
             if occupancy[0] != agent_i and Cas.overlapping(interval_i, occupancy[1]):  # There is a conflict.
-                return self.extract_vertex_constraints(interval_i, occupancy[1], move_i[1], agent_i, occupancy[0])
+                return self.extract_vertex_constraints(agent_i, occupancy[0], interval_i, occupancy[1], move_i[1])
         return None
 
     def extract_vertex_constraints(self, agent_i, agent_j, interval_i, interval_j, vertex):
@@ -247,7 +264,7 @@ class CBSTUPlanner:
         t = self.__pick_times_to_constrain(interval_i, interval_j)
         return {(agent_i, vertex, t)}, {(agent_j, vertex, t)}
 
-    def extract_edge_constraint(self, agent_i, agent_j, interval_i, interval_j, conflict_edge):
+    def extract_edge_constraints(self, agent_i, agent_j, interval_i, interval_j, conflict_edge):
         """
         We know there's a conflict at some edge, and agent1 cannot BEGIN traversing it at time 1 and agent 2 cannot
         begin traversing it at time 2. Time 1 and time 2 must be computed through the given intervals and the time to
@@ -304,12 +321,17 @@ class CBSTUPlanner:
                 root.solution = None
                 return
         root.sol.add_stationary_moves()  # inserts missing time steps
-        root.find_all_conflicts()
+        root.conflicts = root.find_all_conflicts()
 
         if use_cat:
             for agent, conf_plan in root.sol.paths.items():
                 for move in conf_plan.path:
-                    root.conflict_table[(move[1])].add((agent, move[0]))
+                    root.conflict_table[(move[1])].append((agent, move[0]))
+
+            root.sol.create_movement_tuples()
+            for agent, path in root.sol.tuple_solution.items():
+                for move in path:
+                    root.conflict_table[move[1]].append((agent, move[0], move[2]))  # agent, time, direction
 
     @staticmethod
     def __get_best_node(open_list):
@@ -326,9 +348,9 @@ class CBSTUPlanner:
         or shortest time.
         """
         if self.min_best_case:
-            self.open_nodes.push(new_node, new_node.sol.cost[0], new_node.sol.cost[1], new_node.conflicts['count'])
+            self.open_nodes.push(new_node, new_node.sol.cost[0], new_node.conflicts['count'], new_node.sol.cost[1])
         else:
-            self.open_nodes.push(new_node, new_node.sol.cost[1], new_node.sol.cost[0], new_node.conflicts['count'])
+            self.open_nodes.push(new_node, new_node.sol.cost[1], new_node.conflicts['count'], new_node.sol.cost[0])
 
     def __insert_into_closed_list(self, new_node):
         """
@@ -399,21 +421,21 @@ class CBSTUPlanner:
                     for traversal in positions[edge]:
                         if traversal[0] != agent:
                             if traversal[2] == move[2] and Cn.strong_overlapping(occ_time, traversal[1]):
-                                return self.extract_edge_constraint(traversal[0], agent, traversal[1], occ_time, edge)
+                                return self.extract_edge_constraints(traversal[0], agent, traversal[1], occ_time, edge)
                             elif traversal[2] != move[2] and Cas.overlapping(occ_time, traversal[1]):
-                                return self.extract_edge_constraint(traversal[0], agent, traversal[1], occ_time, edge)
+                                return self.extract_edge_constraints(traversal[0], agent, traversal[1], occ_time, edge)
                 else:
                     # Agent begins to travel at move[0][0] and arrives at move[0][1]
                     positions[edge].add((agent, move[0], move[2]))
                     for traversal in positions[edge]:
                         if traversal[0] != agent and Cn.strong_overlapping(move[0], traversal[1]):
-                            return self.extract_edge_constraint(traversal[0], agent, traversal[1], move[0], edge)
+                            return self.extract_edge_constraints(traversal[0], agent, traversal[1], move[0], edge)
         return None
 
-    def __generate_constraint_node(self, new_cons, best_node, time_limit):
+    def generate_constraint_node(self, new_cons, best_node, time_limit):
         new_node = Cn(new_constraints=new_cons, parent=best_node)
         if frozenset((k, tuple(val)) for k, val in new_node.constraints.items()) in self.closed_nodes:
-            return None
+            return TimeUncertaintySolution.empty_solution()
         agent = next(iter(new_cons))[0]  # Ugly line to extract agent index.
         time_passed = time.time() - self.start_time
         new_plan = self.planner.compute_agent_path(
@@ -423,35 +445,33 @@ class CBSTUPlanner:
             new_node.conflict_table,
             self.min_best_case, time_limit=time_limit - time_passed,
             curr_time=self.curr_time)  # compute the path for a single agent.
-        if new_plan.path:
-            new_node.update_solution(new_plan, self.use_cat)
-            new_node.sol.compute_solution_cost(self.soc)  # compute the cost
-            new_node.find_all_conflicts()
-            return new_node
-        else:
-            return None
+        new_node.update_solution(new_plan, self.use_cat)
+        new_node.sol.compute_solution_cost(self.soc)  # compute the cost
+        new_node.update_conflicts(best_node.sol.paths[agent])
+        return new_node
 
-    def find_bypass(self, best_node, new_constraints, time_lim):
+    def can_bypass(self, best_node, new_constraints, c1, c2):
         """
         Performs the bypass maneuver of ICBS. We look at the two immediate children of the best_node, and if one of
         them offers a helpful bypass, we replace best_node's solution with that child's solution. There is no need to
         add a new node to the CT, just update the cost of best_node, insert it into open and continue.
         Note that best_node should be chosen again for expansion since it previously had the best cost.s
-        :param time_lim: Time limit
+        :param c1: First child, generated from the first new constraint
+        :param c2: Second child, generated from the second new constraint
         :param best_node: The current best node in open
         :param new_constraints: The new constraints found for the path of best_node
         :return: If a bypass was found, updates best_node and returns true. Otherwise False.
         """
+        children = [c1, c2]
+        for idx, new_con_set in enumerate(new_constraints):
+            child = children[idx]  # There are only 2 new constraints, we will insert each one into "open"
+            if ((self.min_best_case and best_node.sol.cost[0] == child.sol.cost[0]) or
+                (not self.min_best_case and best_node.sol.cost[1] == child.sol.cost[1])) and \
+                    child.conflicts['count'] < best_node.conflicts['count']:
+                agent = next(iter(new_con_set))[0]  # Ugly line to extract agent index.
+                best_node.sol.paths[agent] = child.sol.paths[agent]
+                best_node.conflicts['count'] = child.conflicts['count']
+                self.__insert_open_node(best_node)
+                return True
 
-        for new_con_set in new_constraints:  # There are only 2 new constraints, we will insert each one into "open"
-            child = self.__generate_constraint_node(new_con_set, best_node, time_lim)
-            if child:
-                if ((self.min_best_case and best_node.solution.cost[0] == child.sol.cost[0]) or
-                    (not self.min_best_case and best_node.solution.cost[1] == child.sol.cost[1])) and \
-                        child.conflicts['count'] < best_node.conflicts['count']:
-                    agent = next(iter(new_con_set))[0]  # Ugly line to extract agent index.
-                    best_node.sol.paths[agent] = child.sol.paths[agent]
-                    self.__insert_open_node(best_node)
-                    return True
-
-        return False  # No bypass found
+        return False  # No bypass found, just

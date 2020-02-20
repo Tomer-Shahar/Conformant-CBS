@@ -50,7 +50,7 @@ class TimeUncertaintySolution:
             min_cost = 0
             max_cost = 0
             for agent, plan in self.paths.items():
-                if plan.path is None:
+                if not plan.path:
                     return math.inf, math.inf
                 plan.compute_cost()
                 min_cost += plan.cost[0]
@@ -63,9 +63,11 @@ class TimeUncertaintySolution:
         """
         Returns the maximum between the minimum costs of the different paths in the solution.
         """
+
         for agent, path in self.paths.items():
             max_min_time = path.cost[0]
             break
+
         for agent, plan in self.paths.items():
             if plan.cost[0] > max_min_time:
                 max_min_time = plan.cost[0]
@@ -122,12 +124,15 @@ class TimeUncertaintySolution:
             last_move = plan.path[-1]
             path_min_time = last_move[0][0]
             path_max_time = last_move[0][1]
-            if path_min_time < max_min_time:  # The agent is gonna stay at the end at the same position.
-                for time_step in range(1, max_min_time - path_min_time + 1):
-                    stationary_move = ((path_min_time + time_step * STAY_STILL_COST,
-                                        path_max_time + time_step * STAY_STILL_COST), last_move[1])
-                    new_path.append(stationary_move)
-                # plan.cost = new_path[-1][0]
+            try:
+                if path_min_time < max_min_time:  # The agent is gonna stay at the end at the same position.
+                    for time_step in range(1, max_min_time - path_min_time + 1):
+                        stationary_move = ((path_min_time + time_step * STAY_STILL_COST,
+                                            path_max_time + time_step * STAY_STILL_COST), last_move[1])
+                        new_path.append(stationary_move)
+                    # plan.cost = new_path[-1][0]
+            except TypeError:
+                print('turn down for what')
             self.paths[agent] = TimeUncertaintyPlan(agent, new_path, plan.cost)
 
         self.length = len(next(iter(self.paths.values())).path)
@@ -152,8 +157,6 @@ class TimeUncertaintySolution:
     def load(agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, folder):
         """
         Loads a previously computed solution.
-        :param folder: The folder for solutions.
-        :return:
         """
         if min_best_case:
             objective = 'min best case'

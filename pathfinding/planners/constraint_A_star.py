@@ -47,7 +47,7 @@ class ConstraintAstar:
 
         while len(self.open_list.internal_heap) > 0:
             if time.time() - start_time > time_limit:
-                return TimeUncertaintyPlan(agent, None, math.inf)  # no solution
+                return TimeUncertaintyPlan.get_empty_plan(agent)  # no solution
             best_node = self.open_list.pop()  # removes from open_list
 
             if best_node.current_position == goal_pos and \
@@ -78,7 +78,7 @@ class ConstraintAstar:
                         continue  # No need to update node. Continue iterating successors
                     print("****** Found a faster path for node *******" + neighbor_node.current_position)
                     self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.tu_problem)
-        return TimeUncertaintyPlan(agent, None, math.inf)  # no solution
+        return TimeUncertaintyPlan.get_empty_plan(agent)  # no solution
 
     def __remove_node_from_open(self, node):
         node_tuple = node.create_tuple()

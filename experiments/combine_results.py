@@ -259,8 +259,8 @@ def create_sic_dict():
                 map_type = 'small_open_map'
             else:
                 map_type = 'circular_map'
-            tu_sol = TimeUncertainSolution.load(agent_num, uncertainty, map_type, agent_seed, map_seed, objective,
-                                                sol_folder)
+            tu_sol = TimeUncertaintySolution.load(agent_num, uncertainty, map_type, agent_seed, map_seed, objective,
+                                                  sol_folder)
             sic_dict[map_type][agent_num][uncertainty][agent_seed][file_arr[4]] = tu_sol.sic
 
     return sic_dict

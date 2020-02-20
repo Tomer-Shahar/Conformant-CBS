@@ -14,7 +14,7 @@ class TimeUncertaintyPlan:
         are tuples as well. For example ((1, 10), (4,5)) meaning between times 1 and 10 the agent might be at 4,5
         :param cost: The cost of the path. A tuple <min cost, max cost>
         """
-        self.agent_id = agent_id
+        self.agent = agent_id
         self.path = path
         self.cost = cost
 
@@ -37,3 +37,7 @@ class TimeUncertaintyPlan:
                 break
             if presence[1] == goal:
                 first_time_at_goal = presence
+
+    @staticmethod
+    def get_empty_plan(agent):
+        return TimeUncertaintyPlan(agent, [], (math.inf, math.inf))

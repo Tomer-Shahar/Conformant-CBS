@@ -1,7 +1,7 @@
 """
 Unit tests for Conformant-CBS
 """
-
+from pathfinding.planners.utils.constraint_node import ConstraintNode
 from pathfinding.planners.utils.tu_problem import TimeUncertaintyProblem
 from pathfinding.planners.cbstu import *
 from pathfinding.planners.constraint_A_star import *
@@ -238,6 +238,8 @@ class TestLowLevelSolver(unittest.TestCase):
 
         self.assertEqual(plan.cost, (con_time[0] + 1, con_time[1] + 1))
 
+    def test_solution_cost_monotony(self):
+        pass
 
 class TestTimeUncertaintySolution(unittest.TestCase):
 
@@ -361,6 +363,19 @@ class TestCcbsPlanner(unittest.TestCase):
 
         self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
 
+    def test_large_map_no_uncertainty(self):
+        map_file = '..\..\maps\\ost003d.map'
+        blank_problem = TimeUncertaintyProblem(map_file)
+        random.seed(1001)
+        blank_problem.generate_problem_instance(0)
+        blank_problem.generate_agents(20)
+        blank_problem.fill_heuristic_table(min_best_case=False)
+
+        cbstu_planner = CBSTUPlanner(blank_problem)
+        sol = cbstu_planner.find_solution(use_pc=True, time_lim=120)
+        self.assertNotEqual(sol.cost[0], math.inf)
+        print(sol.time_to_solve)
+
     def test_edge_swap_conflict_extraction_with_time_range(self):
         """
         Tests whether the extract edge conflict function works properly. Basically, two agents (1 and 2) are travelling
@@ -382,7 +397,7 @@ class TestCcbsPlanner(unittest.TestCase):
         agent_1_cons.add((agent_1, edge, (18, 18)))
         agent_2_cons.add((agent_2, edge, (18, 18)))
 
-        con_sets = self.CCBS_planner.extract_edge_constraint(agent_1, agent_2, interval_1, interval_2, edge)
+        con_sets = self.CCBS_planner.extract_edge_constraints(agent_1, agent_2, interval_1, interval_2, edge)
 
         self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
 
@@ -402,7 +417,7 @@ class TestCcbsPlanner(unittest.TestCase):
         agent_1_cons = {(agent_1, edge, (18, 18))}
         agent_2_cons = {(agent_2, edge, (18, 18))}
 
-        con_sets = self.CCBS_planner.extract_edge_constraint(agent_1, agent_2, interval_1, interval_2, edge)
+        con_sets = self.CCBS_planner.extract_edge_constraints(agent_1, agent_2, interval_1, interval_2, edge)
 
         self.assertTrue(con_sets[0] == agent_1_cons and con_sets[1] == agent_2_cons)
 
@@ -455,7 +470,7 @@ class TestCcbsPlanner(unittest.TestCase):
         complex_conf_prob.fill_heuristic_table()
         complex_conf_prob.width = 3
         complex_conf_prob.height = 3
-        #complex_conf_prob.print_map(is_grid=False)
+        # complex_conf_prob.print_map(is_grid=False)
         ccbs_planner = CBSTUPlanner(complex_conf_prob)
         solution = ccbs_planner.find_solution(min_best_case=True, time_lim=1000, soc=True)
         self.assertEqual(solution.cost, (13, 20))
@@ -475,20 +490,20 @@ class TestCcbsPlanner(unittest.TestCase):
         tu_problem.goal_positions[2] = (1, 1)
         tu_problem.width = 3
         tu_problem.height = 3
-        #tu_problem.print_map(is_grid=False)
+        # tu_problem.print_map(is_grid=False)
 
         cbstu = CBSTUPlanner(tu_problem)
         cn = ConstraintNode()
-        cn.solution.paths[1] = TimeUncertaintyPlan(1, [((0, 0), (0, 0)), ((3, 5), (0, 1)), ((4, 7), (1, 1)),
-                                                       ((5, 9), (2, 1))], (5, 9))
-        cn.solution.paths[2] = TimeUncertaintyPlan(2, [((0, 0), (0, 2)), ((1, 1), (0, 2)), ((2, 2), (0, 2)),
-                                                       ((3, 3), (0, 2)), ((4, 4), (0, 2)), ((5, 5), (0, 2)),
-                                                       ((6, 8), (0, 1)), ((7, 9), (0, 1)), ((8, 11), (1, 1))], (8, 11))
+        cn.sol.paths[1] = TimeUncertaintyPlan(1, [((0, 0), (0, 0)), ((3, 5), (0, 1)), ((4, 7), (1, 1)),
+                                                  ((5, 9), (2, 1))], (5, 9))
+        cn.sol.paths[2] = TimeUncertaintyPlan(2, [((0, 0), (0, 2)), ((1, 1), (0, 2)), ((2, 2), (0, 2)),
+                                                  ((3, 3), (0, 2)), ((4, 4), (0, 2)), ((5, 5), (0, 2)),
+                                                  ((6, 8), (0, 1)), ((7, 9), (0, 1)), ((8, 11), (1, 1))], (8, 11))
 
-        confs = cbstu.find_conflict(ConstraintNode())
+        confs = cbstu.find_single_conflict(ConstraintNode())
         self.assertIsNone(confs)
-        cn.solution.compute_solution_cost()
-        self.assertTrue(cn.solution.cost, (13, 20))
+        cn.sol.compute_solution_cost()
+        self.assertTrue(cn.sol.cost, (13, 20))
 
     def test_blank_map(self):
         seed = 12345678
@@ -510,11 +525,15 @@ class TestCcbsPlanner(unittest.TestCase):
         seed = 1432200775
         random.seed(seed)
         blank_problem.generate_agents(agent_num=3)
-        blank_problem.fill_heuristic_table()
+        blank_problem.fill_heuristic_table(min_best_case=True)
 
         ccbs_solver = CBSTUPlanner(blank_problem)
-        sol = ccbs_solver.find_solution(min_best_case=True, time_lim=5000, soc=True, use_cat=True)
-        self.assertEqual(sol.cost[0], 29)
+        sol = ccbs_solver.find_solution(min_best_case=True, time_lim=5, soc=True, use_cat=True, use_pc=False)
+        self.assertEqual(sol.cost[0], 28)
+
+        ccbs_solver = CBSTUPlanner(blank_problem)
+        sol = ccbs_solver.find_solution(min_best_case=True, time_lim=10, soc=True, use_cat=True, use_pc=True)
+        self.assertEqual(sol.cost[0], 28)
 
     def test_edge_conflict_detection(self):
 
@@ -618,34 +637,34 @@ class TestCcbsPlanner(unittest.TestCase):
 
         planner = CBSTUPlanner(mini_conf_problem)
         ct_node = ConstraintNode()
-        ct_node.solution.paths = {
+        ct_node.sol.paths = {
             1: TimeUncertaintyPlan(1, [((0, 0), (1, 0)), ((2, 2), (1, 1)), ((4, 4), (0, 0))], (4, 4)),
             2: TimeUncertaintyPlan(2, [((0, 0), (1, 1)), ((2, 2), (0, 0)), ((4, 4), (0, 1))], (4, 4)),
             3: TimeUncertaintyPlan(3, [((0, 0), (0, 0)), ((2, 2), (0, 1)), ((5, 5), (1, 1))], (5, 5)),
             4: TimeUncertaintyPlan(4, [((0, 0), (0, 1)), ((3, 3), (1, 1)), ((5, 5), (1, 0))], (5, 5))
         }
 
-        constraints = planner.find_conflict(ct_node)  # Solution that should not contain conflicts
+        constraints = planner.find_single_conflict(ct_node)  # Solution that should not contain conflicts
         self.assertEqual(constraints, None)
 
         ct_node = ConstraintNode()
-        ct_node.solution.paths = {
+        ct_node.sol.paths = {
             1: TimeUncertaintyPlan(1, [((0, 0), (1, 0)), ((2, 2), (1, 1)), ((4, 4), (0, 0))], (4, 4)),
             2: TimeUncertaintyPlan(2, [((0, 0), (1, 1)), ((2, 2), (0, 0)), ((4, 4), (0, 1))], (4, 4)),
             3: TimeUncertaintyPlan(3, [((0, 0), (0, 0)), ((2, 2), (0, 1)), ((3, 3), (0, 1)), ((6, 6), (1, 1))], (6, 6)),
             4: TimeUncertaintyPlan(4, [((0, 0), (0, 1)), ((3, 3), (1, 1)), ((5, 5), (1, 0))], (5, 5))
         }
 
-        constraints = planner.find_conflict(ct_node)  # Solution that should not contain conflicts
+        constraints = planner.find_single_conflict(ct_node)  # Solution that should not contain conflicts
         self.assertEqual(constraints, None)
-        ct_node.solution.compute_solution_cost()
-        self.assertEqual(ct_node.solution.cost, (19, 19))
+        ct_node.sol.compute_solution_cost()
+        self.assertEqual(ct_node.sol.cost, (19, 19))
 
         cas = ConstraintAstar(mini_conf_problem)
         constraints = {((0, 0), (1, 1)): [(3, (3, 3))],
                        ((0, 1), (1, 1)): [(3, (2, 2)), (2, (2, 2))],
                        (1, 1): [(3, (3, 3)), (3, (2, 2))]}
-        #mini_conf_problem.print_map(is_grid=False)
+        # mini_conf_problem.print_map(is_grid=False)
         new_plan = cas.compute_agent_path(constraints, 3, (0, 0), (1, 1), {}, time_limit=10000)
         self.assertEqual(new_plan.cost, (6, 6))
 
@@ -689,17 +708,13 @@ class TestCcbsPlanner(unittest.TestCase):
     def test_large_map_without_uncertainty(self):
         map_file = '..\\..\\maps\\ost003d.map'
         circular_map = TimeUncertaintyProblem(map_file)
-        random.seed(1000)
+        random.seed(1001)
         mbc = False
         circular_map.generate_problem_instance(uncertainty=0)
-        circular_map.generate_agents(15)
+        circular_map.generate_agents(25)
         circular_map.fill_heuristic_table(min_best_case=mbc)
         cbstu_planner = CBSTUPlanner(circular_map)
-        sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=60, use_cat=True)
-        self.assertNotEqual(sol.cost, (math.inf, math.inf))
-        print(f'Solution time with CAT: {sol.time_to_solve}, high-level nodes expanded: {sol.nodes_expanded}')
-
-        sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=60, use_cat=False)
+        sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=60000)
         self.assertNotEqual(sol.cost, (math.inf, math.inf))
         print(f'Solution time without CAT: {sol.time_to_solve}, high-level nodes expanded: {sol.nodes_expanded}')
 
@@ -725,11 +740,23 @@ class TestCcbsPlanner(unittest.TestCase):
         mini_conf_problem.start_positions = {1: (0, 0), 2: (0, 1)}
         mini_conf_problem.goal_positions = {1: (4, 0), 2: (4, 1)}
         mini_conf_problem.fill_heuristic_table()
-
         planner = CBSTUPlanner(mini_conf_problem)
-        sol = planner.find_solution(time_lim=1000)
-        self.assertTrue(sol.cost, (8, 8))
-        self.assertTrue(sol.nodes_expanded, 1)
+        best_node = ConstraintNode()
+        best_node.sol.paths[1] = TimeUncertaintyPlan(1, [((0, 0), (0, 0)), ((1, 1), (1, 1)), ((2, 2), (2, 1)),
+                                                         ((3, 3), (3, 1)), ((4, 4), (4, 0))], (4, 4))
+        best_node.sol.paths[2] = TimeUncertaintyPlan(2, [((0, 0), (0, 1)), ((1, 1), (1, 1)), ((2, 2), (2, 1)),
+                                                         ((3, 3), (3, 0)), ((4, 4), (4, 1))], (4, 4))
+        best_node.sol.cost = (8, 8)
+        best_node.conflicts = best_node.find_all_conflicts()
+        new_constraints = ({(1, (1, 1), (1, 1))}, {(2, (1, 1), (1, 1))})
+        planner.start_time = time.time()
+        c1 = planner.generate_constraint_node(new_constraints[0], best_node, time_limit=100)
+        c2 = planner.generate_constraint_node(new_constraints[1], best_node, time_limit=100)
+        can_bypass = planner.can_bypass(best_node, new_constraints, c1, c2)
+        self.assertTrue(can_bypass)
+
+    def test_find_all_conflicts(self):  # ToDo: test this
+        pass
 
 
 class TestODAPlanner(unittest.TestCase):

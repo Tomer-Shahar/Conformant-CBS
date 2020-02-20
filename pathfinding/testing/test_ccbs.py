@@ -56,16 +56,15 @@ def run_test_map():
     run_map(test_map, sic_heuristic=False, print_sol=True)
 
 
-map_file = '..\\..\\maps\\ost003d.map'
-circular_map = TimeUncertaintyProblem(map_file)
-random.seed(23213)
-circular_map.generate_problem_instance(uncertainty=0)
-circular_map.generate_agents(15)
-mbc = False
-circular_map.fill_heuristic_table(min_best_case=mbc)
-cbstu_planner = CBSTUPlanner(circular_map)
-print('start CBS')
-profile.run('sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=60, use_cat=True)', sort=1)
+map_file = '..\..\maps\\ost003d.map'
+blank_problem = TimeUncertaintyProblem(map_file)
+random.seed(1001)
+blank_problem.generate_problem_instance(0)
+blank_problem.generate_agents(35)
+blank_problem.fill_heuristic_table(min_best_case=False)
+
+cbstu_planner = CBSTUPlanner(blank_problem)
+profile.run('sol = cbstu_planner.find_solution(min_best_case=True, time_lim=120, use_pc=True)', sort=1)
 
 print('Done')
 
