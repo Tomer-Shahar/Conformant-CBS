@@ -26,7 +26,6 @@ class TimeUncertaintySolution:
     def empty_solution():
         empty_sol = TimeUncertaintySolution()
         empty_sol.nodes_expanded = -1
-        empty_sol.paths = None
         return empty_sol
 
     def copy_solution(self, other_sol):
@@ -80,7 +79,7 @@ class TimeUncertaintySolution:
                 max_time = plan.cost[1]
         return max_time
 
-    def create_movement_tuples(self):
+    def create_movement_tuples(self, agents=None):
         """
         converts each path in solution to a tuple of ( (t1,t2), (u,v) ) where (u,v) is an edge and t1 is when the agent
         began the movement across it and t2 is when the agent completed the movement.
@@ -89,7 +88,7 @@ class TimeUncertaintySolution:
         direction. This is necessary in a few very specific conflicts.
         """
         self.tuple_solution = {}
-
+        agents = self.paths.keys() if not agents else agents
         for agent, plan in self.paths.items():
             new_path = []
             for move in range(0, len(plan.path) - 1):
@@ -117,6 +116,7 @@ class TimeUncertaintySolution:
         to move anymore.
         """
         max_min_time = self.get_max_of_min_path_time()
+        new_moves = set()
         if agents_to_update is None:
             agents_to_update = self.paths
         for agent, plan in agents_to_update.items():  # Iterate through all plans, fix each one if need be.
@@ -124,28 +124,27 @@ class TimeUncertaintySolution:
             last_move = plan.path[-1]
             path_min_time = last_move[0][0]
             path_max_time = last_move[0][1]
-            try:
-                if path_min_time < max_min_time:  # The agent is gonna stay at the end at the same position.
-                    for time_step in range(1, max_min_time - path_min_time + 1):
-                        stationary_move = ((path_min_time + time_step * STAY_STILL_COST,
-                                            path_max_time + time_step * STAY_STILL_COST), last_move[1])
-                        new_path.append(stationary_move)
-                    # plan.cost = new_path[-1][0]
-            except TypeError:
-                print('turn down for what')
+
+            if path_min_time < max_min_time:  # The agent is gonna stay at the end at the same position.
+                for time_step in range(1, max_min_time - path_min_time + 1):
+                    stationary_move = ((path_min_time + time_step * STAY_STILL_COST,
+                                        path_max_time + time_step * STAY_STILL_COST), last_move[1])
+                    new_path.append(stationary_move)
+                    new_moves.add((agent, *stationary_move))
             self.paths[agent] = TimeUncertaintyPlan(agent, new_path, plan.cost)
 
         self.length = len(next(iter(self.paths.values())).path)
+        return new_moves
 
     def save(self, agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, folder):
-        if min_best_case:
-            objective = 'min best case'
-        else:
-            objective = 'min worst case'
+        solution_path = os.path.join(folder, map_type, str(agent_num) + ' agents')
+        if not os.path.exists(solution_path):
+            os.makedirs(solution_path)
+        objective = 'min best case' if min_best_case else 'min worst case'
+
         file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
             f'{objective}_{map_type}.sol'
-        path = os.path.join(folder, map_type, f'{agent_num} agents', file_name)
-
+        path = os.path.join(solution_path, file_name)
         with open(path, 'w+') as sol_file:
             json_sol = {'paths': {}, 'constraints': None, 'time_to_solve': self.time_to_solve, 'sic': self.sic}
             for agent, path in self.paths.items():

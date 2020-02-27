@@ -330,4 +330,4 @@ class SingleAgentNode:
         """
         if (succ_time[0] - self.g_val[0], succ_time[1] - self.g_val[1]) == (1, 1):
             return self.g_val[0], succ_time[1]
-        return self.g_val[0], succ_time[1] - 1
+        return self.g_val[0], succ_time[1]

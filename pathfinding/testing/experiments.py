@@ -235,8 +235,8 @@ class Experiments:
             f' {objective} - distribution - {dist}'
 
         #self.run_online_small_map(sensing_prob, commy, dist)
-        # self.run_online_circular_map(sensing_prob, commy, dist)
-        self.run_online_warehouse_map(sensing_prob, commy, dist)
+        self.run_online_circular_map(sensing_prob, commy, dist)
+        #self.run_online_warehouse_map(sensing_prob, commy, dist)
         # self.run_online_maze_map(sensing_prob, commy, dist)
 
     def run_online_small_map(self, sensing_prob, commy, distribution):
@@ -310,7 +310,10 @@ class Experiments:
 
     def run_and_log_online_experiments(self, tu_problem, map_type, map_seed, results_file, sensing_prob, communication,
                                        dist, to_print=True):
-        final_results_path = os.path.join(self.output_folder, map_type, f'{self.agents_num} agents', results_file)
+        final_folder = os.path.join(self.output_folder, map_type, f'{self.agents_num} agents')
+        if not os.path.exists(final_folder):
+            os.makedirs(final_folder)
+        final_results_path = os.path.join(final_folder, results_file)
         temp_path = os.path.join(self.output_folder, 'IN PROGRESS - ' + results_file)
         with open(temp_path, 'w') as temp_file:
             temp_file.write('Experiment Number,'
@@ -391,7 +394,7 @@ class Experiments:
 
                 min_sic = init_sol.sic[0]
                 max_sic = init_sol.sic[1]
-                root_sol = sim.online_planner.offline_cbstu_planner.create_root(self.min_best_case).solution
+                root_sol = sim.online_planner.offline_cbstu_planner.create_root(self.min_best_case).sol
                 true_sic = sim.calc_solution_true_cost(root_sol)
 
                 if not loaded_sol:
@@ -455,31 +458,31 @@ class Experiments:
         os.remove(temp_path)
 
     def run_online_combinations(self, agent_num, time_uncer, sense_prob, reps=50, do_max=True, do_min=True, do_uni=True,
-                                use_comm=True, no_comm=True, min_best_case=False):
+                                use_comm=True, no_comm=True, min_best_case=False, time_lim=60):
 
         sense_prob /= 100
         self.min_best_case = min_best_case
         if do_max:
             if use_comm:
-                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=time_lim, reps=reps,
                                             sensing_prob=sense_prob, commy=True, dist='max')
             if no_comm:
-                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=time_lim, reps=reps,
                                             sensing_prob=sense_prob, commy=False, dist='max')
         if do_min:
             if use_comm:
-                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=time_lim, reps=reps,
                                             sensing_prob=sense_prob, commy=True, dist='min')
             if no_comm:
-                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=time_lim, reps=reps,
                                             sensing_prob=sense_prob, commy=False, dist='min')
 
         if do_uni:
             if use_comm:
-                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=time_lim, reps=reps,
                                             sensing_prob=sense_prob, commy=True, dist='uniform')
             if no_comm:
-                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=60, reps=reps,
+                self.run_online_experiments(agent_num=agent_num, uncertainty=time_uncer, time_limit=time_lim, reps=reps,
                                             sensing_prob=sense_prob, commy=False, dist='uniform')
 
 
@@ -487,14 +490,12 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for tu in range(2, 3):
-    for number_of_agents in range(6, 7):
+for tu in range(0, 1):
+    for number_of_agents in range(15, 25):
         if tu == 3:
             continue
-        for sense in range(0, 101, 50):
-            exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
-                                        use_comm=True, no_comm=False, min_best_case=False)
-            exp.run_online_combinations(number_of_agents, tu, sense, reps=50, do_min=True, do_uni=True, do_max=True,
-                                        use_comm=True, no_comm=True, min_best_case=True)
+        for sense in range(0, 1, 50):
+            exp.run_online_combinations(number_of_agents, tu, sense, reps=20, do_min=False, do_uni=False, do_max=True,
+                                        use_comm=False, no_comm=True, min_best_case=False, time_lim=120)
 
 print("Finished Experiments")
