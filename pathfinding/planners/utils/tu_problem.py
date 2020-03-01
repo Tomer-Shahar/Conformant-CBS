@@ -22,7 +22,7 @@ class TimeUncertaintyProblem:
     """
     def __init__(self, map_file_path=None):
         self.map = []
-        self.edges_and_weights = None
+        self.edges_and_weights = {}
         self.start_positions = {}
         self.goal_positions = {}
         self.heuristic_table = None

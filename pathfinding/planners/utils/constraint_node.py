@@ -22,6 +22,8 @@ class ConstraintNode:
             self.constraints = self.append_constraints(parent.constraints, new_constraints)
             self.conflicting_agents = parent.conflicting_agents
             self.conf_num = math.inf
+            self.copy_solution(parent)
+            self.conflict_table = copy.deepcopy(parent.conflict_table)
         else:
             self.constraints = defaultdict(list)
             self.sol = TimeUncertaintySolution()
@@ -59,12 +61,13 @@ class ConstraintNode:
             new_con_dict[con[1]].append((con[0], con[2]))  # Maps v -> (agent, time)
         return new_con_dict
 
-    def update_solution(self, new_plan, use_cat):
+    def update_solution(self, new_plan, use_cat=True, soc=True):
         """
         Updates the plan for a particular agent in the constraint node. Also updates the conflict table by iterating
         over the old solution and removing the moves the agent previously did. Then, adds the required stationary moves
         to the new path and inserts the moves from the new path into the CAT.
 
+        :param soc: Sum of costs. used for computing solution cost
         :param use_cat: Boolean value, use conflict avoidance table or not
         :param new_plan: The new time uncertainty plan
         :return: updates the CAT and the node's solution.
@@ -73,13 +76,10 @@ class ConstraintNode:
             self.sol = TimeUncertaintySolution.empty_solution()
             self.sol.paths[new_plan.agent] = new_plan
             return
-
-        self.copy_solution(self.parent)  # ToDo can we use a shallow copy?
         if not use_cat:
             self.sol.paths[new_plan.agent] = new_plan
             self.sol.create_movement_tuples()
         else:
-            self.conflict_table = copy.deepcopy(self.parent.conflict_table) if self.parent else self.conflict_table
             for move in self.sol.paths[new_plan.agent].path:  # Iterate over old path.
                 for presence in list(self.conflict_table[move[1]]):
                     if presence[0] == new_plan.agent:
@@ -98,6 +98,8 @@ class ConstraintNode:
                 self.conflict_table[move[1]].append((new_plan.agent, move[0], move[2]))
             for move in new_moves:
                 self.conflict_table[move[2]].append((move[0], move[1]))
+
+            self.sol.compute_solution_cost(sum_of_costs=soc)  # compute the cost
 
     def find_all_conflicts(self, agents=None):  # ToDO: Reduce this
         """
@@ -270,13 +272,14 @@ class ConstraintNode:
         for move in self.sol.tuple_solution[agent]:
             for pres in self.conflict_table[move[1]]:  # iterate over presences in this location
                 if pres[0] != agent:
-                    if pres[2] != move[2] and not Cas.overlapping(move[0], pres[1]):
-                        continue  # no conflict
-                    if pres[2] == move[2]:
+                    if pres[2] != move[2]:
+                        if not Cas.overlapping(move[0], pres[1]):  # opposite directions
+                            continue  # no conflict
+                    elif pres[2] == move[2]:  # Same direction
                         occ_1 = move[0][0], move[0][1] - 1  # Same direction -> last time tick doesn't matter
                         occ_2 = pres[1][0], pres[1][1] - 1
                         if not self.strong_overlapping(occ_1, occ_2):
-                            continue
-                        self.conflicts[move[1]].append((agent, pres[0], move[0], pres[1], move[2], pres[2]))
-                        # conf_time = min(occupy_1[1], occupy_2[1]) - max(occupy_1[0], occupy_2[0]) + 1
-                        self.conf_num += 1  # conf_time
+                            continue  # It's not a conflict
+                    self.conflicts[move[1]].append((agent, pres[0], move[0], pres[1], move[2], pres[2]))
+                    # conf_time = min(occupy_1[1], occupy_2[1]) - max(occupy_1[0], occupy_2[0]) + 1
+                    self.conf_num += 1  # conf_time

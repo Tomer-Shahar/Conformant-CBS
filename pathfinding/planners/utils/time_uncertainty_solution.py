@@ -14,7 +14,6 @@ class TimeUncertaintySolution:
 
     def __init__(self):
         self.cost = math.inf, math.inf
-        self.length = math.inf
         self.paths = {}
         self.tuple_solution = None
         self.nodes_expanded = 0
@@ -38,6 +37,8 @@ class TimeUncertaintySolution:
             self.paths[agent] = plan
             if other_sol.tuple_solution:
                 self.tuple_solution[agent] = other_sol.tuple_solution[agent]
+
+        self.cost = other_sol.cost
 
     def compute_solution_cost(self, sum_of_costs=True):
         """
@@ -120,20 +121,12 @@ class TimeUncertaintySolution:
         if agents_to_update is None:
             agents_to_update = self.paths
         for agent, plan in agents_to_update.items():  # Iterate through all plans, fix each one if need be.
-            new_path = plan.path
             last_move = plan.path[-1]
             path_min_time = last_move[0][0]
-            path_max_time = last_move[0][1]
 
             if path_min_time < max_min_time:  # The agent is gonna stay at the end at the same position.
-                for time_step in range(1, max_min_time - path_min_time + 1):
-                    stationary_move = ((path_min_time + time_step * STAY_STILL_COST,
-                                        path_max_time + time_step * STAY_STILL_COST), last_move[1])
-                    new_path.append(stationary_move)
-                    new_moves.add((agent, *stationary_move))
-            self.paths[agent] = TimeUncertaintyPlan(agent, new_path, plan.cost)
-
-        self.length = len(next(iter(self.paths.values())).path)
+                self.paths[agent].path.append(((path_min_time + 1, max_min_time), last_move[1]))
+                new_moves.add((agent, (path_min_time + 1, max_min_time), last_move[1]))
         return new_moves
 
     def save(self, agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, folder):
@@ -193,3 +186,4 @@ class TimeUncertaintySolution:
             tu_sol.compute_solution_cost()
             tu_sol.create_movement_tuples()
             return tu_sol
+

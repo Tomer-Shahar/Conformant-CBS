@@ -1,6 +1,8 @@
 """
 Unit tests for Conformant-CBS
 """
+import copy
+
 from pathfinding.planners.utils.constraint_node import ConstraintNode
 from pathfinding.planners.utils.tu_problem import TimeUncertaintyProblem
 from pathfinding.planners.cbstu import *
@@ -439,7 +441,7 @@ class TestCcbsPlanner(unittest.TestCase):
         self.conf_problem.fill_heuristic_table()
 
         ccbs_planner = CBSTUPlanner(self.conf_problem)
-        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=1, soc=True, use_cat=True)
+        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=100000, soc=True, use_cat=True)
         self.assertEqual(solution.cost, (23, 23))  # Only one agent moves
 
         ccbs_planner = CBSTUPlanner(self.conf_problem)
@@ -447,12 +449,13 @@ class TestCcbsPlanner(unittest.TestCase):
         self.assertEqual(solution.cost, (23, 23))  # Only one agent moves
 
         ccbs_planner = CBSTUPlanner(self.conf_problem)
-        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=10000, soc=False, use_cat=True)
+        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=111111, soc=False, use_cat=True, use_pc=False)
         self.assertEqual(solution.cost, (20, 20))  # both agents moves since it's makespan
 
         ccbs_planner = CBSTUPlanner(self.conf_problem)
-        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=1, soc=False, use_cat=True, use_pc=False)
+        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=10000, soc=False, use_cat=True)
         self.assertEqual(solution.cost, (20, 20))  # both agents moves since it's makespan
+
 
     def test_more_complex_4_connected_map(self):
         complex_conf_prob = TimeUncertaintyProblem()
@@ -507,20 +510,10 @@ class TestCcbsPlanner(unittest.TestCase):
         cn.sol.compute_solution_cost()
         self.assertTrue(cn.sol.cost, (13, 20))
 
-    def test_blank_map(self):
-        seed = 12345678
-        random.seed(seed)
+    def test_small_map_with_uncertainty(self):
+        """ Tests the 8x8 map with Tu of 2 and 3"""
         map_file = '.\small_blank_map.map'
         blank_problem = TimeUncertaintyProblem(map_file)
-        blank_problem.generate_problem_instance(1)
-        seed = 2025421785
-        random.seed(seed)
-        blank_problem.generate_agents(2)
-        blank_problem.fill_heuristic_table()
-        ccbs_solver = CBSTUPlanner(blank_problem)
-        sol = ccbs_solver.find_solution(min_best_case=True, time_lim=1, soc=True)
-        self.assertEqual(sol.cost, (16, 20))
-
         seed = 12345678
         random.seed(seed)
         blank_problem.generate_problem_instance(uncertainty=2)
@@ -530,17 +523,31 @@ class TestCcbsPlanner(unittest.TestCase):
         blank_problem.fill_heuristic_table(min_best_case=True)
 
         ccbs_solver = CBSTUPlanner(blank_problem)
-        sol = ccbs_solver.find_solution(min_best_case=False, time_lim=2, soc=True, use_cat=True, use_pc=True)
+        sol = ccbs_solver.find_solution(min_best_case=True, time_lim=100000, use_pc=True)
         self.assertEqual(sol.cost[0], 28)
+        print(f'Time to solve with PC: {sol.time_to_solve}')
 
         ccbs_solver = CBSTUPlanner(blank_problem)
-        sol = ccbs_solver.find_solution(min_best_case=False, time_lim=2, soc=True, use_cat=True, use_pc=False)
+        sol = ccbs_solver.find_solution(min_best_case=True, time_lim=3, use_pc=False)
         self.assertEqual(sol.cost[0], 28)
 
-
+        map_file = '.\small_blank_map.map'
+        blank_problem = TimeUncertaintyProblem(map_file)
+        seed = 12345678
+        random.seed(seed)
+        blank_problem.generate_problem_instance(1)
+        seed = 2025421785
+        random.seed(seed)
+        blank_problem.generate_agents(2)
+        blank_problem.fill_heuristic_table(min_best_case=True)
         ccbs_solver = CBSTUPlanner(blank_problem)
-        sol = ccbs_solver.find_solution(min_best_case=True, time_lim=2, soc=True, use_cat=True, use_pc=False)
-        self.assertEqual(sol.cost[0], 28)
+        sol = ccbs_solver.find_solution(min_best_case=True, time_lim=1, soc=True)
+        self.assertEqual(sol.cost[0], 16)
+
+
+
+
+
 
     def test_edge_conflict_detection(self):
         edge_example = TimeUncertaintyProblem()
@@ -553,7 +560,6 @@ class TestCcbsPlanner(unittest.TestCase):
         }
         edge_example.width = 4
         edge_example.height = 2
-        edge_example.print_map(is_grid=False)
         edge_example.start_positions[1] = (0, 0)
         edge_example.start_positions[2] = (0, 3)
         edge_example.goal_positions[1] = (0, 3)
@@ -596,7 +602,7 @@ class TestCcbsPlanner(unittest.TestCase):
         blank_map.generate_agents(agent_num=7)
         blank_map.fill_heuristic_table()
         cbs_planner = CBSTUPlanner(blank_map)
-        cbs_sol = cbs_planner.find_solution(time_lim=2000, min_best_case=True)
+        cbs_sol = cbs_planner.find_solution(time_lim=2, min_best_case=True)
         self.assertEqual(cbs_sol.cost[0], 47)
 
     def test_train_movement(self):
@@ -619,7 +625,7 @@ class TestCcbsPlanner(unittest.TestCase):
         sol = path_finder.find_solution(time_lim=2000, min_best_case=False, soc=True)
         self.assertEqual(sol.cost, (3, 3))
 
-    def test_weighted_graph_counter_example(self):
+    def test_tricky_weighted_position_swap(self):
         """ Tricky map where agents take advantage of weighted edges so 4 agents occupy 3 vertices"""
         mini_conf_problem = TimeUncertaintyProblem()
         mini_conf_problem.map = [[0, 0],
@@ -637,8 +643,11 @@ class TestCcbsPlanner(unittest.TestCase):
         mini_conf_problem.fill_heuristic_table()
 
         path_finder = CBSTUPlanner(mini_conf_problem)
-        sol = path_finder.find_solution(time_lim=2000, min_best_case=False, soc=True)
-        self.assertEqual(sol.cost, (18, 18))
+        sol_1 = path_finder.find_solution(time_lim=2000, min_best_case=False, soc=True, use_pc=False)
+        path_finder = CBSTUPlanner(mini_conf_problem)
+        sol_2 = path_finder.find_solution(time_lim=2000, min_best_case=False, soc=True, use_pc=True)
+        self.assertEqual(sol_1.cost, (18, 18))
+        self.assertEqual(sol_2.cost, sol_1.cost)
 
     def test_solution_evaluation(self):
         """ Gets a valid solution and attempts to detect conflicts"""
@@ -672,9 +681,24 @@ class TestCcbsPlanner(unittest.TestCase):
             3: TimeUncertaintyPlan(3, [((0, 0), (0, 0)), ((2, 2), (0, 1)), ((5, 5), (1, 1))], (5, 5)),
             4: TimeUncertaintyPlan(4, [((0, 0), (0, 1)), ((3, 3), (1, 1)), ((5, 5), (1, 0))], (5, 5))
         }
-
+        ct_node.sol.compute_solution_cost()
         ct_node.find_all_conflicts()  # Solution that should not contain conflicts
         self.assertEqual(ct_node.conf_num, 0)
+        for agent, plan in ct_node.sol.paths.items():
+            for move in plan.path:
+                ct_node.conflict_table[move[1]].append((agent, move[0]))
+        for agent, path in ct_node.sol.tuple_solution.items():
+            for move in path:
+                ct_node.conflict_table[move[1]].append((agent, move[0], move[2]))
+        parent_node = ConstraintNode()
+        parent_node.sol.copy_solution(ct_node.sol)
+        parent_node.conflict_table = copy.deepcopy(ct_node.conflict_table)
+        ct_node.parent = parent_node
+        for i in range(1, 5):
+            ct_node.update_conflicts(i)
+
+        self.assertEqual(ct_node.conf_num, 0)
+        self.assertEqual(len(ct_node.conflicts), 0)
 
         ct_node = ConstraintNode()
         ct_node.sol.paths = {
@@ -694,7 +718,7 @@ class TestCcbsPlanner(unittest.TestCase):
                        ((0, 1), (1, 1)): [(3, (2, 2)), (2, (2, 2))],
                        (1, 1): [(3, (3, 3)), (3, (2, 2))]}
         # mini_conf_problem.print_map(is_grid=False)
-        new_plan = cas.compute_agent_path(constraints, 3, (0, 0), (1, 1), {}, time_limit=10000)
+        new_plan = cas.compute_agent_path(constraints, 3, (0, 0), (1, 1), {}, time_limit=1)
         self.assertEqual(new_plan.cost, (6, 6))
 
     def test_LTB_and_UTB_objectives(self):
@@ -731,8 +755,8 @@ class TestCcbsPlanner(unittest.TestCase):
         circular_map.generate_agents(6)
         circular_map.fill_heuristic_table(min_best_case=mbc)
         cbstu_planner = CBSTUPlanner(circular_map)
-        sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=2, use_cat=True)
-        self.assertNotEqual(sol.cost, (math.inf, math.inf))
+        with self.assertRaises(OutOfTimeError):
+            cbstu_planner.find_solution(min_best_case=mbc, time_lim=2, use_cat=True)
 
     def test_large_map_without_uncertainty(self):
         """ Tests a large map with 25 agents with a fairly easy setting. No uncertainty"""
@@ -745,9 +769,10 @@ class TestCcbsPlanner(unittest.TestCase):
         circular_map.fill_heuristic_table(min_best_case=mbc)
         cbstu_planner = CBSTUPlanner(circular_map)
         print('starting round map with 25 agents')
-        sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=120)
+        sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=30)
+        print(f'Time to solve for 25 agents: {sol.time_to_solve}')
         self.assertNotEqual(sol.cost, (math.inf, math.inf))
-        print(f'Solution time without CAT: {sol.time_to_solve}, high-level nodes expanded: {sol.nodes_expanded}')
+
 
     def test_bypass_simple_example(self):
         """ Tests the bypass maneuver of ICBS """

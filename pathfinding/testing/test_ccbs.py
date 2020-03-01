@@ -56,15 +56,18 @@ def run_test_map():
     run_map(test_map, sic_heuristic=False, print_sol=True)
 
 
-conf_problem = TimeUncertaintyProblem('test_map.map')
-conf_problem.generate_edges_and_weights()
-conf_problem.start_positions[1] = (0, 0)
-conf_problem.start_positions[2] = (17, 0)
-conf_problem.goal_positions[1] = (19, 0)
-conf_problem.goal_positions[2] = (17, 0)
-conf_problem.fill_heuristic_table()
-cbstu_planner = CBSTUPlanner(conf_problem)
-profile.run('sol = cbstu_planner.find_solution(min_best_case=True, time_lim=2, use_pc=True, soc=False)', sort=1)
+map_file = '..\\..\\maps\\ost003d.map'
+circular_map = TimeUncertaintyProblem(map_file)
+random.seed(1001)
+circular_map.generate_problem_instance(uncertainty=0)
+circular_map.generate_agents(25)
+circular_map.fill_heuristic_table()
+cbstu_planner = CBSTUPlanner(circular_map)
+print('starting round map with 25 agents')
+sol = cbstu_planner.find_solution(time_lim=120)
+print(f'Time to solve without profiling: {sol.time_to_solve}')
+cbstu_planner = CBSTUPlanner(circular_map)
+profile.run('sol = cbstu_planner.find_solution(time_lim=120)', sort=2)
 
 print('Done')
 

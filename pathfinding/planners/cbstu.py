@@ -39,6 +39,7 @@ from pathfinding.planners.utils.constraint_node import ConstraintNode as Cn
 from pathfinding.planners.utils.time_error import OutOfTimeError
 from pathfinding.planners.utils.time_uncertainty_solution import TimeUncertaintySolution
 from pathfinding.planners.utils.custom_heap import OpenListHeap
+from collections import defaultdict
 
 STAY_STILL_COST = 1
 
@@ -116,8 +117,7 @@ class CBSTUPlanner:
         :param best_node: The node containing the solution
         :return: The proper Time Uncertain Solution.
         """
-        # print(f'Number of CT nodes expanded: {len(self.closed_nodes)}')
-        # print(f'Number of CT nodes in open: {len(self.open_nodes.internal_heap)}')
+
         best_node.sol.time_to_solve = time.time() - self.start_time
         best_node.sol.compute_solution_cost(self.soc)
         best_node.sol.nodes_expanded = len(self.closed_nodes)
@@ -152,7 +152,7 @@ class CBSTUPlanner:
         if not use_pc:
             self.generate_children_nodes(node, time_lim)
             return None, None, None, True
-        cons_and_children, semi_cardinals, non_cardinals = None, [], []
+        semi_cardinals, non_cardinals = [], []
         start = time.time()
         sorted_constraints = self.get_sorted_constraints(node.conflicts)
         for constraint in sorted_constraints:
@@ -163,7 +163,7 @@ class CBSTUPlanner:
                 return constraint, c1, c2, True
             elif conf_type == 'semi-cardinal':
                 semi_cardinals.append((constraint, c1, c2, False))
-            elif cons_and_children is None:  # Only update a non-cardinal conf if we haven't found even a semi one
+            else:  # Only update a non-cardinal conf if we haven't found even a semi one
                 non_cardinals.append((constraint, c1, c2, False))
 
         return semi_cardinals[0] if len(semi_cardinals) > 0 else non_cardinals[0]
@@ -210,9 +210,9 @@ class CBSTUPlanner:
         """
         # node.solution.add_stationary_moves()  # inserts missing time steps
         node.sol.create_movement_tuples()
-        constraints = self.__check_previously_conflicting_agents(node.sol, node.conflicting_agents)
-        if constraints:
-            return constraints
+        #constraints = self.__check_previously_conflicting_agents(node.sol, node.conflicting_agents)
+        #if constraints:
+        #    return constraints
 
         new_vertex_constraints, count = node.find_all_vertex_conflicts()
         for vertex, conflicts in new_vertex_constraints.items():
@@ -384,12 +384,12 @@ class CBSTUPlanner:
         agent_i = prev_agents[0]
         agent_j = prev_agents[1]
 
-        visited_nodes = {}  # A dictionary containing all the nodes visited
+        visited_nodes = defaultdict(set)  # A dictionary containing all the nodes visited
         for agent in [agent_i, agent_j]:
             for move in solution.paths[agent].path:
                 interval = move[0]
                 if not move[1] in visited_nodes:  # First time an agent has visited this node
-                    visited_nodes[move[1]] = {(agent, interval)}  # Add the interval to the set.
+                    visited_nodes[move[1]].add((agent, interval))  # Add the interval to the set.
                     continue
                 else:  # Some other agent HAS been to this node..
                     conf = self.__check_conf_in_visited_node(visited_nodes, move, interval, agent)
@@ -423,14 +423,15 @@ class CBSTUPlanner:
         return None
 
     def generate_constraint_node(self, new_cons, best_node, time_limit):
-        old_cons = {(v[0], k, v[1]) for k, confs in best_node.constraints.items() for v in confs}
-
-        key_cons = frozenset(new_cons | old_cons)
+        merged_constraints = Cn.append_constraints(best_node.constraints, new_cons).items()
+        key_cons = frozenset((k, tuple(val)) for k, val in merged_constraints)
+        if key_cons in self.closed_nodes:
+            empty_node = Cn()
+            empty_node.sol = TimeUncertaintySolution.empty_solution()
+            return empty_node
         if key_cons in self.computed_c_nodes:
-            return self.computed_c_nodes[key_cons]
+            return self.computed_c_nodes[key_cons]  # Node has been computed but not inserted into closed yet.
         new_node = Cn(new_constraints=new_cons, parent=best_node)
-        if frozenset((k, tuple(val)) for k, val in new_node.constraints.items()) in self.closed_nodes:
-            return TimeUncertaintySolution.empty_solution()
         agent = next(iter(new_cons))[0]  # Ugly line to extract agent index.
         time_passed = time.time() - self.start_time
         new_plan = self.planner.compute_agent_path(
@@ -442,8 +443,7 @@ class CBSTUPlanner:
             curr_time=self.curr_time)  # compute the path for a single agent.
         if time.time() - self.start_time > time_limit:
             raise OutOfTimeError('Ran out of time :-(')
-        new_node.update_solution(new_plan, self.use_cat)
-        new_node.sol.compute_solution_cost(self.soc)  # compute the cost
+        new_node.update_solution(new_plan, self.use_cat, self.soc)
         new_node.update_conflicts(agent)
         self.computed_c_nodes[key_cons] = new_node
         return new_node
@@ -467,7 +467,7 @@ class CBSTUPlanner:
                 (not self.min_best_case and best_node.sol.cost[1] == child.sol.cost[1])) and \
                     child.conf_num < best_node.conf_num:
                 agent = next(iter(new_con_set))[0]  # Ugly line to extract agent index.
-                best_node.update_solution(child.sol.paths[agent], self.use_cat)
+                best_node.update_solution(child.sol.paths[agent], self.use_cat, self.soc)
                 best_node.conf_num = child.conf_num
                 best_node.conflicts = child.conflicts
                 self.__insert_open_node(best_node)
