@@ -15,7 +15,7 @@ class TimeUncertaintySolution:
     def __init__(self):
         self.cost = math.inf, math.inf
         self.paths = {}
-        self.tuple_solution = None
+        self.tuple_solution = {}
         self.nodes_expanded = 0
         self.constraints = set()
         self.time_to_solve = -1
@@ -88,16 +88,16 @@ class TimeUncertaintySolution:
         For easier comparison, 'u' and 'v' will be sorted. We still maintain 'f' or 'b' to signify what was the original
         direction. This is necessary in a few very specific conflicts.
         """
-        self.tuple_solution = {}
         agents = self.paths.keys() if not agents else agents
-        for agent, plan in self.paths.items():
+        for agent in agents:
+            path = self.paths[agent].path
             new_path = []
-            for move in range(0, len(plan.path) - 1):
-                start_vertex = min(plan.path[move][1], plan.path[move + 1][1])
-                start_time = plan.path[move][0][0]
-                next_vertex = max(plan.path[move][1], plan.path[move + 1][1])
-                finish_time = plan.path[move + 1][0][1]
-                if start_vertex == plan.path[move][1]:
+            for move in range(0, len(path) - 1):
+                start_vertex = min(path[move][1], path[move + 1][1])
+                start_time = path[move][0][0]
+                next_vertex = max(path[move][1], path[move + 1][1])
+                finish_time = path[move + 1][0][1]
+                if start_vertex == path[move][1]:
                     direction = 'f'  # The original beginning vertex was 'start_vertex'
                 else:
                     direction = 'b'  # The original beginning vertex was 'next_vertex'
@@ -125,6 +125,7 @@ class TimeUncertaintySolution:
             path_min_time = last_move[0][0]
 
             if path_min_time < max_min_time:  # The agent is gonna stay at the end at the same position.
+                #if self.paths[agent].path[-1] =
                 self.paths[agent].path.append(((path_min_time + 1, max_min_time), last_move[1]))
                 new_moves.add((agent, (path_min_time + 1, max_min_time), last_move[1]))
         return new_moves

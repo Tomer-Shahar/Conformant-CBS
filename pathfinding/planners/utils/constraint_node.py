@@ -23,12 +23,13 @@ class ConstraintNode:
             self.conflicting_agents = parent.conflicting_agents
             self.conf_num = math.inf
             self.copy_solution(parent)
-            self.conflict_table = copy.deepcopy(parent.conflict_table)
+            self.conflict_table = {agent: moves for agent, moves in parent.conflict_table.items()}
+            #self.conflict_table = copy.deepcopy(parent.conflict_table)
         else:
             self.constraints = defaultdict(list)
             self.sol = TimeUncertaintySolution()
             self.conflicting_agents = None  # the agents that conflicted previously (most likely to conflict again)
-            self.conflict_table = defaultdict(list)  # Maps location - > [list of <agent, time at location >]
+            self.conflict_table = {}  # Maps agent - > {set of <time, location >}
             self.conflicts = defaultdict(list)
             self.conf_num = 0
 
@@ -78,30 +79,37 @@ class ConstraintNode:
             return
         if not use_cat:
             self.sol.paths[new_plan.agent] = new_plan
-            self.sol.create_movement_tuples()
-        else:
-            for move in self.sol.paths[new_plan.agent].path:  # Iterate over old path.
-                for presence in list(self.conflict_table[move[1]]):
-                    if presence[0] == new_plan.agent:
-                        self.conflict_table[move[1]].remove(presence)  # remove vertex potential presence
-            for move in self.sol.tuple_solution[new_plan.agent]:
-                for presence in list(self.conflict_table[move[1]]):
-                    if presence[0] == new_plan.agent:
-                        self.conflict_table[move[1]].remove(presence)  # remove edge potential presence
-
-            self.sol.paths[new_plan.agent] = new_plan
-            new_moves = self.sol.add_stationary_moves()  # inserts missing time steps
             self.sol.create_movement_tuples(agents=[new_plan.agent])
-            for move in new_plan.path:
-                self.conflict_table[move[1]].append((new_plan.agent, move[0]))
-            for move in self.sol.tuple_solution[new_plan.agent]:
-                self.conflict_table[move[1]].append((new_plan.agent, move[0], move[2]))
+            return
+
+        self.sol.paths[new_plan.agent] = new_plan
+        new_moves = self.sol.add_stationary_moves()
+        self.sol.create_movement_tuples(agents=[new_plan.agent])
+        self.update_conflict_avoidance_table(new_plan.agent, new_moves)
+        self.sol.compute_solution_cost(sum_of_costs=soc)  # compute the cost
+
+    def update_conflict_avoidance_table(self, agents=None, new_moves=None):
+        """
+        Updates the CAT for all agents given. If non are given, update all of them. Assumes that the path is up to date
+        including the tuple solution.
+        :param new_moves: Additional moves that we want to add, such as stationary moves we added at the end.
+        :param agents: Agents to update the CAT for
+        :return: Updates the parameter 'conflict_table'
+        """
+        agents = [agents] if agents else self.sol.paths.keys()
+        for agent in agents:
+            cat = defaultdict(set)
+            for move in self.sol.paths[agent].path:
+                cat[move[1]].add(move[0])
+            for move in self.sol.tuple_solution[agent]:
+                cat[move[1]].add((move[0], move[2]))
+
+            self.conflict_table[agent] = cat
+        if new_moves:
             for move in new_moves:
-                self.conflict_table[move[2]].append((move[0], move[1]))
+                self.conflict_table[move[0]][move[2]].add(move[1])
 
-            self.sol.compute_solution_cost(sum_of_costs=soc)  # compute the cost
-
-    def find_all_conflicts(self, agents=None):  # ToDO: Reduce this
+    def find_all_conflicts(self, agents=None):
         """
         Similar to find_conflict, except it will find ALL of the conflicts and return them including a count of them.
         :return: A dictionary mapping nodes to conflicts, with another value of 'count' with number of conflicts.
@@ -129,11 +137,10 @@ class ConstraintNode:
         visited_nodes = {}  # A dictionary containing all the nodes visited
         cn = defaultdict(list)
         count = 0
-        if not agents_to_check:
-            agents_to_check = list(self.sol.paths.keys())
+        agents_to_check = agents_to_check if agents_to_check else list(self.sol.paths.keys())
         for agent_i in agents_to_check:
-            plan_i = self.sol.paths[agent_i]
-            for move_i in plan_i.path:
+            path_i = self.sol.paths[agent_i].path
+            for move_i in path_i:
                 interval = move_i[0]
                 if not move_i[1] in visited_nodes:  # First time an agent has visited this node
                     visited_nodes[move_i[1]] = {(agent_i, interval)}  # Add the interval to the set.
@@ -246,8 +253,6 @@ class ConstraintNode:
         self.find_new_edge_conflicts(old_plan.agent)
         self.parent.conflicts = defaultdict(list, {k: v for k, v in self.parent.conflicts.items() if v != []})
         self.conflicts = defaultdict(list, {k: v for k, v in self.conflicts.items() if v != []})
-        if self.conf_num < 0:
-            print('awwww damn')
 
     def find_new_vertex_conflicts(self, agent):
         """
@@ -255,13 +260,15 @@ class ConstraintNode:
         path!
         :return: Returns a dictionary of all conflicts this agent is involved in
         """
-
+        other_agents = {other for other in self.sol.paths if other != agent}
         for move in self.sol.paths[agent].path:  # iterate over all the NEW moves
-            for presence in self.conflict_table[move[1]]:  # iterate over presences in this location
-                if presence[0] != agent and Cas.overlapping(move[0], presence[1]):  # There's a conflict
-                    # conf_time = min(presence[1][1], move[0][1]) - max(presence[1][0], move[0][0]) + 1
-                    self.conf_num += 1  # conf_time
-                    self.conflicts[move[1]].append((agent, presence[0], move[0], presence[1]))
+            for other_agent in other_agents:  # Check if other agents have been there
+                if move[1] in self.conflict_table[other_agent]:
+                    for other_pres in self.conflict_table[other_agent][move[1]]:  # iter over presences in this location
+                        if Cas.overlapping(move[0], other_pres):  # There's a conflict
+                            # conf_time = min(presence[1][1], move[0][1]) - max(presence[1][0], move[0][0]) + 1
+                            self.conf_num += 1  # conf_time
+                            self.conflicts[move[1]].append((agent, other_agent, move[0], other_pres))
 
     def find_new_edge_conflicts(self, agent):
         """
@@ -269,17 +276,19 @@ class ConstraintNode:
         path!
         :return: Returns a dictionary of all conflicts this agent is involved in
         """
+        other_agents = {other for other in self.sol.paths if other != agent}
         for move in self.sol.tuple_solution[agent]:
-            for pres in self.conflict_table[move[1]]:  # iterate over presences in this location
-                if pres[0] != agent:
-                    if pres[2] != move[2]:
-                        if not Cas.overlapping(move[0], pres[1]):  # opposite directions
-                            continue  # no conflict
-                    elif pres[2] == move[2]:  # Same direction
-                        occ_1 = move[0][0], move[0][1] - 1  # Same direction -> last time tick doesn't matter
-                        occ_2 = pres[1][0], pres[1][1] - 1
-                        if not self.strong_overlapping(occ_1, occ_2):
-                            continue  # It's not a conflict
-                    self.conflicts[move[1]].append((agent, pres[0], move[0], pres[1], move[2], pres[2]))
-                    # conf_time = min(occupy_1[1], occupy_2[1]) - max(occupy_1[0], occupy_2[0]) + 1
-                    self.conf_num += 1  # conf_time
+            for other in other_agents:
+                if move[1] in self.conflict_table[other]:
+                    for other_pres in self.conflict_table[other][move[1]]:  # iter over presences in this location
+                        if other_pres[1] != move[2]:  # opposite directions
+                            if not Cas.overlapping(move[0], other_pres[0]):
+                                continue  # no conflict
+                        else:  # Same direction
+                            occ_1 = move[0][0], move[0][1] - 1  # Same direction -> last time tick doesn't matter
+                            occ_2 = other_pres[0][0], other_pres[0][1] - 1
+                            if not self.strong_overlapping(occ_1, occ_2):
+                                continue  # It's not a conflict
+                        self.conflicts[move[1]].append((agent, other, move[0], other_pres[0], move[2], other_pres[1]))
+                        # conf_time = min(occupy_1[1], occupy_2[1]) - max(occupy_1[0], occupy_2[0]) + 1
+                        self.conf_num += 1  # conf_time

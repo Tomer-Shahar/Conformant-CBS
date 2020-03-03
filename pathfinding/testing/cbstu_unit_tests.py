@@ -544,11 +544,6 @@ class TestCcbsPlanner(unittest.TestCase):
         sol = ccbs_solver.find_solution(min_best_case=True, time_lim=1, soc=True)
         self.assertEqual(sol.cost[0], 16)
 
-
-
-
-
-
     def test_edge_conflict_detection(self):
         edge_example = TimeUncertaintyProblem()
         edge_example.edges_and_weights = {
@@ -684,12 +679,7 @@ class TestCcbsPlanner(unittest.TestCase):
         ct_node.sol.compute_solution_cost()
         ct_node.find_all_conflicts()  # Solution that should not contain conflicts
         self.assertEqual(ct_node.conf_num, 0)
-        for agent, plan in ct_node.sol.paths.items():
-            for move in plan.path:
-                ct_node.conflict_table[move[1]].append((agent, move[0]))
-        for agent, path in ct_node.sol.tuple_solution.items():
-            for move in path:
-                ct_node.conflict_table[move[1]].append((agent, move[0], move[2]))
+        ct_node.update_conflict_avoidance_table()
         parent_node = ConstraintNode()
         parent_node.sol.copy_solution(ct_node.sol)
         parent_node.conflict_table = copy.deepcopy(ct_node.conflict_table)
@@ -770,9 +760,11 @@ class TestCcbsPlanner(unittest.TestCase):
         cbstu_planner = CBSTUPlanner(circular_map)
         print('starting round map with 25 agents')
         sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=30)
-        print(f'Time to solve for 25 agents: {sol.time_to_solve}')
+        print(f'Time to solve for 25 agents with PC: {sol.time_to_solve}')
+        cbstu_planner = CBSTUPlanner(circular_map)
+        sol = cbstu_planner.find_solution(min_best_case=mbc, time_lim=120, use_pc=False)
+        print(f'Time to solve for 25 agents without PC: {sol.time_to_solve}')
         self.assertNotEqual(sol.cost, (math.inf, math.inf))
-
 
     def test_bypass_simple_example(self):
         """ Tests the bypass maneuver of ICBS """
@@ -804,14 +796,7 @@ class TestCcbsPlanner(unittest.TestCase):
                                                          ((3, 3), (3, 0)), ((4, 4), (4, 1))], (4, 4))
         best_node.sol.cost = (8, 8)
         best_node.conflicts = best_node.find_all_conflicts()
-        for agent, conf_plan in best_node.sol.paths.items():
-            for move in conf_plan.path:
-                best_node.conflict_table[(move[1])].append((agent, move[0]))
-
-        best_node.sol.create_movement_tuples()
-        for agent, path in best_node.sol.tuple_solution.items():
-            for move in path:
-                best_node.conflict_table[move[1]].append((agent, move[0], move[2]))  # agent, time, direction
+        best_node.update_conflict_avoidance_table()
 
         best_node.parent = ConstraintNode()
         best_node.parent.conflict_table = best_node.conflict_table.copy()

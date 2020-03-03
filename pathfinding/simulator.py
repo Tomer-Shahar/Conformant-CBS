@@ -103,6 +103,7 @@ class MAPFSimulator:
             self.execute_next_step()
             self.sim_time += 1
 
+        self.final_solution.time_to_solve = time.time() - start_time + self.online_planner.initial_plan.time_to_solve
         self.final_solution.compute_solution_cost()
         # self.print_final_solution()
         return self.final_solution

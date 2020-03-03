@@ -151,8 +151,10 @@ class ConstraintAstar:
                     graph.add_edge(vertex, edge[0], weight=edge[1][0])
                 else:
                     graph.add_edge(vertex, edge[0], weight=edge[1][1])
-
-        return networkx.single_source_dijkstra_path_length(graph, source_vertex)
+        try:
+            return networkx.single_source_dijkstra_path_length(graph, source_vertex)
+        except ValueError:
+            print("neg value wut")
 
     @staticmethod
     def overlapping(time_1, time_2):
@@ -250,16 +252,17 @@ class SingleAgentNode:
         :return: Number of overlapping time ticks.
         """
         new_confs = 0
-        if edge in conflict_table:
-            for con in conflict_table[edge]:
-                if con[0] != agent and (
-                        (con[1][0] <= succ_time[0] <= con[1][1]) or (succ_time[0] <= con[1][1] <= succ_time[1])):
-                    new_confs += min(succ_time[1], con[1][1]) - max(succ_time[0], con[1][0]) + 1
-        if edge[1] in conflict_table:
-            for con in conflict_table[edge[1]]:
-                if con[0] != agent and (
-                        (con[1][0] <= succ_time[0] <= con[1][1]) or (succ_time[0] <= con[1][1] <= succ_time[1])):
-                    new_confs += min(succ_time[1], con[1][1]) - max(succ_time[0], con[1][0]) + 1
+        for other, locations in conflict_table.items():
+            if other == agent:
+                continue
+            if edge[1] in locations:
+                for pres in locations[edge[1]]:
+                    if (pres[0] <= succ_time[0] <= pres[1]) or (succ_time[0] <= pres[0] <= succ_time[1]):
+                        new_confs += min(succ_time[1], pres[1]) - max(succ_time[0], pres[0]) + 1
+            if edge in locations:
+                for pres in locations[edge]:
+                    if (pres[0][0] <= succ_time[0] <= pres[0][1]) or (succ_time[0] <= pres[0][0] <= succ_time[1]):
+                        new_confs += min(succ_time[1], pres[0][1]) - max(succ_time[0], pres[0][0]) + 1
 
         return new_confs
 

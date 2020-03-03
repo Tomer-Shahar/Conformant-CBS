@@ -199,20 +199,17 @@ class OnlineCBSTU:
         # self.safe_add_to_dict(prev_loc[1], (agent, (0, 0)), traversed_locs)  # add the vertex
 
         for loc in self.initial_plan.paths[agent].path[1:]:
+            traversed_locs[loc[1]].add((agent, loc[0]))
+
+            if loc[1] == prev_loc[1]:
+                continue  # Agent is staying in place. No edge to add
             edge_weight = (loc[0][0] - prev_loc[0][0], loc[0][1] - prev_loc[0][1])
 
             # add the vertex to edge dictionary. Must add the edge in both directions
             agent_path_graph.edges_and_weights[prev_loc[1]].add((loc[1], edge_weight))
             agent_path_graph.edges_and_weights[loc[1]].add((prev_loc[1], edge_weight))
-            # self.safe_add_to_dict(prev_loc[1], (loc[1], edge_weight), agent_path_graph.edges_and_weights)
-            # self.safe_add_to_dict(loc[1], (prev_loc[1], edge_weight), agent_path_graph.edges_and_weights)
-
             # Add the edge and node to traversed locations
-            # self.safe_add_to_dict(loc[1], (agent, loc[0]), traversed_locs)
-            traversed_locs[loc[1]].add((agent, loc[0]))
             if edge_weight != (1, 1):  # We don't add edges that were traversed instantly.
-                # self.safe_add_to_dict((prev_loc[1], loc[1]), (agent, (prev_loc[0][0] + 1, loc[0][1] - 1)),
-                #                      traversed_locs)
                 traversed_locs[(prev_loc[1], loc[1])].add((agent, (prev_loc[0][0] + 1, loc[0][1] - 1)))
 
             prev_loc = loc

@@ -234,8 +234,8 @@ class Experiments:
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sensing_prob} sensing - comm {commy} -' \
             f' {objective} - distribution - {dist}'
 
-        #self.run_online_small_map(sensing_prob, commy, dist)
-        self.run_online_circular_map(sensing_prob, commy, dist)
+        self.run_online_small_map(sensing_prob, commy, dist)
+        #self.run_online_circular_map(sensing_prob, commy, dist)
         #self.run_online_warehouse_map(sensing_prob, commy, dist)
         # self.run_online_maze_map(sensing_prob, commy, dist)
 
@@ -342,7 +342,7 @@ class Experiments:
                             )
 
         success = 0
-        initial_agent_seed = 10637296
+        initial_agent_seed = 10637299  # 10637296
         random.seed(initial_agent_seed)
         if os.name == 'posix':
             sol_folder = '../../solutions'
@@ -355,7 +355,7 @@ class Experiments:
                 print(f'Started run #{i + 1}, agent seed: {agent_seed}, number of agents: {self.agents_num}')
             tu_problem.generate_agents(self.agents_num)
             try:
-                tu_problem.fill_heuristic_table()
+                tu_problem.fill_heuristic_table(self.min_best_case)
             except MemoryError:
                 print("Memory Error when filling heuristic table..")
                 i -= 1
@@ -491,11 +491,11 @@ if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
 for tu in range(0, 1):
-    for number_of_agents in range(15, 25):
+    for number_of_agents in range(20, 30, 2):
         if tu == 3:
             continue
         for sense in range(0, 1, 50):
-            exp.run_online_combinations(number_of_agents, tu, sense, reps=20, do_min=False, do_uni=False, do_max=True,
+            exp.run_online_combinations(number_of_agents, tu, sense, reps=30, do_min=False, do_uni=False, do_max=True,
                                         use_comm=False, no_comm=True, min_best_case=False, time_lim=120)
 
 print("Finished Experiments")

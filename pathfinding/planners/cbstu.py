@@ -93,7 +93,7 @@ class CBSTUPlanner:
             best_node = self.open_nodes.pop()
             self.__insert_into_closed_list(best_node)
             if best_node.conf_num == 0:  # Meaning that there are no conflicts.
-                print(f'Number of pops: {count}')
+                #print(f'Number of pops: {count}')
                 return self.create_solution(best_node)
             new_constraints, c1, c2, is_cardinal = self.find_best_conflict(best_node, time_lim, use_pc)
             if not is_cardinal and self.can_bypass(best_node, new_constraints, c1, c2):
@@ -210,8 +210,8 @@ class CBSTUPlanner:
         """
         # node.solution.add_stationary_moves()  # inserts missing time steps
         node.sol.create_movement_tuples()
-        #constraints = self.__check_previously_conflicting_agents(node.sol, node.conflicting_agents)
-        #if constraints:
+        # constraints = self.__check_previously_conflicting_agents(node.sol, node.conflicting_agents)
+        # if constraints:
         #    return constraints
 
         new_vertex_constraints, count = node.find_all_vertex_conflicts()
@@ -314,14 +314,7 @@ class CBSTUPlanner:
         root.conflicts = root.find_all_conflicts()
 
         if self.use_cat:
-            for agent, conf_plan in root.sol.paths.items():
-                for move in conf_plan.path:
-                    root.conflict_table[(move[1])].append((agent, move[0]))
-
-            root.sol.create_movement_tuples()
-            for agent, path in root.sol.tuple_solution.items():
-                for move in path:
-                    root.conflict_table[move[1]].append((agent, move[0], move[2]))  # agent, time, direction
+            root.update_conflict_avoidance_table()
 
     @staticmethod
     def __get_best_node(open_list):
