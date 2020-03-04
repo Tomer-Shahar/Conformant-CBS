@@ -65,7 +65,7 @@ blank_map.fill_heuristic_table()
 cbstu_planner = CBSTUPlanner(blank_map)
 print('starting round map with 20 agents')
   # 48 agent paths with PC
-profile.run('sol = cbstu_planner.find_solution(use_pc=False, time_lim=300)', sort=2)
+profile.run('sol = cbstu_planner.find_solution(use_pc=True, time_lim=120)', sort=2)  # 1171
 
 print('Done')
 
