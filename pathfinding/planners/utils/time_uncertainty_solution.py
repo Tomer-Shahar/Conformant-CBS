@@ -130,15 +130,15 @@ class TimeUncertaintySolution:
                 new_moves.add((agent, (path_min_time + 1, max_min_time), last_move[1]))
         return new_moves
 
-    def save(self, agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, folder):
+    def save(self, agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, use_pc, use_bp, folder):
         solution_path = os.path.join(folder, map_type, str(agent_num) + ' agents')
         if not os.path.exists(solution_path):
             os.makedirs(solution_path)
         objective = 'min best case' if min_best_case else 'min worst case'
-
         file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
-            f'{objective}_{map_type}.sol'
+            f'{objective}_using pc {use_pc}_using bypass {use_bp}, {map_type}.sol'
         path = os.path.join(solution_path, file_name)
+
         with open(path, 'w+') as sol_file:
             json_sol = {'paths': {}, 'constraints': None, 'time_to_solve': self.time_to_solve, 'sic': self.sic}
             for agent, path in self.paths.items():
@@ -147,7 +147,7 @@ class TimeUncertaintySolution:
             json.dump(json_sol, sol_file)
 
     @staticmethod
-    def load(agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, folder):
+    def load(agent_num, uncertainty, map_type, agent_seed, map_seed, min_best_case, use_pc, use_bp, folder):
         """
         Loads a previously computed solution.
         """
@@ -156,7 +156,7 @@ class TimeUncertaintySolution:
         else:
             objective = 'min worst case'
         file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
-            f'{objective}_{map_type}.sol'
+            f'{objective}_using pc {use_pc}_using bypass {use_bp}, {map_type}.sol'
         path = os.path.join(folder, map_type, f'{agent_num} agents', file_name)
 
         if not os.path.exists(path):

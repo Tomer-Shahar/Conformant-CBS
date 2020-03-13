@@ -26,7 +26,7 @@ class OnlineCBSTU:
         self.current_state = None
         self.full_sensing = full_sensing
 
-    def find_initial_path(self, min_best_case=False, soc=True, time_limit=300, initial_sol=None):
+    def find_initial_path(self, mbc=False, soc=True, use_pc=True, use_bp=True, time_limit=300, initial_sol=None):
         """
         Uses the offline planner to find an initial solution. Also creates the current state of the world, where the
         time is 0 and all agents are just in their start positions. During the execution of the plan the current state
@@ -40,7 +40,8 @@ class OnlineCBSTU:
             self.offline_cbstu_planner.final_constraints = initial_sol.constraints
         else:
             start = time.time()
-            self.initial_plan = self.offline_cbstu_planner.find_solution(min_best_case, time_limit, soc)
+            self.initial_plan = self.offline_cbstu_planner.find_solution(mbc, time_limit, soc=soc, use_pc=use_pc,
+                                                                         use_bp=use_bp)
             total_time = time.time() - start
             self.initial_plan.time_to_solve = total_time
             self.current_plan = copy.deepcopy(self.initial_plan)

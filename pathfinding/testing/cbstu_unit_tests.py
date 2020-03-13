@@ -441,19 +441,35 @@ class TestCcbsPlanner(unittest.TestCase):
         self.conf_problem.fill_heuristic_table()
 
         ccbs_planner = CBSTUPlanner(self.conf_problem)
-        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=100000, soc=True, use_cat=True)
+        solution = ccbs_planner.find_solution(time_lim=1, use_pc=True, use_bp=True)
         self.assertEqual(solution.cost, (23, 23))  # Only one agent moves
 
         ccbs_planner = CBSTUPlanner(self.conf_problem)
-        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=1, soc=True, use_cat=True, use_pc=False)
+        solution = ccbs_planner.find_solution(time_lim=1, use_pc=True, use_bp=False)
         self.assertEqual(solution.cost, (23, 23))  # Only one agent moves
 
         ccbs_planner = CBSTUPlanner(self.conf_problem)
-        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=111111, soc=False, use_cat=True, use_pc=False)
+        solution = ccbs_planner.find_solution(time_lim=1, use_pc=False, use_bp=True)
+        self.assertEqual(solution.cost, (23, 23))  # Only one agent moves
+
+        ccbs_planner = CBSTUPlanner(self.conf_problem)
+        solution = ccbs_planner.find_solution(time_lim=1, use_pc=False, use_bp=False)
+        self.assertEqual(solution.cost, (23, 23))  # Only one agent moves
+
+        ccbs_planner = CBSTUPlanner(self.conf_problem)
+        solution = ccbs_planner.find_solution(time_lim=1, soc=False, use_pc=True, use_bp=False)
         self.assertEqual(solution.cost, (20, 20))  # both agents moves since it's makespan
 
         ccbs_planner = CBSTUPlanner(self.conf_problem)
-        solution = ccbs_planner.find_solution(min_best_case=False, time_lim=10000, soc=False, use_cat=True)
+        solution = ccbs_planner.find_solution(time_lim=1, soc=False, use_pc=True, use_bp=True)
+        self.assertEqual(solution.cost, (20, 20))  # both agents moves since it's makespan
+
+        ccbs_planner = CBSTUPlanner(self.conf_problem)
+        solution = ccbs_planner.find_solution(time_lim=1, soc=False, use_pc=False, use_bp=False)
+        self.assertEqual(solution.cost, (20, 20))  # both agents moves since it's makespan
+
+        ccbs_planner = CBSTUPlanner(self.conf_problem)
+        solution = ccbs_planner.find_solution(time_lim=1, soc=False, use_pc=False, use_bp=True)
         self.assertEqual(solution.cost, (20, 20))  # both agents moves since it's makespan
 
 

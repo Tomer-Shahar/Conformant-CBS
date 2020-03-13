@@ -66,10 +66,12 @@ class MAPFSimulator:
 
                 self.real_weights[(vertex_i, vertex_j[0])] = weight
 
-    def begin_execution(self, min_best_case=False, soc=True, time_limit=60, communication=True, initial_sol=False):
+    def begin_execution(self, min_best_case=False, use_pc=True, use_bp=True, soc=True, time_limit=60, communication=True, initial_sol=False):
         """
         The main function of the simulator. Finds an initial solution and runs it, occasionally sensing and broadcasting
         if need be.
+        :param use_bp: Use bypass or not for cbstu
+        :param use_pc: Prioritize conflicts or not for cbstu
         :param initial_sol: In case we already computed the initial valid solution and don't want to waste time.
         :param time_limit: Time limit for total execution, NOT including finding an initial path.
         :param soc: If to use sum of costs or makespan
@@ -80,7 +82,7 @@ class MAPFSimulator:
 
         :return: The path that was ultimately taken for each agent.
         """
-        self.create_initial_solution(min_best_case, soc, time_limit=300, initial_sol=initial_sol)
+        self.create_initial_solution(min_best_case, soc, use_pc, use_bp, time_limit=300, initial_sol=initial_sol)
         self.communication = communication
         self.sim_time = 0
         start_time = time.time()
@@ -216,8 +218,8 @@ class MAPFSimulator:
         print(f'Final Cost: {self.final_solution.cost}')
         print(f'Final Time Uncertainty: {self.final_solution.cost[1] - self.final_solution.cost[0]}')
 
-    def create_initial_solution(self, min_best_case=False, soc=True, time_limit=300, initial_sol=None):
-        self.online_planner.find_initial_path(min_best_case, soc, time_limit, initial_sol)
+    def create_initial_solution(self, min_best_case, soc, use_pc, use_bp, time_limit=300, initial_sol=None):
+        self.online_planner.find_initial_path(min_best_case, soc, use_pc, use_bp, time_limit, initial_sol)
 
     def calc_solution_true_cost(self, solution):
         """

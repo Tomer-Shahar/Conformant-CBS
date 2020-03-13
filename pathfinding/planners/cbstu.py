@@ -69,7 +69,7 @@ class CBSTUPlanner:
         self.computed_c_nodes = {}  # Dictionary mapping constraints, conf_num -> Constraint Node
 
     def find_solution(self, min_best_case=False, time_lim=60, soc=True, use_cat=True, existing_cons=None,
-                      curr_time=(0, 0), use_pc=True):
+                      curr_time=(0, 0), use_pc=True, use_bp=True):
         """
         The main function - returns a solution consisting of a path for each agent and the total cost of the solution.
         This is an implementation of CBS' basic pseudo code. The main difference comes in the creation of constraints
@@ -96,11 +96,10 @@ class CBSTUPlanner:
                 #print(f'Number of pops: {count}')
                 return self.create_solution(best_node)
             new_constraints, c1, c2, is_cardinal = self.find_best_conflict(best_node, time_lim, use_pc)
-            if not is_cardinal and self.can_bypass(best_node, new_constraints, c1, c2):
+            if use_bp and not is_cardinal and self.can_bypass(best_node, new_constraints, c1, c2):
                 continue
-            if use_pc:
-                self.__insert_open_node(c1)
-                self.__insert_open_node(c2)
+            self.__insert_open_node(c1)
+            self.__insert_open_node(c2)
         print("Empty open list - No Solution")
         return TimeUncertaintySolution.empty_solution()
 
@@ -150,8 +149,8 @@ class CBSTUPlanner:
         :return: A tuple of the constraint and a boolean indicating if it's cardinal or not (for the bypass)
         """
         if not use_pc:
-            self.generate_children_nodes(node, time_lim)
-            return None, None, None, True
+            new_con, c1, c2 = self.generate_children_nodes(node, time_lim)
+            return new_con, c1, c2, True
         semi_cardinals, non_cardinals = [], []
         start = time.time()
         sorted_constraints = self.get_sorted_constraints(node.conflicts)
@@ -170,10 +169,12 @@ class CBSTUPlanner:
 
     def generate_children_nodes(self, node, time_lim):
         new_constraints = self.find_single_conflict(node)
+        res = [new_constraints]
         for new_conf in new_constraints:
             c = self.generate_constraint_node(new_conf, node, time_lim)
-            if c.sol.cost[0] < math.inf:
-                self.__insert_open_node(c)
+            res.append(c)
+
+        return tuple(res)
 
     def get_conflict_type(self, constraints, node, time_lim):
         """

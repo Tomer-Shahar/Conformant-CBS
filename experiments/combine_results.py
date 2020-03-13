@@ -256,7 +256,7 @@ def create_sic_dict():
             if 'warehouse' in file:
                 map_type = 'warehouse_map'
             elif 'small' in file:
-                map_type = 'small_open_map'
+                map_type = 'small_blank_map'
             else:
                 map_type = 'circular_map'
             tu_sol = TimeUncertaintySolution.load(agent_num, uncertainty, map_type, agent_seed, map_seed, objective,
@@ -289,7 +289,7 @@ def append_sic_values():
                 if 'warehouse' in exp_file:
                     map_type = 'warehouse_map'
                 elif 'small' in exp_file:
-                    map_type = 'small_open_map'
+                    map_type = 'small_blank_map'
                 else:
                     map_type = 'circular_map'
                 for row in reader:
