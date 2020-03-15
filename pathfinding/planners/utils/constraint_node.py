@@ -177,13 +177,18 @@ class ConstraintNode:
             path = self.sol.tuple_solution[agent]
             for move in path:
                 edge = move[1]
+                if move[0][1] - move[0][0] > 1:
+                    occ = move[0][0] + 1, move[0][1] - 1
+                else:
+                    occ = move[0][0], move[0][0]
+                positions[edge].add((agent, move[0], move[2]))
                 if move[0][1] - move[0][0] > 1:  # Edge weight is more than 1
-                    positions[edge].add((agent, (move[0][0], move[0][1]), move[2]))
                     for pres in positions[edge]:
                         if pres[0] != agent:  # Use different overlap tests for same direction or different directions
                             if pres[2] != move[2] and not Cas.overlapping(move[0], pres[1]):
                                 continue  # no conflict
                             if pres[2] == move[2]:
+                                # The actual times the agents occupy the edge:
                                 occ_1 = move[0][0], move[0][1] - 1  # Same direction -> last time tick doesn't matter
                                 occ_2 = pres[1][0], pres[1][1] - 1
                                 if not self.strong_overlapping(occ_1, occ_2):
@@ -193,7 +198,6 @@ class ConstraintNode:
                             count += 1  # (t_rng[1] - t_rng[0])
                 else:  # Edge weight is 1
                     # Agent begins to travel at move[0][0] and arrives at move[0][1]
-                    positions[edge].add((agent, move[0], move[2]))
                     for pres in positions[edge]:
                         if pres[0] != agent and self.strong_overlapping(move[0], pres[1]):
                             cn[edge].append((pres[0], agent, pres[1], move[0], pres[2], move[2]))
@@ -210,7 +214,7 @@ class ConstraintNode:
         2: a<-- A -->b<---B>
         3: A<-- a<--- B --->b
         4: a<-- A<--->B --->b
-        ===> A < a < B or a < A < b
+        ===> A <= a < B or a <= A < b
         """
 
         if (time_1[0] <= time_2[0] < time_1[1]) or (time_2[0] <= time_1[0] < time_2[1]):
