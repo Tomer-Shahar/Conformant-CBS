@@ -177,11 +177,21 @@ class ConstraintNode:
             path = self.sol.tuple_solution[agent]
             for move in path:
                 edge = move[1]
-                if move[0][1] - move[0][0] > 1:
-                    occ = move[0][0] + 1, move[0][1] - 1
-                else:
-                    occ = move[0][0], move[0][0]
                 positions[edge].add((agent, move[0], move[2]))
+                for pres in positions[edge]:
+                    if pres[0] != agent:  # Use different overlap tests for same direction or different directions
+                        if pres[2] != move[2] and not Cas.overlapping(move[0], pres[1]):
+                            continue  # no conflict
+                        if pres[2] == move[2]:  # Trickier conflict option
+                            occ_i = move[0][0]+1, move[0][1]-1  # Actual occupation times
+                            occ_j = pres[1][0]+1, pres[1][1]-1
+                            if not Cas.overlapping(occ_i, occ_j):
+                                continue
+                        cn[edge].append((pres[0], agent, pres[1], move[0], pres[2], move[2]))
+                        count += 1  # (t_rng[1] - t_rng[0])
+        return cn, count
+
+        """
                 if move[0][1] - move[0][0] > 1:  # Edge weight is more than 1
                     for pres in positions[edge]:
                         if pres[0] != agent:  # Use different overlap tests for same direction or different directions
@@ -202,7 +212,7 @@ class ConstraintNode:
                         if pres[0] != agent and self.strong_overlapping(move[0], pres[1]):
                             cn[edge].append((pres[0], agent, pres[1], move[0], pres[2], move[2]))
                             count += 1
-        return cn, count
+                """
 
     @staticmethod
     def strong_overlapping(time_1, time_2):
@@ -294,5 +304,4 @@ class ConstraintNode:
                             if not self.strong_overlapping(occ_1, occ_2):
                                 continue  # It's not a conflict
                         self.conflicts[move[1]].append((agent, other, move[0], other_pres[0], move[2], other_pres[1]))
-                        # conf_time = min(occupy_1[1], occupy_2[1]) - max(occupy_1[0], occupy_2[0]) + 1
                         self.conf_num += 1  # conf_time

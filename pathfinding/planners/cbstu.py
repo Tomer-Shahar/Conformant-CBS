@@ -83,7 +83,7 @@ class CBSTUPlanner:
         """
         self.__initialize_class_variables(curr_time, min_best_case, soc, use_cat)
         if not self.create_root(existing_cons):
-            return TimeUncertaintySolution.empty_solution()
+            raise OutOfTimeError("Couldn't find initial solution")
         count = 0
         while self.open_nodes:
             count += 1
@@ -104,11 +104,18 @@ class CBSTUPlanner:
         return TimeUncertaintySolution.empty_solution()
 
     def __initialize_class_variables(self, curr_time, min_best_case, soc, use_cat):
+        """
+        Resets all the variables and initializes them with default values
+        """
         self.start_time = time.time()
         self.curr_time = curr_time
         self.min_best_case = min_best_case
         self.soc = soc
         self.use_cat = use_cat
+        self.computed_c_nodes = {}  # Dictionary mapping constraints, conf_num -> Constraint Node
+        self.final_constraints = None
+        self.open_nodes = OpenListHeap()
+        self.closed_nodes = set()
 
     def create_solution(self, best_node):
         """
@@ -121,17 +128,19 @@ class CBSTUPlanner:
         best_node.sol.compute_solution_cost(self.soc)
         best_node.sol.nodes_expanded = len(self.closed_nodes)
         self.final_constraints = best_node.constraints
-        best_node.sol.constraints = {(conf[0], node, conf[1]) for node, confs in best_node.constraints.items() for conf
-                                     in confs}
+        #best_node.sol.constraints = {(conf[0], node, conf[1]) for node, confs in best_node.constraints.items() for conf in confs}
+        best_node.sol.constraints = best_node.constraints
         best_node.sol.sic = self.root.sol.cost
         return best_node.sol
 
     def create_root(self, existing_cons=None):
         self.root = Cn()
         self.compute_all_paths_and_conflicts(self.root)
-        if not self.root.sol:
+        if not len(self.root.sol.paths):
             print("No solution for cbs root node")
-            return None
+            empty_root = Cn()
+            empty_root.sol = TimeUncertaintySolution.empty_solution()
+            return empty_root
         self.root.sol.compute_solution_cost(self.soc)
         if existing_cons:
             self.root.constraints = Cn.append_constraints(self.root.constraints, existing_cons)
@@ -304,8 +313,8 @@ class CBSTUPlanner:
         for agent_id, agent_start in self.tu_problem.start_positions.items():
             agent_plan = self.planner.compute_agent_path(
                 root.constraints, agent_id, agent_start, self.tu_problem.goal_positions[agent_id], root.conflict_table,
-                min_best_case=self.min_best_case, curr_time=self.curr_time)
-            if agent_plan.path:  # Solution found
+                mbc=self.min_best_case, curr_time=self.curr_time)
+            if len(agent_plan.path):  # Solution found
                 root.sol.paths[agent_id] = agent_plan
             else:  # No solution for a particular agent
                 print("No solution for agent number " + str(agent_id))

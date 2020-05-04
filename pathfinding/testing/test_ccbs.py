@@ -55,17 +55,17 @@ def run_test_map():
     run_map(test_map, sic_heuristic=True, print_sol=True)
     run_map(test_map, sic_heuristic=False, print_sol=True)
 
+file = 'small_blank_map.map'
+random.seed(96372106)
+small_map = TimeUncertaintyProblem.generate_warehouse_bottle_neck_tu_map()
+random.seed(10737297)
+small_map.generate_agents(8)
+small_map.fill_heuristic_table()
+simulator = MAPFSimulator(small_map, sensing_prob=1, edge_dist='min')
+sol = simulator.begin_execution(use_pc=True, use_bp=False, time_limit=120, communication=True, min_best_case=True)
 
-map_file = '..\\..\\maps\\small_blank_map.map'
-blank_map = TimeUncertaintyProblem(map_file)
-random.seed(102031)
-blank_map.generate_problem_instance(uncertainty=0)
-blank_map.generate_agents(20)
-blank_map.fill_heuristic_table()
-cbstu_planner = CBSTUPlanner(blank_map)
-print('starting round map with 20 agents')
-# 48 agent paths with PC
-profile.run('sol = cbstu_planner.find_solution(use_pc=True, time_lim=120)', sort=2)  # 1171
+#print('starting obstacle map with 2 agents')
+#profile.run('sol = simulator.begin_execution(use_pc=True, use_bp=True, time_limit=120, communication=True)', sort=2)
 
 print('Done')
 

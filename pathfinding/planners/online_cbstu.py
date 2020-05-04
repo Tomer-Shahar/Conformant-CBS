@@ -90,7 +90,7 @@ class OnlineCBSTU:
                     new_presence = (presence[0][0] + time_diff, presence[0][1]), presence[1]
                     self.current_plan.paths[agent].path[idx] = new_presence
 
-    def create_new_centralized_plan(self, curr_time, sensing_agents):
+    def create_new_centralized_plan(self, curr_time, sensing_agents, time_limit=10):
         """
         Replan for the agents that updated their location. Must first create a large set of constraints for all agents
         that are currently replanning.
@@ -108,7 +108,8 @@ class OnlineCBSTU:
 
             self.offline_cbstu_planner.tu_problem.start_positions = sensing_agents
             new_plans = self.offline_cbstu_planner.find_solution(existing_cons=new_cons,
-                                                                 curr_time=(curr_time, curr_time))
+                                                                 curr_time=(curr_time, curr_time),
+                                                                 time_lim=time_limit)
             for agent, path in new_plans.paths.items():
                 self.current_plan.paths[agent] = path
             self.current_plan.add_stationary_moves({agent: self.current_plan.paths[agent] for agent in sensing_agents})
@@ -134,7 +135,7 @@ class OnlineCBSTU:
         :param pos_cons: Positive constraints. These must be fulfilled by agents when replanning.
         :param curr_time: current time
         :param graphs: the path that each agent can plan in.
-        :param constraints: A set of constraints for all agents
+        :param constraints: A set of constraints for each agents
         :param sensing_agents: Agents that performed a sensing action
         :return: Creates new plans for each agent that sensed by updating the current plan.
         """
@@ -144,14 +145,14 @@ class OnlineCBSTU:
                 agent_constraints = copy.deepcopy(self.offline_cbstu_planner.final_constraints)
                 for con_agent, cons in constraints.items():
                     for con in cons:
-                        if con[1] not in agent_constraints:
-                            agent_constraints[con[1]] = []
                         agent_constraints[con[1]].append((con_agent, con[2]))
                 planner = ConstraintAstar(graphs[agent])
                 new_plan = planner.compute_agent_path(agent_constraints, agent, loc,
-                                                      graphs[agent].goal_positions[agent],
-                                                      set(), False, curr_time=(curr_time, curr_time),
-                                                      pos_cons=pos_cons[agent])
+                                                      graphs[agent].goal_positions[agent], set(), mbc=False,
+                                                      curr_time=(curr_time, curr_time), pos_cons=pos_cons[agent])
+                if not new_plan.path:
+                    raise TimeoutError('Ran out of time planning distributed paths')
+
                 self.current_plan.paths[agent] = new_plan
 
             self.current_plan.add_stationary_moves({agent: self.current_plan.paths[agent] for agent in sensing_agents})
@@ -167,7 +168,7 @@ class OnlineCBSTU:
         """
 
         agent_graphs = {}  # Maps between an agent and their valid path
-        constraints = defaultdict(set)  # Maps between an agent and constraints RELEVANT TO THEM!!
+        constraints = defaultdict(set)  # Maps between an agent and POSITIVE constraints RELEVANT TO THEM!!
         traversed_locations = defaultdict(set)  # All locations that have been traversed in the solution.
         # Create the graph for each agent
         for agent, plan in self.initial_plan.paths.items():
@@ -177,8 +178,8 @@ class OnlineCBSTU:
         # Update their respective constraints
         for agent, tu_plan in self.initial_plan.paths.items():
             for move in tu_plan.path:
-                for presence in traversed_locations[move[1]]:
-                    if presence[0] != agent:
+                for presence in traversed_locations[move[1]]:  # Iterate over all movements made
+                    if presence[0] != agent:  # The presence doesn't belong to this agent.
                         constraints[agent].add((agent, move[1], presence[1]))
 
         return agent_graphs, constraints, self.__generate_pos_cons()
@@ -192,10 +193,12 @@ class OnlineCBSTU:
         """
 
         agent_path_graph = TimeUncertaintyProblem()
-        agent_path_graph.start_positions[agent] = self.initial_plan.paths[agent].path[0][1]
+        start_pos = self.initial_plan.paths[agent].path[0][1]
+        agent_path_graph.start_positions[agent] = start_pos
         agent_path_graph.goal_positions[agent] = self.initial_plan.paths[agent].path[-1][1]
         prev_loc = self.initial_plan.paths[agent].path[0]
         agent_path_graph.edges_and_weights = defaultdict(set)
+        agent_path_graph.edges_and_weights[start_pos].add((start_pos, (1, 1)))
         traversed_locs[prev_loc[1]].add((agent, (0, 0)))
         # self.safe_add_to_dict(prev_loc[1], (agent, (0, 0)), traversed_locs)  # add the vertex
 
@@ -203,12 +206,15 @@ class OnlineCBSTU:
             traversed_locs[loc[1]].add((agent, loc[0]))
 
             if loc[1] == prev_loc[1]:
+                prev_loc = loc
                 continue  # Agent is staying in place. No edge to add
             edge_weight = (loc[0][0] - prev_loc[0][0], loc[0][1] - prev_loc[0][1])
-
             # add the vertex to edge dictionary. Must add the edge in both directions
             agent_path_graph.edges_and_weights[prev_loc[1]].add((loc[1], edge_weight))
             agent_path_graph.edges_and_weights[loc[1]].add((prev_loc[1], edge_weight))
+            if (prev_loc[1], edge_weight) not in self.tu_problem.edges_and_weights[loc[1]]:
+                print('error in weight calc')
+
             # Add the edge and node to traversed locations
             if edge_weight != (1, 1):  # We don't add edges that were traversed instantly.
                 traversed_locs[(prev_loc[1], loc[1])].add((agent, (prev_loc[0][0] + 1, loc[0][1] - 1)))

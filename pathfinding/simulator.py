@@ -66,7 +66,8 @@ class MAPFSimulator:
 
                 self.real_weights[(vertex_i, vertex_j[0])] = weight
 
-    def begin_execution(self, min_best_case=False, use_pc=True, use_bp=True, soc=True, time_limit=60, communication=True, initial_sol=False):
+    def begin_execution(self, min_best_case=False, use_pc=True, use_bp=True, soc=True, time_limit=60,
+                        communication=True, initial_sol=False):
         """
         The main function of the simulator. Finds an initial solution and runs it, occasionally sensing and broadcasting
         if need be.
@@ -82,7 +83,7 @@ class MAPFSimulator:
 
         :return: The path that was ultimately taken for each agent.
         """
-        self.create_initial_solution(min_best_case, soc, use_pc, use_bp, time_limit=300, initial_sol=initial_sol)
+        self.create_initial_solution(min_best_case, soc, use_pc, use_bp, time_limit=time_limit, initial_sol=initial_sol)
         self.communication = communication
         self.sim_time = 0
         start_time = time.time()
@@ -97,9 +98,10 @@ class MAPFSimulator:
             if self.at_goal_state():
                 break
             sensing_agents = self.simulate_sensing_and_broadcast()
+            replan_time = time_limit - (time.time() - start_time)
             if len(sensing_agents) > 0:  # If at least 1 agent sensed.
                 if self.communication:
-                    self.online_planner.create_new_centralized_plan(self.sim_time, sensing_agents)
+                    self.online_planner.create_new_centralized_plan(self.sim_time, sensing_agents, replan_time)
                 else:
                     self.online_planner.plan_distributed(graphs, constraints, pos_cons, sensing_agents, self.sim_time)
             self.execute_next_step()
@@ -107,7 +109,7 @@ class MAPFSimulator:
 
         self.final_solution.time_to_solve = time.time() - start_time + self.online_planner.initial_plan.time_to_solve
         self.final_solution.compute_solution_cost()
-        # self.print_final_solution()
+        #self.print_final_solution()
         return self.final_solution
 
     def simulate_sensing_and_broadcast(self):
@@ -235,7 +237,10 @@ class MAPFSimulator:
             prev_presence = sol.path[0]
             for curr_presence in sol.path[1:]:
                 if prev_presence[1] != curr_presence[1]:  # It's an actual movement
-                    true_cost += self.real_weights[prev_presence[1], curr_presence[1]]
+                    try:
+                        true_cost += self.real_weights[prev_presence[1], curr_presence[1]]
+                    except KeyError:
+                        print(prev_presence[1], curr_presence[1])
                 else:  # it's a curr_move
                     true_cost += 1
                 if curr_presence[1] == self.tu_problem.goal_positions[agent] and \

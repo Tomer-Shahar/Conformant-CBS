@@ -11,7 +11,7 @@ MAP_FILES = {
     'small_blank_map': '..\\..\\maps\\small_blank_map.map',
     'circular_map': '..\\..\\maps\\ost003d.map',
     'warehouse_map': '..\\..\\maps\\kiva.map',
-    'maze_map': '..\\..\\maps\\maze512-2-0.map'
+    'maze_map': '..\\..\\maps\\maze512-2-0.map',
 }
 
 POSIX_MAP_FILES = {
@@ -247,16 +247,26 @@ class Experiments:
             f' {objective} - distribution - {dist} - pc {use_pc} - bp {use_bp}'
         for map_type in maps:
             results_file = self.file_prefix + f' - {map_type}_results.csv'
-            map_file = MAP_FILES[map_type]
-            if os.name == 'posix':
-                map_file = POSIX_MAP_FILES[map_type]
+
             print(
                 f"- STARTED ONLINE {map_type} | {self.agents_num} AGENTS | UNCERTAINTY: {self.uncertainty} |"
-                f" SENSE: {sense} | COMM: {commy} | DISTRIBUTION: {dist} | MIN BEST TIME: {self.min_best_case}")
+                f" SENSE: {sense} | COMM: {commy} | DISTRIBUTION: {dist} | MIN BEST TIME: {self.min_best_case} |"
+                f" PC: {use_pc} | BP: {use_bp}")
 
             random.seed(map_seed)
-            tu_problem = TimeUncertaintyProblem(map_file)
-            tu_problem.generate_problem_instance(self.uncertainty)
+            if map_type == 'obstacle_map':
+                tu_problem = TimeUncertaintyProblem.generate_obstacle_map(8, 8, 0.2, False)
+                tu_problem.generate_edges_and_weights(self.uncertainty)
+            elif map_type == 'obstacle_bottle_neck_map':
+                tu_problem = TimeUncertaintyProblem.generate_warehouse_bottle_neck_tu_map(self.uncertainty)
+            else:
+                if os.name == 'posix':
+                    map_file = POSIX_MAP_FILES[map_type]
+                else:
+                    map_file = MAP_FILES[map_type]
+                tu_problem = TimeUncertaintyProblem(map_file)
+                tu_problem.generate_problem_instance(self.uncertainty)
+
             self.run_and_log_online_experiments(tu_problem, map_type, results_file, sense, commy, dist, use_pc, use_bp)
 
     def run_and_log_online_experiments(self, tu_problem, map_type, results_file, sensing_prob, communication, dist,
@@ -395,7 +405,7 @@ class Experiments:
                     f'{objective},' \
                     f'{communication},' \
                     f'{min_sic},' \
-                    f'{max_sic}' \
+                    f'{max_sic},' \
                     f'{true_sic}\n'
                 temp_map_result_file.write(results)
 
@@ -410,6 +420,8 @@ class Experiments:
                 for goal in mbc:
                     for use_pc in pc:
                         for use_bp in bp:
+                            if use_bp and not use_pc:
+                                continue  # We don't test BP only
                             self.min_best_case = goal
                             self.uncertainty = tu
                             self.agents_num = agent_num
@@ -423,11 +435,12 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for uncertainty in [0]:
-    for number_of_agents in range(14, 22, 2):
-        for sp in [0]:
-            exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=50, edge_dist=['min', 'max', 'uni'],
-                                        comm_mode=[True, False], mbc=[True, False], maps=['small_blank_map'],
-                                        pc=[True, False], bp=[True, False], time_lim=120)
+for uncertainty in [6]:
+    for number_of_agents in [8]:
+        for sp in [100]:
+            exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=50, edge_dist=['max'],
+                                        comm_mode=[True], mbc=[True],
+                                        maps=['obstacle_bottle_neck_map'],
+                                        pc=[True], bp=[False], time_lim=120)
 
 print("Finished Experiments")

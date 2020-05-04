@@ -1095,7 +1095,7 @@ class TestOnlineCBSTU(unittest.TestCase):
         self.assertEqual(online_cbstu_planner.initial_plan.cost, sol.cost)  # Test initial plan
 
         sim = MAPFSimulator(simple_tu, sensing_prob=1)
-        sim.create_initial_solution()
+        sim.create_initial_solution(False, True, True, True)
         graphs, constraints, pos_cons = sim.online_planner.create_plan_graphs_and_constraints()
         sensing_agent = {2: (1, 2)}
         sim.sim_time = 5
@@ -1130,12 +1130,13 @@ class TestOnlineCBSTU(unittest.TestCase):
     def test_no_broadcasting_multiple_agents_example_map_partial_sensing(self):
         map_file = '.\\small_blank_map.map'
         blank_problem = TimeUncertaintyProblem(map_file)
+        random.seed(18)
 
         for i in range(15):
             blank_problem.generate_problem_instance(uncertainty=2)
             blank_problem.generate_agents(agent_num=5)
             sim = MAPFSimulator(blank_problem, sensing_prob=0.5)
-            sim.begin_execution(communication=False, time_limit=10)
+            sim.begin_execution(communication=False, time_limit=100)
             init_cost = sim.online_planner.initial_plan.cost
             final_cost = sim.final_solution.cost
             init_tu = init_cost[1] - init_cost[0]

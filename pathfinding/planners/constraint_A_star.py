@@ -34,7 +34,7 @@ class ConstraintAstar:
     *** Currently naive implementation (basic A* with constraints)****
     """
 
-    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table, min_best_case=True, time_limit=5,
+    def compute_agent_path(self, constraints, agent, start_pos, goal_pos, conf_table, mbc=True, time_limit=5,
                            curr_time=(0, 0), pos_cons=None, suboptimal=False):
 
         self.open_list = OpenListHeap()
@@ -43,7 +43,7 @@ class ConstraintAstar:
         self.agent = agent
         start_time = time.time()
         start_node = SingleAgentNode(start_pos, None, curr_time, self.tu_problem, goal_pos, confs_created=0)
-        self.__add_node_to_open(start_node, min_best_case)
+        self.__add_node_to_open(start_node, mbc)
 
         while len(self.open_list.internal_heap) > 0:
             if time.time() - start_time > time_limit:
@@ -68,13 +68,13 @@ class ConstraintAstar:
                 if neighbor not in self.open_dict:
                     neighbor_node = SingleAgentNode(neighbor[0], best_node, neighbor[1], self.tu_problem, goal_pos,
                                                     neighbor[2])
-                    self.__add_node_to_open(neighbor_node, min_best_case)
+                    self.__add_node_to_open(neighbor_node, mbc)
                 else:  # We've already reached this node but haven't expanded it.
                     neighbor_node = self.open_dict[neighbor]
 
-                    if min_best_case and g_val[0] >= neighbor_node.g_val[0]:
+                    if mbc and g_val[0] >= neighbor_node.g_val[0]:
                         continue  # No need to update node. Continue iterating successors
-                    elif not min_best_case and g_val[1] >= neighbor_node.g_val[1]:
+                    elif not mbc and g_val[1] >= neighbor_node.g_val[1]:
                         continue  # No need to update node. Continue iterating successors
                     print("****** Found a faster path for node *******" + neighbor_node.current_position)
                     self.__update_node(neighbor_node, best_node, g_val, goal_pos, self.tu_problem)
@@ -129,7 +129,7 @@ class ConstraintAstar:
         if best_node.current_position in constraints:
             for con in constraints[best_node.current_position]:
                 if con[0] == agent and best_node.g_val[0] <= con[1][1]:
-                    #print('found goal constraint')
+                    #print('found goal constraint: agent {} is at goal at time {}, constraint at time {}'.format(agent, best_node.g_val[0], con[1][1]))
                     return False  # A constraint was found
 
         return True

@@ -6,6 +6,7 @@ import math
 import json
 import os
 from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertaintyPlan
+from collections import defaultdict
 
 STAY_STILL_COST = 1
 
@@ -17,7 +18,7 @@ class TimeUncertaintySolution:
         self.paths = {}
         self.tuple_solution = {}
         self.nodes_expanded = 0
-        self.constraints = set()
+        self.constraints = defaultdict(list)
         self.time_to_solve = -1
         self.sic = -1, -1
 
@@ -121,7 +122,10 @@ class TimeUncertaintySolution:
         if agents_to_update is None:
             agents_to_update = self.paths
         for agent, plan in agents_to_update.items():  # Iterate through all plans, fix each one if need be.
-            last_move = plan.path[-1]
+            try:
+                last_move = plan.path[-1]
+            except IndexError:
+                print(plan.path)
             path_min_time = last_move[0][0]
 
             if path_min_time < max_min_time:  # The agent is gonna stay at the end at the same position.
@@ -143,7 +147,7 @@ class TimeUncertaintySolution:
             json_sol = {'paths': {}, 'constraints': None, 'time_to_solve': self.time_to_solve, 'sic': self.sic}
             for agent, path in self.paths.items():
                 json_sol['paths'][agent] = path.path
-            json_sol['constraints'] = list(self.constraints)
+            json_sol['constraints'] = list(self.constraints.items())
             json.dump(json_sol, sol_file)
 
     @staticmethod
@@ -172,14 +176,14 @@ class TimeUncertaintySolution:
                 tu_plan = TimeUncertaintyPlan(int(agent), tuple_path, math.inf)
                 tu_sol.paths[int(agent)] = tu_plan
             for con in json_sol['constraints']:
-                if type(con[1][0]) == int:  # it's a vertex constraint
-                    tuple_con = con[0], tuple(con[1]), tuple(con[2])
-                elif type(con[1][0]) == list:  # it's an edge constraint
-                    edge = tuple(con[1][0]), tuple(con[1][1])
-                    tuple_con = con[0], edge, tuple(con[2])
+                if type(con[0][0]) == int:  # it's a vertex constraint
+                    loc = tuple(con[0])
+                elif type(con[0][0]) == list:  # it's an edge constraint
+                    loc = tuple(con[0][0]), tuple(con[0][1])
                 else:
                     raise TypeError
-                tu_sol.constraints.add(tuple_con)
+                tuple_con = con[1][0][0], tuple(con[1][0][1])
+                tu_sol.constraints[loc].append(tuple_con)
 
             tu_sol.time_to_solve = json_sol['time_to_solve']
             if 'sic' in json_sol:

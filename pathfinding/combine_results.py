@@ -1,6 +1,6 @@
 import csv
-from pathfinding.planners.utils.time_uncertainty_solution import *
 import pandas as pd
+from pathfinding.planners.utils.time_uncertainty_solution import *
 
 raw_data_file = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\experiments\\All Raw Online Data.csv'
 average_results_file = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\experiments\\Average Online Results.csv'
@@ -14,10 +14,15 @@ def get_map_type(file_name):
         return 'Maze'
     if 'circular' in map_name:
         return 'Circular'
-    if 'open' in map_name:
+    if 'blank' in map_name:
         return 'Open Map'
     if 'warehouse' in map_name:
         return 'Warehouse Map'
+    if 'obstacle' in map_name:
+        if 'bottle_neck' in map_name:
+            return "Bottle Neck Obstacle Map"
+        else:
+            return 'Obstacle Map'
     else:
         return 'unknown'
 
@@ -34,9 +39,9 @@ def append_simulation_file(file):
             if int(row['Map Seed']) != 96372106:
                 print(f'Wrong map seed, FILE: {file}')
                 return
-            if 10637296 > int(row['Agents Seed']) or int(row['Agents Seed']) > 10637345:
+            if 10737296 > int(row['Agents Seed']) or int(row['Agents Seed']) > 10737345:
                 print(f'Wrong agent seed, FILE: {file}')
-                return
+                #return
             dist = file.split('distribution - ')[1].split(' -')[0]
             if dist != row['Distribution']:
                 print(run_file)
@@ -45,6 +50,7 @@ def append_simulation_file(file):
 
 
 def calc_averages_and_write(map_type,
+                            bp, pc,
                             initial_time,
                             octu_time,
                             initial_min_cost,
@@ -69,7 +75,7 @@ def calc_averages_and_write(map_type,
                             min_sic,
                             max_sic, true_sic):
     reduction_in_tc = -1
-
+    sic_reduction = -1
     if octu_success > 0:
         initial_time /= octu_success
         octu_time /= octu_success
@@ -94,6 +100,8 @@ def calc_averages_and_write(map_type,
         'Map': map_type,
         'Uncertainty': uncertainty,
         'Number of Agents': num_of_agents,
+        'With BP': bp,
+        'With PC': pc,
         'With Communication': comm,
         'Sensing Probability': sensing_probability,
         'Initial Runtime (secs)': initial_time,
@@ -156,6 +164,8 @@ def write_average_results(run_file):
             sensing_probability = row['Sensing Probability']
             num_of_agents = row['Number of Agents']
             comm = row['Communication']
+            bp = row['Bypass']
+            pc = row['PC']
             try:
                 objective = row['Objective']
             except KeyError:
@@ -186,7 +196,7 @@ def write_average_results(run_file):
                 else:
                     same_tc += 1
 
-        calc_averages_and_write(map_type, initial_time,  online_time, initial_min_cost, initial_max_cost,
+        calc_averages_and_write(map_type, bp, pc, initial_time,  online_time, initial_min_cost, initial_max_cost,
                                 initial_uncertainty, initial_true_cost, final_min_cost, final_max_cost,
                                 final_uncertainty, final_true_cost, objective, uncertainty, sensing_probability,
                                 num_of_agents, num_of_runs, octu_success, comm, distribution, reduced_tc, increased_tc,
@@ -211,6 +221,8 @@ def write_simulation_results(map_type, row, dist=None):
         'Uncertainty': row['Uncertainty'],
         'Number of Agents': row['Number of Agents'],
         'Agent Seed': row['Agents Seed'],
+        'With BP': row['Bypass'],
+        'With PC': row['PC'],
         'With Communication': row['Communication'],
         'Sensing Probability': row['Sensing Probability'],
         'Initial Runtime (secs)': row['initial time'],
@@ -241,7 +253,7 @@ def create_sic_dict():
             sic_dict[map_type][str(agents)] = {}
             for tu in ['0', '1', '2', '4']:
                 sic_dict[map_type][str(agents)][tu] = {}
-                for seed in range(10637296, 10637346):
+                for seed in range(10737296, 10737346):
                     sic_dict[map_type][str(agents)][tu][str(seed)] = {'min best case': -1, 'min worst case': -1}
     for root, dirs, files in os.walk(sol_folder):
         if 'circular' in root or 'maze' in root:
@@ -257,6 +269,8 @@ def create_sic_dict():
                 map_type = 'warehouse_map'
             elif 'small' in file:
                 map_type = 'small_blank_map'
+            elif 'obstacle' in file:
+                map_type = 'obstacle_map'
             else:
                 map_type = 'circular_map'
             tu_sol = TimeUncertaintySolution.load(agent_num, uncertainty, map_type, agent_seed, map_seed, objective,
@@ -264,6 +278,7 @@ def create_sic_dict():
             sic_dict[map_type][agent_num][uncertainty][agent_seed][file_arr[4]] = tu_sol.sic
 
     return sic_dict
+
 
 def append_sic_values():
     sic_dict = create_sic_dict()
@@ -305,11 +320,11 @@ def append_sic_values():
 
 # Aggregate all of the data into a single large file
 with open(raw_data_file, 'w', newline='') as raw_file:
-    fields = ['Map', 'Map Seed', 'Uncertainty', 'Number of Agents', 'Agent Seed', 'With Communication',
-              'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success', 'Initial Min SOC',
-              'Initial Max SOC', 'Initial Uncertainty', 'Initial True Cost', 'Final Min SOC', 'Final Max SOC',
-              'Final Uncertainty', 'Distribution', 'Final True Cost', 'Objective', 'Effect on True Cost',
-              'True Cost Change', 'Min SIC', 'Max SIC']
+    fields = ['Map', 'Map Seed', 'Uncertainty', 'Number of Agents', 'Agent Seed', 'With BP', 'With PC',
+              'With Communication', 'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success',
+              'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty', 'Initial True Cost', 'Final Min SOC',
+              'Final Max SOC', 'Final Uncertainty', 'Distribution', 'Final True Cost', 'Objective',
+              'Effect on True Cost', 'True Cost Change', 'Min SIC', 'Max SIC']
     raw_data_writer = csv.DictWriter(raw_file, fieldnames=fields, restval='-', extrasaction='ignore')
     raw_data_writer.writeheader()
     num = 0
@@ -324,11 +339,12 @@ with open(raw_data_file, 'w', newline='') as raw_file:
 
 # Compute the average results of each setting
 with open(average_results_file, 'w', newline='') as avg_file:
-    avg_fields = ['Map', 'Uncertainty', 'Number of Agents', 'With Communication', 'Sensing Probability',
-                  'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success', 'Initial Min SOC', 'Initial Max SOC',
-                  'Initial Uncertainty',  'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty',
-                  'Final True Cost', 'Objective',  'Reduction in True Cost', 'Distribution', 'Number of Runs',
-                  'Reduced True Cost', 'Increased True Cost', 'Same True Cost', 'Min SIC', 'Max SIC', 'Reduction %']
+    avg_fields = ['Map', 'Uncertainty', 'Number of Agents', 'With BP', 'With PC', 'With Communication',
+                  'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success',
+                  'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty',  'Initial True Cost', 'Final Min SOC',
+                  'Final Max SOC', 'Final Uncertainty', 'Final True Cost', 'Objective',  'Reduction in True Cost',
+                  'Distribution', 'Number of Runs', 'Reduced True Cost', 'Increased True Cost', 'Same True Cost',
+                  'Min SIC', 'Max SIC', 'Reduction %']
     average_writer = csv.DictWriter(avg_file, fieldnames=avg_fields)
     average_writer.writeheader()
     for root, dirs, files in os.walk(input_folder):

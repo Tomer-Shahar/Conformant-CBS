@@ -53,6 +53,21 @@ class TimeUncertaintyProblem:
 
         return new_map
 
+    @staticmethod
+    def generate_obstacle_map(height, width, obst_prob, is_eight_connected=False):
+        obstacle_map = TimeUncertaintyProblem()
+        obstacle_map.map = [[0 for x in range(width)] for y in range(height)]
+        obstacle_map.height = height
+        obstacle_map.width = width
+
+        for row_dex in range(height):
+            for col_dex in range(width):
+                p = random.random()
+                if p <= obst_prob:
+                    obstacle_map.map[row_dex][col_dex] = 1
+
+        return obstacle_map
+
     def generate_maze_agents(self, agent_num=2):
 
         self.assign_start_and_goal_positions(agent_num)
@@ -241,7 +256,8 @@ class TimeUncertaintyProblem:
         for agent_id in range(1, agent_num + 1):
             x = random.randint(0, height - 1)
             y = random.randint(0, width - 1)
-            while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
+            while self.map[x][y] == 1 or (x, y) in start_set or\
+                    (x, y) in goal_set or len(self.edges_and_weights[(x, y)]) == 0:
                 x = random.randint(0, height - 1)
                 y = random.randint(0, width - 1)
 
@@ -251,7 +267,8 @@ class TimeUncertaintyProblem:
             x = random.randint(0, height - 1)
             y = random.randint(0, width - 1)
 
-            while self.map[x][y] == 1 or (x, y) in start_set or (x, y) in goal_set:
+            while self.map[x][y] == 1 or (x, y) in start_set or\
+                    (x, y) in goal_set or len(self.edges_and_weights[(x, y)]) == 0:
                 x = random.randint(0, height - 1)
                 y = random.randint(0, width - 1)
 
@@ -400,3 +417,50 @@ class TimeUncertaintyProblem:
             print("--------------------------------------------")
         else:
             pass
+
+    @staticmethod
+    def generate_warehouse_side_tu_map():
+        map = '../../../maps/kiva.map'
+        kiva_map = TimeUncertaintyProblem(map)
+        kiva_map.generate_edges_and_weights(uncertainty=0)
+        for row in range(kiva_map.height):
+            kiva_map.edges_and_weights[(row, 0)].remove(((row, 1), (1, 1)))  # Left column
+            kiva_map.edges_and_weights[(row, 1)].remove(((row, 0), (1, 1)))  # Left column
+            kiva_map.edges_and_weights[(row, 0)].append(((row, 1), (1, 10)))
+            kiva_map.edges_and_weights[(row, 1)].append(((row, 0), (1, 10)))
+
+            kiva_map.edges_and_weights[(row, kiva_map.width-1)].remove(((row, kiva_map.width-2), (1, 1)))  # right col
+            kiva_map.edges_and_weights[(row, kiva_map.width-2)].remove(((row, kiva_map.width-1), (1, 1)))  # right col
+            kiva_map.edges_and_weights[(row, kiva_map.width-1)].append(((row, kiva_map.width-2), (1, 10)))
+            kiva_map.edges_and_weights[(row, kiva_map.width-2)].append(((row, kiva_map.width-1), (1, 10)))
+
+    @staticmethod
+    def generate_warehouse_bottle_neck_tu_map(u=5):
+        """
+        Generates a warehouse map where each bottle neck, i.e the places between the aisles has a high uncertainty.
+        The rest of the edges have a weight of 1.
+        :param u: The uncertainty of the bottle necks
+        :return:
+        """
+        map = '..\\..\\maps\\kiva.map'
+        k_map = TimeUncertaintyProblem(map)
+        k_map.generate_edges_and_weights(uncertainty=0)
+        cols = [17, 28, 39]
+        u = max(u, 1)
+        for row in range(1, k_map.height, 3):
+            for col in cols:  # (row, col) is the location of the start of the bottle neck.
+
+                k_map.edges_and_weights[(row-1, col)].remove(((row, col), (1, 1)))  # one above
+                k_map.edges_and_weights[(row+2, col)].remove(((row+1, col), (1, 1)))   # two below
+                k_map.edges_and_weights[(row, col)] = []
+                k_map.edges_and_weights[(row+1, col)] = []
+
+                k_map.edges_and_weights[(row-1, col)].append(((row, col), (1, u)))  # one above, underneath
+                k_map.edges_and_weights[(row, col)].append(((row-1, col), (1, u)))  # current cell, above
+                k_map.edges_and_weights[(row, col)].append(((row+1, col), (1, u)))  # current cell, underneath
+
+                k_map.edges_and_weights[(row+1, col)].append(((row, col), (1, u)))  # One below, above
+                k_map.edges_and_weights[(row+1, col)].append(((row+2, col), (1, u)))  # One below, underneath
+                k_map.edges_and_weights[(row+2, col)].append(((row+1, col), (1, u)))  # One below, underneath
+
+        return k_map
