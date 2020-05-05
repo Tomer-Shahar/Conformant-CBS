@@ -11,7 +11,7 @@ from pathfinding.planners.constraint_A_star import ConstraintAstar
 from pathfinding.planners.utils.tu_problem import TimeUncertaintyProblem
 
 
-class OnlineCBSTU:
+class OnlineCBSTU(OnlinePlanner):
 
     def __init__(self, tu_problem, full_sensing=False):
         """
@@ -19,11 +19,7 @@ class OnlineCBSTU:
         :param tu_problem: a time-uncertainty problem. This is an object that must be capable of updating the current
         state of the world.
         """
-        self.tu_problem = tu_problem
-        self.offline_cbstu_planner = CBSTUPlanner(tu_problem)
-        self.initial_plan = None
-        self.current_plan = None
-        self.current_state = None
+        OnlinePlanner.__init__(self)
         self.full_sensing = full_sensing
 
     def find_initial_path(self, mbc=False, soc=True, use_pc=True, use_bp=True, time_limit=300, initial_sol=None):

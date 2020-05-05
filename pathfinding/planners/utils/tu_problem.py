@@ -455,12 +455,12 @@ class TimeUncertaintyProblem:
                 k_map.edges_and_weights[(row, col)] = []
                 k_map.edges_and_weights[(row+1, col)] = []
 
-                k_map.edges_and_weights[(row-1, col)].append(((row, col), (1, u)))  # one above, underneath
-                k_map.edges_and_weights[(row, col)].append(((row-1, col), (1, u)))  # current cell, above
-                k_map.edges_and_weights[(row, col)].append(((row+1, col), (1, u)))  # current cell, underneath
+                k_map.edges_and_weights[(row-1, col)].append(((row, col), (1, 1+u)))  # one above, underneath
+                k_map.edges_and_weights[(row, col)].append(((row-1, col), (1, 1+u)))  # current cell, above
+                k_map.edges_and_weights[(row, col)].append(((row+1, col), (1, 1+u)))  # current cell, underneath
 
-                k_map.edges_and_weights[(row+1, col)].append(((row, col), (1, u)))  # One below, above
-                k_map.edges_and_weights[(row+1, col)].append(((row+2, col), (1, u)))  # One below, underneath
-                k_map.edges_and_weights[(row+2, col)].append(((row+1, col), (1, u)))  # One below, underneath
+                k_map.edges_and_weights[(row+1, col)].append(((row, col), (1, 1+u)))  # One below, above
+                k_map.edges_and_weights[(row+1, col)].append(((row+2, col), (1, 1+u)))  # One below, underneath
+                k_map.edges_and_weights[(row+2, col)].append(((row+1, col), (1, 1+u)))  # One below, underneath
 
         return k_map

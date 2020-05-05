@@ -1,6 +1,8 @@
 import csv
 import pandas as pd
-from pathfinding.planners.utils.time_uncertainty_solution import *
+import os
+
+#from pathfinding.planners.utils.time_uncertainty_solution import TimeUncertaintySolution
 
 raw_data_file = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\experiments\\All Raw Online Data.csv'
 average_results_file = 'C:\\Users\\Tomer\\PycharmProjects\\Conformant-CBS\\experiments\\Average Online Results.csv'

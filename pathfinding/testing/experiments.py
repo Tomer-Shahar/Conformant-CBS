@@ -435,10 +435,10 @@ exp = Experiments('..\\..\\experiments\\Online Runs')
 if os.name == 'posix':
     exp = Experiments('../../experiments/Online Runs')
 
-for uncertainty in [6]:
+for uncertainty in range(8):
     for number_of_agents in [8]:
         for sp in [100]:
-            exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=50, edge_dist=['max'],
+            exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=50, edge_dist=['uni'],
                                         comm_mode=[True], mbc=[True],
                                         maps=['obstacle_bottle_neck_map'],
                                         pc=[True], bp=[False], time_lim=120)

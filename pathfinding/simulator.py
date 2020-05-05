@@ -7,6 +7,7 @@ time. This occurs when the agent is at a node (waiting or having just arrived).
 from pathfinding.planners.utils.time_uncertainty_solution import *
 from pathfinding.planners.online_cbstu import *
 from pathfinding.planners.online_worst_case_cbs import OnlinePessimisticCBS
+from pathfinding.planners.prioritized_planner import *
 from pathfinding.planners.utils.time_error import OutOfTimeError
 import time
 import random
@@ -14,7 +15,7 @@ import random
 
 class MAPFSimulator:
 
-    def __init__(self, tu_problem, sensing_prob=1, pessimistic_solver=False, edge_dist='uniform'):
+    def __init__(self, tu_problem, sensing_prob=1, solver='cbstu', edge_dist='uniform'):
         """
         :param tu_problem: A time uncertainty problem
         :param sensing_prob: The probability to sense at each node
@@ -24,27 +25,27 @@ class MAPFSimulator:
         self.sensing_prob = sensing_prob
         self.communication = True
 
-        if self.sensing_prob == 1:
-            full_sense = True
-        else:
-            full_sense = False
-        if pessimistic_solver:
+        if solver == 'pessimistic':
             self.sensing_prob = 1
             self.communication = False
             self.online_planner = OnlinePessimisticCBS(tu_problem)
+        elif solver == 'cbstu':
+            self.online_planner = OnlineCBSTU(tu_problem, self.sensing_prob == 1)  # The online solver
+        elif solver == 'prioritized':
+            self.online_planner = PrioritizedPlanner(tu_problem)
         else:
-            self.online_planner = OnlineCBSTU(tu_problem, full_sense)  # The online solver
+            print('Invalid planner chosen')
         self.final_solution = TimeUncertaintySolution()  # Maintain the final path taken by agents
         self.arrival_times = {0: []}  # Maintain a dictionary of when agents will arrive to their next destination
-        self.fixed_weights = {}  # The actual traversal times
         self.sim_time = 0
         self.real_weights = {}  # The actual times it'll take to traverse the edges.
         self.generate_real_weights(distribution=edge_dist)
 
         for agent in self.tu_problem.start_positions:
-            self.final_solution.paths[agent] = TimeUncertaintyPlan(agent_id=agent,
-                                                                   path=[((0, 0), self.tu_problem.start_positions[agent])]
-                                                                   , cost=(0, 0))
+            self.final_solution.paths[agent] = TimeUncertaintyPlan(
+                                                agent_id=agent,
+                                                path=[((0, 0), self.tu_problem.start_positions[agent])],
+                                                cost=(0, 0))
 
     def generate_real_weights(self, distribution='uniform'):
         """
