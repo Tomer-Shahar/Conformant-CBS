@@ -9,20 +9,14 @@ from shutil import copyfile
 
 proj_path = os.path.abspath(os.getcwd())
 proj_path = proj_path.split('Conformant-CBS')
-proj_path = os.path.join(proj_path[0], 'Conformant-CBS', 'maps')
+proj_path = os.path.join(proj_path[0], 'Conformant-CBS')
+maps_path = os.path.join(proj_path, 'maps')
 
 MAP_FILES = {
-    'small_blank_map': f'{proj_path}\\small_blank_map.map',
-    'circular_map': f'{proj_path}\\ost003d.map',
-    'warehouse_map': f'{proj_path}\\kiva.map',
-    'maze_map': f'{proj_path}\\maze512-2-0.map',
-}
-
-POSIX_MAP_FILES = {
-    'small_blank_map': f'{proj_path}/small_blank_map.map',
-    'circular_map': f'{proj_path}/ost003d.map',
-    'warehouse_map': f'{proj_path}/kiva.map',
-    'maze_map': f'{proj_path}/maze512-2-0.map'
+    'small_blank_map': f'{maps_path}\\small_blank_map.map',
+    'circular_map': f'{maps_path}\\ost003d.map',
+    'warehouse_map': f'{maps_path}\\kiva.map',
+    'maze_map': f'{maps_path}\\maze512-2-0.map',
 }
 
 map_seed = 96372106
@@ -31,8 +25,8 @@ initial_agent_seed = 10737296
 
 class Experiments:
 
-    def __init__(self, output_folder):
-        self.output_folder = output_folder
+    def __init__(self):
+        self.output_folder = os.path.join(proj_path, 'experiments', 'Online Runs')
         if not os.path.exists(self.output_folder):
             os.makedirs(self.output_folder)
 
@@ -242,10 +236,7 @@ class Experiments:
 
     def run_online_experiments(self, agent_num, sense, commy, dist, use_pc, use_bp, maps):
 
-        if self.min_best_case:
-            objective = 'min best case'
-        else:
-            objective = 'min worst case'
+        objective = 'min best case' if self.min_best_case else 'min worst case'
         self.file_prefix = \
             f'{agent_num} agents - {self.uncertainty} uncertainty - {sense} sensing - comm {commy} -' \
             f' {objective} - distribution - {dist} - pc {use_pc} - bp {use_bp}'
@@ -264,10 +255,7 @@ class Experiments:
             elif map_type == 'obstacle_bottle_neck_map':
                 tu_problem = TimeUncertaintyProblem.generate_warehouse_bottle_neck_tu_map(self.uncertainty)
             else:
-                if os.name == 'posix':
-                    map_file = POSIX_MAP_FILES[map_type]
-                else:
-                    map_file = MAP_FILES[map_type]
+                map_file = MAP_FILES[map_type]
                 tu_problem = TimeUncertaintyProblem(map_file)
                 tu_problem.generate_problem_instance(self.uncertainty)
 
@@ -310,10 +298,7 @@ class Experiments:
 
         success = 0
         random.seed(initial_agent_seed)
-        if os.name == 'posix':
-            sol_folder = '../../solutions'
-        else:
-            sol_folder = '..\\..\\solutions'
+        sol_folder = os.path.join(proj_path, 'solutions')
         for i in range(self.reps):
             agent_seed = initial_agent_seed + i
             random.seed(agent_seed)
@@ -382,10 +367,7 @@ class Experiments:
                     init_time = -1
 
             with open(temp_path, 'a') as temp_map_result_file:
-                if self.min_best_case:
-                    objective = 'Min Best Case'
-                else:
-                    objective = 'Min Worst Case'
+                objective = 'Min Best Case' if self.min_best_case else 'Min Worst Case'
                 results = f'{i + 1},' \
                     f'{map_seed},' \
                     f'{self.agents_num},' \
@@ -437,9 +419,8 @@ class Experiments:
 
 def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist=('min', 'max', 'uni', ),
                     comm_mode=(True, False), mbc=(True, False), pc=(True, ), bp=(False, ), maps=('small_blank_map', )):
-    exp = Experiments('..\\..\\experiments\\Online Runs')
-    if os.name == 'posix':
-        exp = Experiments('../../experiments/Online Runs')
+
+    exp = Experiments()
 
     for uncertainty in u:
         for number_of_agents in agents:
@@ -449,4 +430,4 @@ def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist
 
     print("Finished Experiments")
 
-# run_experiments()
+run_experiments()
