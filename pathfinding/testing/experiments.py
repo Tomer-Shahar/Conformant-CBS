@@ -13,10 +13,10 @@ proj_path = os.path.join(proj_path[0], 'Conformant-CBS')
 maps_path = os.path.join(proj_path, 'maps')
 
 MAP_FILES = {
-    'small_blank_map': f'{maps_path}\\small_blank_map.map',
-    'circular_map': f'{maps_path}\\ost003d.map',
-    'warehouse_map': f'{maps_path}\\kiva.map',
-    'maze_map': f'{maps_path}\\maze512-2-0.map',
+    'small_blank_map': f'{os.path.join(maps_path, "small_blank_map.map")}',
+    'circular_map': f'{os.path.join(maps_path, "st003d.map")}',
+    'warehouse_map': f'{os.path.join(maps_path, "kiva.map")}',
+    'maze_map': f'{os.path.join(maps_path, "maze512-2-0.map")}',
 }
 
 map_seed = 96372106
@@ -430,4 +430,4 @@ def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist
 
     print("Finished Experiments")
 
-run_experiments()
+#run_experiments()
