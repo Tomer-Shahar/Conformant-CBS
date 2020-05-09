@@ -444,5 +444,6 @@ def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist
                 exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=50, edge_dist=edge_dist,
                                             comm_mode=comm_mode, mbc=mbc, maps=maps, pc=pc, bp=bp, time_lim=120)
 
+    print("Finished Experiments")
+
 #run_experiments()
-print("Finished Experiments")

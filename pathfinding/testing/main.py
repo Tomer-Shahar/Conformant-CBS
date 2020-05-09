@@ -1,3 +1,12 @@
+import sys
+import os
+path = os.getcwd().split(os.path.sep)
+print(path)
+path = os.path.sep.join(path[:-1])
+print(path)
+sys.path.append(path)
+
+import pathfinding
 from pathfinding.testing.experiments import *
 
 maps_dict = {
@@ -228,6 +237,7 @@ if __name__ == '__main__':
         except ValueError:
             print('Unexpected error. Please enter input values again.')
             finished = False
+
 
     run_experiments(u=u, agents=agents, sense_prob=sense_prob, edge_dist=edge_dist, comm_mode=comm_mode, mbc=mbc,
                     pc=pc, bp=bp, maps=maps)
