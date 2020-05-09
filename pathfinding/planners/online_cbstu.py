@@ -7,6 +7,7 @@ import copy
 import time
 from collections import defaultdict
 from pathfinding.planners.cbstu import CBSTUPlanner
+from pathfinding.planners.online_planner import *
 from pathfinding.planners.constraint_A_star import ConstraintAstar
 from pathfinding.planners.utils.tu_problem import TimeUncertaintyProblem
 
@@ -19,7 +20,7 @@ class OnlineCBSTU(OnlinePlanner):
         :param tu_problem: a time-uncertainty problem. This is an object that must be capable of updating the current
         state of the world.
         """
-        OnlinePlanner.__init__(self)
+        OnlinePlanner.__init__(self, tu_problem, CBSTUPlanner)
         self.full_sensing = full_sensing
 
     def find_initial_path(self, mbc=False, soc=True, use_pc=True, use_bp=True, time_limit=300, initial_sol=None):
@@ -33,18 +34,14 @@ class OnlineCBSTU(OnlinePlanner):
         if initial_sol:
             self.initial_plan = initial_sol
             self.current_plan = copy.deepcopy(initial_sol)
-            self.offline_cbstu_planner.final_constraints = initial_sol.constraints
+            self.offline_planner.final_constraints = initial_sol.constraints
         else:
             start = time.time()
-            self.initial_plan = self.offline_cbstu_planner.find_solution(mbc, time_limit, soc=soc, use_pc=use_pc,
-                                                                         use_bp=use_bp)
+            self.initial_plan = self.offline_planner.find_solution(mbc, time_limit, soc=soc, use_pc=use_pc,
+                                                                   use_bp=use_bp)
             total_time = time.time() - start
             self.initial_plan.time_to_solve = total_time
             self.current_plan = copy.deepcopy(self.initial_plan)
-        self.current_state = {'time': 0,
-                              'cost': 0,  # Agents that are at a vertex
-                              'at_vertex': copy.deepcopy(self.tu_problem.start_positions),
-                              'in_transition': {}}  # Agents that are transitioning.
 
     def update_current_state(self, curr_time, sensed_agents):
         """
@@ -102,8 +99,8 @@ class OnlineCBSTU(OnlinePlanner):
                     for planning_agent, presence in sensing_agents.items():
                         new_cons.add((planning_agent, move[1], move[0]))
 
-            self.offline_cbstu_planner.tu_problem.start_positions = sensing_agents
-            new_plans = self.offline_cbstu_planner.find_solution(existing_cons=new_cons,
+            self.offline_planner.tu_problem.start_positions = sensing_agents
+            new_plans = self.offline_planner.find_solution(existing_cons=new_cons,
                                                                  curr_time=(curr_time, curr_time),
                                                                  time_lim=time_limit)
             for agent, path in new_plans.paths.items():
@@ -138,7 +135,7 @@ class OnlineCBSTU(OnlinePlanner):
 
         if self.current_plan.cost[1] - self.current_plan.cost[0] > 0:
             for agent, loc in sensing_agents.items():
-                agent_constraints = copy.deepcopy(self.offline_cbstu_planner.final_constraints)
+                agent_constraints = copy.deepcopy(self.offline_planner.final_constraints)
                 for con_agent, cons in constraints.items():
                     for con in cons:
                         agent_constraints[con[1]].append((con_agent, con[2]))

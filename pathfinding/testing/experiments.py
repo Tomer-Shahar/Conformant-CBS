@@ -15,10 +15,10 @@ MAP_FILES = {
 }
 
 POSIX_MAP_FILES = {
-    'small_map': './small_blank_map.map',
-    'circular_map': './ost003d.map',
-    'warehouse_map': './kiva.map',
-    'maze_map': './maze512-2-0.map'
+    'small_blank_map': '../../maps/small_blank_map.map',
+    'circular_map': '../../maps/ost003d.map',
+    'warehouse_map': '../../maps/kiva.map',
+    'maze_map': '../../maps/maze512-2-0.map'
 }
 
 map_seed = 96372106
@@ -349,7 +349,7 @@ class Experiments:
 
                 min_sic = init_sol.sic[0]
                 max_sic = init_sol.sic[1]
-                root_sol = sim.online_planner.offline_cbstu_planner.create_root().sol
+                root_sol = sim.online_planner.offline_planner.create_root().sol
                 true_sic = sim.calc_solution_true_cost(root_sol)
 
                 if not loaded_sol:
@@ -431,16 +431,18 @@ class Experiments:
                                                         use_pc=use_pc, use_bp=use_bp, maps=maps)
 
 
-exp = Experiments('..\\..\\experiments\\Online Runs')
-if os.name == 'posix':
-    exp = Experiments('../../experiments/Online Runs')
+def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist=('min', 'max', 'uni', ),
+                    comm_mode=(True, False), mbc=(True, False), pc=(True, ), bp=(False, ), maps=('small_blank_map', )):
+    exp = Experiments('..\\..\\experiments\\Online Runs')
+    if os.name == 'posix':
+        exp = Experiments('../../experiments/Online Runs')
+    print(os.getcwd())
 
-for uncertainty in range(8):
-    for number_of_agents in [8]:
-        for sp in [100]:
-            exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=50, edge_dist=['uni'],
-                                        comm_mode=[True], mbc=[True],
-                                        maps=['obstacle_bottle_neck_map'],
-                                        pc=[True], bp=[False], time_lim=120)
+    for uncertainty in u:
+        for number_of_agents in agents:
+            for sp in sense_prob:
+                exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=50, edge_dist=edge_dist,
+                                            comm_mode=comm_mode, mbc=mbc, maps=maps, pc=pc, bp=bp, time_lim=120)
 
+#run_experiments()
 print("Finished Experiments")

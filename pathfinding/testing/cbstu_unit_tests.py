@@ -12,6 +12,7 @@ from pathfinding.planners.utils.time_error import *
 from pathfinding.simulator import MAPFSimulator
 from pathfinding.planners.online_cbstu import OnlineCBSTU
 from pathfinding.planners.prioritized_planner import PrioritizedPlanner
+from pathfinding.planners.online_prioritized_planner import OnlinePrioritizedPlanner
 
 import unittest
 import random
@@ -1475,3 +1476,34 @@ class TestPrioritizedPlanner(unittest.TestCase):
         priority_planner = PrioritizedPlanner(circular_map)
         sol = priority_planner.find_solution(min_best_case=mbc, time_limit=30, to_print=False)
         self.assertNotEqual(sol.cost, (math.inf, math.inf))
+
+
+
+class TestOnlinePrioritizedPlanner(unittest.TestCase):
+    """
+    Class for testing the online version of Prioritized A*
+    """
+
+    def test_online_prioritized_planner_simple(self):
+        example_map = TimeUncertaintyProblem('test_map.map')
+        example_map.generate_edges_and_weights(uncertainty=0)
+        example_map.start_positions[1] = (0, 0)
+        example_map.start_positions[2] = (17, 0)
+        example_map.goal_positions[1] = (19, 0)
+        example_map.goal_positions[2] = (17, 0)
+        example_map.fill_heuristic_table()
+
+        offline_planner = PrioritizedPlanner(example_map)
+        sol = offline_planner.find_solution()
+        online_cbstu_planner = OnlinePrioritizedPlanner(example_map)
+        online_cbstu_planner.find_initial_path()
+        self.assertEqual(sol.cost, (23, 23))
+        self.assertEqual(online_cbstu_planner.initial_plan.cost, sol.cost)  # Test initial plan
+
+        sim = MAPFSimulator(example_map, sensing_prob=0)
+        online_sol = sim.begin_execution()
+        self.assertEqual(online_sol.cost, (23, 23))
+
+        sim = MAPFSimulator(example_map, sensing_prob=1)
+        online_sol = sim.begin_execution()
+        self.assertEqual(online_sol.cost, (23, 23))

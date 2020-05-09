@@ -8,7 +8,7 @@ from pathfinding.planners.constraint_A_star import ConstraintAstar as Cas
 class ConstraintNode:
     """
     The class that represents a node in the CT. Contains the current path for each agent and the contraint added to
-    this node. We do not need to save all of the constraints, as they can be extrapolated from the parent nodes by
+    this node. We do neot need to save all of the constraints, as they can be extrapolated from the parent nodes by
     traversing the path from the current node to the root.
     """
 
@@ -180,9 +180,9 @@ class ConstraintNode:
                 positions[edge].add((agent, move[0], move[2]))
                 for pres in positions[edge]:
                     if pres[0] != agent:  # Use different overlap tests for same direction or different directions
-                        if pres[2] != move[2] and not Cas.overlapping(move[0], pres[1]):
+                        if pres[2] != move[2] and not Cas.overlapping(move[0], pres[1]):  # Opposite directions
                             continue  # no conflict
-                        if pres[2] == move[2]:  # Trickier conflict option
+                        if pres[2] == move[2]:  # Trickier conflict option, same direction
                             occ_i = move[0][0]+1, move[0][1]-1  # Actual occupation times
                             occ_j = pres[1][0]+1, pres[1][1]-1
                             if not Cas.overlapping(occ_i, occ_j):
