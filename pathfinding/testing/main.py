@@ -1,9 +1,7 @@
 import sys
 import os
 path = os.getcwd().split(os.path.sep)
-print(path)
 path = os.path.sep.join(path[:-1])
-print(path)
 sys.path.append(path)
 
 import pathfinding

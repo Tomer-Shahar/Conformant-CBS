@@ -7,18 +7,22 @@ from pathfinding.planners.operator_decomposition_a_star import *
 from pathfinding.simulator import *
 from shutil import copyfile
 
+proj_path = os.path.abspath(os.getcwd())
+proj_path = proj_path.split('Conformant-CBS')
+proj_path = os.path.join(proj_path[0], 'Conformant-CBS', 'maps')
+
 MAP_FILES = {
-    'small_blank_map': '..\\..\\maps\\small_blank_map.map',
-    'circular_map': '..\\..\\maps\\ost003d.map',
-    'warehouse_map': '..\\..\\maps\\kiva.map',
-    'maze_map': '..\\..\\maps\\maze512-2-0.map',
+    'small_blank_map': f'{proj_path}\\small_blank_map.map',
+    'circular_map': f'{proj_path}\\ost003d.map',
+    'warehouse_map': f'{proj_path}\\kiva.map',
+    'maze_map': f'{proj_path}\\maze512-2-0.map',
 }
 
 POSIX_MAP_FILES = {
-    'small_blank_map': '../../maps/small_blank_map.map',
-    'circular_map': '../../maps/ost003d.map',
-    'warehouse_map': '../../maps/kiva.map',
-    'maze_map': '../../maps/maze512-2-0.map'
+    'small_blank_map': f'{proj_path}/small_blank_map.map',
+    'circular_map': f'{proj_path}/ost003d.map',
+    'warehouse_map': f'{proj_path}/kiva.map',
+    'maze_map': f'{proj_path}/maze512-2-0.map'
 }
 
 map_seed = 96372106
@@ -436,7 +440,6 @@ def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist
     exp = Experiments('..\\..\\experiments\\Online Runs')
     if os.name == 'posix':
         exp = Experiments('../../experiments/Online Runs')
-    print(os.getcwd())
 
     for uncertainty in u:
         for number_of_agents in agents:
