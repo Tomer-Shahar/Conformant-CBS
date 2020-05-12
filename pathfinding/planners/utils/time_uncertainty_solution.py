@@ -155,7 +155,7 @@ class TimeUncertaintySolution:
         """
         Loads a previously computed solution.
         """
-        objective = 'min best case' if min_best_case else 'min worse case'
+        objective = 'min best case' if min_best_case else 'min worst case'
         file_name = f'map seed {map_seed}_{agent_num} agents_agent seed {agent_seed}_{uncertainty} uncertainty_' \
             f'{objective}_using pc {use_pc}_using bypass {use_bp}, {map_type}.sol'
         path = os.path.join(folder, map_type, f'{agent_num} agents', file_name)
