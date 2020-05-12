@@ -253,7 +253,8 @@ class Experiments:
                 tu_problem = TimeUncertaintyProblem.generate_obstacle_map(8, 8, 0.2, False)
                 tu_problem.generate_edges_and_weights(self.uncertainty)
             elif map_type == 'obstacle_bottle_neck_map':
-                tu_problem = TimeUncertaintyProblem.generate_warehouse_bottle_neck_tu_map(self.uncertainty)
+                kiva_map_path = MAP_FILES['warehouse_map']
+                tu_problem = TimeUncertaintyProblem.generate_warehouse_bottle_neck_map(self.uncertainty, kiva_map_path)
             else:
                 map_file = MAP_FILES[map_type]
                 tu_problem = TimeUncertaintyProblem(map_file)

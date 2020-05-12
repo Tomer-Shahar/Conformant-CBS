@@ -57,7 +57,7 @@ def run_test_map():
 
 file = 'small_blank_map.map'
 random.seed(96372106)
-small_map = TimeUncertaintyProblem.generate_warehouse_bottle_neck_tu_map()
+small_map = TimeUncertaintyProblem.generate_warehouse_bottle_neck_map()
 random.seed(10737297)
 small_map.generate_agents(8)
 small_map.fill_heuristic_table()

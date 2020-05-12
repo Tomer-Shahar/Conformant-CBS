@@ -435,18 +435,17 @@ class TimeUncertaintyProblem:
             kiva_map.edges_and_weights[(row, kiva_map.width-2)].append(((row, kiva_map.width-1), (1, 10)))
 
     @staticmethod
-    def generate_warehouse_bottle_neck_tu_map(u=5):
+    def generate_warehouse_bottle_neck_map(u=5, warehouse_map_path=None):
         """
         Generates a warehouse map where each bottle neck, i.e the places between the aisles has a high uncertainty.
         The rest of the edges have a weight of 1.
+        :param warehouse_map_path: Path to the kiva.map file
         :param u: The uncertainty of the bottle necks
-        :return:
+        :return: A TimeUncertaintyProblem object for a partial uncertainty warehouse map.
         """
-        map = '..\\..\\maps\\kiva.map'
-        k_map = TimeUncertaintyProblem(map)
+        k_map = TimeUncertaintyProblem(warehouse_map_path)
         k_map.generate_edges_and_weights(uncertainty=0)
         cols = [17, 28, 39]
-        u = max(u, 1)
         for row in range(1, k_map.height, 3):
             for col in cols:  # (row, col) is the location of the start of the bottle neck.
 
