@@ -250,7 +250,7 @@ class Experiments:
 
             random.seed(map_seed)
             if map_type == 'obstacle_map':
-                tu_problem = TimeUncertaintyProblem.generate_obstacle_map(8, 8, 0.2, False)
+                tu_problem = TimeUncertaintyProblem.generate_obstacle_map(8, 8, 0.15, False)
                 tu_problem.generate_edges_and_weights(self.uncertainty)
             elif map_type == 'obstacle_bottle_neck_map':
                 kiva_map_path = MAP_FILES['warehouse_map']
@@ -284,6 +284,7 @@ class Experiments:
                             'initial Max Cost,'
                             'initial uncertainty,'
                             'initial true cost,'
+                            'nodes expanded initially,'
                             'octu Min Cost,'
                             'octu Max Cost,'
                             'octu uncertainty,'
@@ -336,9 +337,9 @@ class Experiments:
                 init_cost = init_sol.cost
                 init_tu = init_cost[1] - init_cost[0]
                 init_true_cost = sim.calc_solution_true_cost(init_sol)
-
                 min_sic = init_sol.sic[0]
                 max_sic = init_sol.sic[1]
+                nodes_expanded = init_sol.nodes_expanded
                 random.seed(agent_seed)
                 tu_problem.generate_agents(self.agents_num)
                 sim.online_planner.tu_problem = tu_problem
@@ -363,6 +364,7 @@ class Experiments:
                 min_sic = -1
                 max_sic = -1
                 true_sic = -1
+                nodes_expanded = -1
                 if loaded_sol:
                     init_time = loaded_sol.time_to_solve
                 elif sim.online_planner.initial_plan:
@@ -386,6 +388,7 @@ class Experiments:
                     f'{init_cost[1]},' \
                     f'{init_tu},' \
                     f'{init_true_cost},' \
+                    f'{nodes_expanded},' \
                     f'{octu_cost[0]},' \
                     f'{octu_cost[1]},' \
                     f'{octu_tu},' \

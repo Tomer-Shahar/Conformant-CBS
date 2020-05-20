@@ -75,7 +75,7 @@ def calc_averages_and_write(map_type,
                             increased_TC,
                             same_TC,
                             min_sic,
-                            max_sic, true_sic):
+                            max_sic, true_sic, nodes_expanded):
     reduction_in_tc = -1
     sic_reduction = -1
     if octu_success > 0:
@@ -92,6 +92,7 @@ def calc_averages_and_write(map_type,
         reduction_in_tc = initial_true_cost - final_true_cost
         min_sic /= octu_success
         max_sic /= octu_success
+        nodes_expanded /= octu_success
         if true_sic != -1:
             sic_reduction = reduction_in_tc / (initial_true_cost - true_sic)
         else:
@@ -109,6 +110,7 @@ def calc_averages_and_write(map_type,
         'Initial Runtime (secs)': initial_time,
         'Online Runtime (secs)': octu_time,
         'Success': octu_success,
+        'Nodes Expanded Initially': nodes_expanded,
         'Initial Min SOC': initial_min_cost,
         'Initial Max SOC': initial_max_cost,
         'Initial Uncertainty': initial_uncertainty,
@@ -157,6 +159,7 @@ def write_average_results(run_file):
         min_sic = 0
         max_sic = 0
         true_sic = 0
+        nodes_expanded = 0
         for row in reader:
             if row['Map Seed'] == '':  # Reached end of experiments.
                 break
@@ -168,10 +171,7 @@ def write_average_results(run_file):
             comm = row['Communication']
             bp = row['Bypass']
             pc = row['PC']
-            try:
-                objective = row['Objective']
-            except KeyError:
-                objective = 'Min Worst Case'
+            objective = row['Objective']
 
             if float(row['octu Time']) >= 0:  # A successful run
                 octu_success += 1
@@ -187,10 +187,9 @@ def write_average_results(run_file):
                 final_true_cost += float(row['final true cost'])
                 min_sic += float(row['Min SIC'])
                 max_sic += float(row['Max SIC'])
-                try:
-                    true_sic += float(row['True SIC'])
-                except KeyError:
-                    true_sic = -1
+                true_sic += float(row['True SIC'])
+                if 'nodes expanded initially' in row:
+                    nodes_expanded += float(row['nodes expanded initially'])
                 if float(row['final true cost']) < float(row['initial true cost']):
                     reduced_tc += 1
                 elif float(row['final true cost']) > float(row['initial true cost']):
@@ -202,7 +201,7 @@ def write_average_results(run_file):
                                 initial_uncertainty, initial_true_cost, final_min_cost, final_max_cost,
                                 final_uncertainty, final_true_cost, objective, uncertainty, sensing_probability,
                                 num_of_agents, num_of_runs, octu_success, comm, distribution, reduced_tc, increased_tc,
-                                same_tc, min_sic, max_sic, true_sic)
+                                same_tc, min_sic, max_sic, true_sic, nodes_expanded)
 
 
 def write_simulation_results(map_type, row, dist=None):
@@ -215,8 +214,9 @@ def write_simulation_results(map_type, row, dist=None):
     else:
         effect = 'No Change'
 
-    objective = row['Objective']
-
+    nodes_expanded = 'unknown'
+    if 'nodes expanded initially' in row:
+        nodes_expanded = row['nodes expanded initially']
     raw_data_writer.writerow({
         'Map': map_type,
         'Map Seed': row['Map Seed'],
@@ -230,6 +230,7 @@ def write_simulation_results(map_type, row, dist=None):
         'Initial Runtime (secs)': row['initial time'],
         'Online Runtime (secs)': row['octu Time'],
         'Success': 1 if float(row['octu Time']) >= 0 else 0,
+        'Nodes Expanded Initially': nodes_expanded,
         'Initial Min SOC': row['initial Min Cost'],
         'Initial Max SOC': row['initial Max Cost'],
         'Initial Uncertainty': row['initial uncertainty'],
@@ -239,7 +240,7 @@ def write_simulation_results(map_type, row, dist=None):
         'Final Uncertainty': row['octu uncertainty'],
         'Distribution': dist,  # row['Distribution'],
         'Final True Cost': row['final true cost'],
-        'Objective': objective,
+        'Objective': row['Objective'],
         'Change in True Cost': str(int(row['final true cost']) - int(row['initial true cost'])),
         'Effect on True Cost': effect,
         'True Cost Change': str(int(row['final true cost']) - int(row['initial true cost'])),
@@ -324,8 +325,8 @@ def append_sic_values():
 with open(raw_data_file, 'w', newline='') as raw_file:
     fields = ['Map', 'Map Seed', 'Uncertainty', 'Number of Agents', 'Agent Seed', 'With BP', 'With PC',
               'With Communication', 'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success',
-              'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty', 'Initial True Cost', 'Final Min SOC',
-              'Final Max SOC', 'Final Uncertainty', 'Distribution', 'Final True Cost', 'Objective',
+              'Nodes Expanded', 'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty', 'Initial True Cost',
+              'Final Min SOC', 'Final Max SOC', 'Final Uncertainty', 'Distribution', 'Final True Cost', 'Objective',
               'Effect on True Cost', 'True Cost Change', 'Min SIC', 'Max SIC']
     raw_data_writer = csv.DictWriter(raw_file, fieldnames=fields, restval='-', extrasaction='ignore')
     raw_data_writer.writeheader()
@@ -343,10 +344,10 @@ with open(raw_data_file, 'w', newline='') as raw_file:
 with open(average_results_file, 'w', newline='') as avg_file:
     avg_fields = ['Map', 'Uncertainty', 'Number of Agents', 'With BP', 'With PC', 'With Communication',
                   'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success',
-                  'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty',  'Initial True Cost', 'Final Min SOC',
-                  'Final Max SOC', 'Final Uncertainty', 'Final True Cost', 'Objective',  'Reduction in True Cost',
-                  'Distribution', 'Number of Runs', 'Reduced True Cost', 'Increased True Cost', 'Same True Cost',
-                  'Min SIC', 'Max SIC', 'Reduction %']
+                  'Nodes Expanded Initially', 'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty',
+                  'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty', 'Final True Cost',
+                  'Objective',  'Reduction in True Cost', 'Distribution', 'Number of Runs', 'Reduced True Cost',
+                  'Increased True Cost', 'Same True Cost', 'Min SIC', 'Max SIC', 'Reduction %']
     average_writer = csv.DictWriter(avg_file, fieldnames=avg_fields)
     average_writer.writeheader()
     for root, dirs, files in os.walk(input_folder):
