@@ -1,9 +1,10 @@
 import sys
 import os
+import json
 path = os.getcwd().split(os.path.sep)
 path = os.path.sep.join(path[:-1])
 sys.path.append(path)
-
+previous_settings_file_path = 'previous_settings.json'
 import pathfinding
 from pathfinding.testing.experiments import *
 
@@ -211,31 +212,57 @@ def get_maps():
     return domains
 
 
+def save_settings(settings_dict):
+    with open(previous_settings_file_path, "w") as settings_file:
+        json.dump(settings_dict, settings_file)
+
+
+def get_previous_settings():
+    with open(previous_settings_file_path, "r") as settings_file:
+        d = json.load(settings_file)
+    return d
+
+
+def get_new_user_input_settings():
+    u = get_u()
+    agents = get_agents()
+    sense_prob = get_sense_prob()
+    edge_dist = get_edge_dist()
+    comm_mode = get_comm_mode()
+    mbc = get_mbc()
+    pc = get_pc()
+    bp = get_bp()
+    maps = get_maps()
+
+    settings_dict = {'u': u, 'agents': agents, 'sense_prob': sense_prob, 'edge_dist': edge_dist,
+                     'comm_mode': comm_mode, 'mbc': mbc, 'pc': pc, 'bp': bp, 'maps': maps}
+    return settings_dict
+
+
 if __name__ == '__main__':
 
     print('Initiating CBSTU tests..')
     finished = False
+    resume_previous_run = False
+    d = {}
     while not finished:
         try:
-            u = get_u()
-            agents = get_agents()
-            sense_prob = get_sense_prob()
-            edge_dist = get_edge_dist()
-            comm_mode = get_comm_mode()
-            mbc = get_mbc()
-            pc = get_pc()
-            bp = get_bp()
-            maps = get_maps()
+            resume_previous_run = input('Would you like to use the settings from last run? [Y / N]')
+            resume_previous_run = resume_previous_run.lower() == 'y'
+            if resume_previous_run:
+                d = get_previous_settings()
+            else:
+                d = get_new_user_input_settings()
+
             print('Your choices were:')
-            print(f'Uncertainty: {u}\nNumber of agents: {agents}\nSensing Probability: {sense_prob}\n'
-                  f'Edge Distribution: {edge_dist}\nWith communication: {comm_mode}\nMinimize best case: {mbc}\n'
-                  f'Use PC: {pc}\nUse BP: {bp}\nMaps: {maps}\n')
+            print(f'Uncertainty: {d["u"]}\nNumber of agents: {d["agents"]}\nSensing Probability: {d["sense_prob"]}\n'
+                  f'Edge Distribution: {d["edge_dist"]}\nWith communication: {d["comm_mode"]}\nMinimize best case:'
+                  f' {d["mbc"]}\nUse PC: {d["pc"]}\nUse BP: {d["bp"]}\nMaps: {d["maps"]}\n')
             done = input('Is this correct? [Y / N]: ')
             finished = done.lower() == 'y'
         except ValueError:
             print('Unexpected error. Please enter input values again.')
             finished = False
-
-
-    run_experiments(u=u, agents=agents, sense_prob=sense_prob, edge_dist=edge_dist, comm_mode=comm_mode, mbc=mbc,
-                    pc=pc, bp=bp, maps=maps)
+        save_settings(d)
+        run_experiments(u=d['u'], agents=d['agents'], sense_prob=d['sense_prob'], edge_dist=d['edge_dist'],
+                        comm_mode=d['comm_mode'], mbc=d['mbc'], pc=d['pc'], bp=d['bp'], maps=d['maps'])

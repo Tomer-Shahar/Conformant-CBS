@@ -339,6 +339,9 @@ class Experiments:
 
                 min_sic = init_sol.sic[0]
                 max_sic = init_sol.sic[1]
+                random.seed(agent_seed)
+                tu_problem.generate_agents(self.agents_num)
+                sim.online_planner.tu_problem = tu_problem
                 root_sol = sim.online_planner.offline_planner.create_root().sol
                 true_sic = sim.calc_solution_true_cost(root_sol)
 
@@ -407,8 +410,6 @@ class Experiments:
                 for goal in mbc:
                     for use_pc in pc:
                         for use_bp in bp:
-                            if use_bp and not use_pc:
-                                continue  # We don't test BP only
                             self.min_best_case = goal
                             self.uncertainty = tu
                             self.agents_num = agent_num
