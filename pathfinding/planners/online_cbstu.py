@@ -36,10 +36,8 @@ class OnlineCBSTU(OnlinePlanner):
             self.current_plan = copy.deepcopy(initial_sol)
             self.offline_planner.final_constraints = initial_sol.constraints
         else:
-            start = time.time()
             self.initial_plan = self.offline_planner.find_solution(mbc, time_limit, soc=soc, use_pc=use_pc,
                                                                    use_bp=use_bp)
-            total_time = time.time() - start
             self.current_plan = copy.deepcopy(self.initial_plan)
 
     def update_current_state(self, curr_time, sensed_agents):
