@@ -84,24 +84,25 @@ class CBSTUPlanner:
         self.__initialize_class_variables(curr_time, min_best_case, soc, use_cat)
         if not self.create_root(existing_cons):
             raise OutOfTimeError("Couldn't find initial solution")
-        count = 0
-        while self.open_nodes:
-            count += 1
-            if time.time() - self.start_time > time_lim:
-                raise OutOfTimeError('Ran out of time :-(')
+        try:
+            while self.open_nodes:
+                if time.time() - self.start_time > time_lim:
+                    raise OutOfTimeError('Ran out of time :-(')
 
-            best_node = self.open_nodes.pop()
-            self.__insert_into_closed_list(best_node)
-            if best_node.conf_num == 0:  # Meaning that there are no conflicts.
-                #print(f'Number of pops: {count}')
-                return self.create_solution(best_node)
-            new_constraints, c1, c2, is_cardinal = self.find_best_conflict(best_node, time_lim, use_pc)
-            if use_bp and not is_cardinal and self.can_bypass(best_node, new_constraints, c1, c2):
-                continue
-            self.__insert_open_node(c1)
-            self.__insert_open_node(c2)
-        print("Empty open list - No Solution")
-        return TimeUncertaintySolution.empty_solution()
+                best_node = self.open_nodes.pop()
+                self.__insert_into_closed_list(best_node)
+                if best_node.conf_num == 0:  # Meaning that there are no conflicts.
+                    return self.create_solution(best_node)
+                new_constraints, c1, c2, is_cardinal = self.find_best_conflict(best_node, time_lim, use_pc)
+                if use_bp and not is_cardinal and self.can_bypass(best_node, new_constraints, c1, c2):
+                    continue
+                self.__insert_open_node(c1)
+                self.__insert_open_node(c2)
+            print("Empty open list - No Solution")
+            return TimeUncertaintySolution.empty_solution(self.open_nodes.entry_count)
+
+        except OutOfTimeError:  # Ran out of time. Return an empty solution.
+            return TimeUncertaintySolution.empty_solution(self.open_nodes.entry_count)
 
     def __initialize_class_variables(self, curr_time, min_best_case, soc, use_cat):
         """
@@ -126,9 +127,8 @@ class CBSTUPlanner:
 
         best_node.sol.time_to_solve = time.time() - self.start_time
         best_node.sol.compute_solution_cost(self.soc)
-        best_node.sol.nodes_expanded = len(self.closed_nodes)
+        best_node.sol.nodes_expanded = self.open_nodes.entry_count
         self.final_constraints = best_node.constraints
-        #best_node.sol.constraints = {(conf[0], node, conf[1]) for node, confs in best_node.constraints.items() for conf in confs}
         best_node.sol.constraints = best_node.constraints
         best_node.sol.sic = self.root.sol.cost
         return best_node.sol
@@ -139,7 +139,7 @@ class CBSTUPlanner:
         if not len(self.root.sol.paths):
             print("No solution for cbs root node")
             empty_root = Cn()
-            empty_root.sol = TimeUncertaintySolution.empty_solution()
+            empty_root.sol = TimeUncertaintySolution.empty_solution(nodes_generated=0)
             return empty_root
         self.root.sol.compute_solution_cost(self.soc)
         if existing_cons:
@@ -161,11 +161,8 @@ class CBSTUPlanner:
             new_con, c1, c2 = self.generate_children_nodes(node, time_lim)
             return new_con, c1, c2, True
         semi_cardinals, non_cardinals = [], []
-        start = time.time()
         sorted_constraints = self.get_sorted_constraints(node.conflicts)
         for constraint in sorted_constraints:
-            if time.time() - start > time_lim:
-                raise OutOfTimeError('Ran out of time when searching for cardinal conflicts')
             c1, c2, conf_type = self.get_conflict_type(constraint, node, time_lim)
             if conf_type == 'cardinal':
                 return constraint, c1, c2, True
@@ -218,11 +215,7 @@ class CBSTUPlanner:
         :returns: A tuple where the first item is the new constraints and the second is a Boolean indicating whether
         the conflict found is cardinal or not (True for cardinal, False otherwise)
         """
-        # node.solution.add_stationary_moves()  # inserts missing time steps
         node.sol.create_movement_tuples()
-        # constraints = self.__check_previously_conflicting_agents(node.sol, node.conflicting_agents)
-        # if constraints:
-        #    return constraints
 
         new_vertex_constraints, count = node.find_all_vertex_conflicts()
         for vertex, conflicts in new_vertex_constraints.items():
@@ -428,7 +421,7 @@ class CBSTUPlanner:
     def generate_constraint_node(self, new_cons, best_node, time_limit):
         merged_constraints = Cn.append_constraints(best_node.constraints, new_cons).items()
         key_cons = frozenset((k, tuple(val)) for k, val in merged_constraints)
-        if key_cons in self.closed_nodes:
+        if key_cons in self.closed_nodes:  # We already expanded this node
             empty_node = Cn()
             empty_node.sol = TimeUncertaintySolution.empty_solution()
             return empty_node

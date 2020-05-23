@@ -1289,7 +1289,7 @@ class TestOnlineCBSTU(unittest.TestCase):
         small_tu_map.goal_positions[1] = (2, 1)
         small_tu_map.goal_positions[2] = (0, 1)
         small_tu_map.fill_heuristic_table()
-        # small_tu_map.print_map(is_grid=False)
+        small_tu_map.print_map(is_grid=False)
 
         sim = MAPFSimulator(small_tu_map, sensing_prob=1)
         final_sol = sim.begin_execution(time_limit=2, communication=False)

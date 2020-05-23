@@ -85,6 +85,8 @@ class MAPFSimulator:
         :return: The path that was ultimately taken for each agent.
         """
         self.create_initial_solution(min_best_case, soc, use_pc, use_bp, time_limit=time_limit, initial_sol=initial_sol)
+        if self.online_planner.initial_plan.paths == {}:  # No initial solution was found.
+            raise OutOfTimeError('Reached time limit')
         self.communication = communication
         self.sim_time = 0
         start_time = time.time()
@@ -109,6 +111,7 @@ class MAPFSimulator:
             self.sim_time += 1
 
         self.final_solution.time_to_solve = time.time() - start_time + self.online_planner.initial_plan.time_to_solve
+        self.final_solution.nodes_generated = self.online_planner.initial_plan.nodes_generated
         self.final_solution.compute_solution_cost()
         #self.print_final_solution()
         return self.final_solution

@@ -55,15 +55,12 @@ def run_test_map():
     run_map(test_map, sic_heuristic=True, print_sol=True)
     run_map(test_map, sic_heuristic=False, print_sol=True)
 
-file = 'small_blank_map.map'
-random.seed(96372106)
-small_map = TimeUncertaintyProblem.generate_warehouse_bottle_neck_map()
-random.seed(10737297)
-small_map.generate_agents(8)
+kiva_path = '..//../maps/kiva.map'
+small_map = TimeUncertaintyProblem.generate_warehouse_bottle_neck_map(8, kiva_path)
+small_map.generate_agents(14)
 small_map.fill_heuristic_table()
-simulator = MAPFSimulator(small_map, sensing_prob=1, edge_dist='min')
-sol = simulator.begin_execution(use_pc=True, use_bp=False, time_limit=120, communication=True, min_best_case=True)
-
+cbs = CBSTUPlanner(small_map)
+sol = cbs.find_solution(time_lim=300, use_bp=False)
 #print('starting obstacle map with 2 agents')
 #profile.run('sol = simulator.begin_execution(use_pc=True, use_bp=True, time_limit=120, communication=True)', sort=2)
 

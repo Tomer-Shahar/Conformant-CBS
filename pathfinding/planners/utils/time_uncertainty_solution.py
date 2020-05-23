@@ -17,15 +17,15 @@ class TimeUncertaintySolution:
         self.cost = math.inf, math.inf
         self.paths = {}
         self.tuple_solution = {}
-        self.nodes_expanded = -1
+        self.nodes_generated = -1
         self.constraints = defaultdict(list)
         self.time_to_solve = -1
         self.sic = -1, -1
 
     @staticmethod
-    def empty_solution():
+    def empty_solution(nodes_generated=-1):
         empty_sol = TimeUncertaintySolution()
-        empty_sol.nodes_expanded = -1
+        empty_sol.nodes_generated = nodes_generated
         return empty_sol
 
     def copy_solution(self, other_sol):
@@ -145,7 +145,7 @@ class TimeUncertaintySolution:
 
         with open(path, 'w+') as sol_file:
             json_sol = {'paths': {}, 'constraints': None, 'time_to_solve': self.time_to_solve, 'sic': self.sic,
-                        'nodes_expanded': self.nodes_expanded}
+                        'nodes_generated': self.nodes_generated}
             for agent, path in self.paths.items():
                 json_sol['paths'][agent] = path.path
             json_sol['constraints'] = list(self.constraints.items())
@@ -184,8 +184,7 @@ class TimeUncertaintySolution:
                 tu_sol.constraints[loc].append(tuple_con)
 
             tu_sol.time_to_solve = json_sol['time_to_solve']
-            if 'nodes_expanded' in json_sol:
-                tu_sol.nodes_expanded = json_sol['nodes_expanded']
+            tu_sol.nodes_generated = json_sol['nodes_generated']
             tu_sol.compute_solution_cost()
             tu_sol.create_movement_tuples()
             return tu_sol

@@ -7,6 +7,8 @@ Currently a naive implementation of A*
 
 from pathfinding.planners.utils.custom_heap import OpenListHeap
 from pathfinding.planners.utils.time_uncertainty_plan import TimeUncertaintyPlan
+from pathfinding.planners.utils.time_error import OutOfTimeError
+
 import math
 import networkx
 import time
@@ -47,14 +49,13 @@ class ConstraintAstar:
 
         while len(self.open_list.internal_heap) > 0:
             if time.time() - start_time > time_limit:
-                return TimeUncertaintyPlan.get_empty_plan(agent)  # no solution
+                raise OutOfTimeError('Ran out of time in low level solver')  # no solution
             best_node = self.open_list.pop()  # removes from open_list
 
             if best_node.current_position == goal_pos and \
                     self.__can_stay(agent, best_node, constraints, suboptimal):
-                if self.tu_problem.calc_heuristic(start_pos, goal_pos) > 0:
-                    ratio = len(self.closed_list) / self.tu_problem.calc_heuristic(start_pos, goal_pos)
-                    #print(f'Ratio: {ratio}')
+                #if self.tu_problem.calc_heuristic(start_pos, goal_pos) > 0:
+                #    print(f'Ratio: {len(self.closed_list) / self.tu_problem.calc_heuristic(start_pos, goal_pos)}')
                 return best_node.calc_path(agent)
 
             successors = best_node.expand(agent, constraints, conf_table, self.tu_problem, pos_cons, suboptimal)

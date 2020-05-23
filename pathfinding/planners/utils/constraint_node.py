@@ -74,7 +74,7 @@ class ConstraintNode:
         :return: updates the CAT and the node's solution.
         """
         if not new_plan.path:
-            self.sol = TimeUncertaintySolution.empty_solution()
+            self.sol = TimeUncertaintySolution.empty_solution(self.sol.nodes_generated)
             self.sol.paths[new_plan.agent] = new_plan
             return
         if not use_cat:

@@ -40,7 +40,6 @@ class OnlineCBSTU(OnlinePlanner):
             self.initial_plan = self.offline_planner.find_solution(mbc, time_limit, soc=soc, use_pc=use_pc,
                                                                    use_bp=use_bp)
             total_time = time.time() - start
-            self.initial_plan.time_to_solve = total_time
             self.current_plan = copy.deepcopy(self.initial_plan)
 
     def update_current_state(self, curr_time, sensed_agents):

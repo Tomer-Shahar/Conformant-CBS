@@ -14,7 +14,7 @@ maps_path = os.path.join(proj_path, 'maps')
 
 MAP_FILES = {
     'small_blank_map': f'{os.path.join(maps_path, "small_blank_map.map")}',
-    'circular_map': f'{os.path.join(maps_path, "st003d.map")}',
+    'circular_map': f'{os.path.join(maps_path, "ost003d.map")}',
     'warehouse_map': f'{os.path.join(maps_path, "kiva.map")}',
     'maze_map': f'{os.path.join(maps_path, "maze512-2-0.map")}',
 }
@@ -313,10 +313,7 @@ class Experiments:
             try:
                 loaded_sol = TimeUncertaintySolution.load(self.agents_num, self.uncertainty, map_type, agent_seed,
                                                           map_seed, self.min_best_case, use_pc, use_bp, sol_folder)
-                if loaded_sol and loaded_sol.time_to_solve != -1 and loaded_sol.sic == (-1, -1):
-                    loaded_sol = None
-
-                if loaded_sol and loaded_sol.time_to_solve == -1:  # It was a timed out solution
+                if loaded_sol and loaded_sol.paths == {}:  # It was a timed out solution
                     raise OutOfTimeError
                 start_time = time.time()
                 online_sol = sim.begin_execution(self.min_best_case, use_pc, use_bp, time_limit=self.time_limit,
@@ -339,7 +336,6 @@ class Experiments:
                 init_true_cost = sim.calc_solution_true_cost(init_sol)
                 min_sic = init_sol.sic[0]
                 max_sic = init_sol.sic[1]
-                nodes_expanded = init_sol.nodes_expanded
                 random.seed(agent_seed)
                 tu_problem.generate_agents(self.agents_num)
                 sim.online_planner.tu_problem = tu_problem
@@ -350,10 +346,15 @@ class Experiments:
                     init_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, self.min_best_case,
                                   use_pc, use_bp, sol_folder)
 
-            except OutOfTimeError:
-                empty_sol = TimeUncertaintySolution()
-                empty_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, self.min_best_case,
-                               use_pc, use_bp, sol_folder)
+            except OutOfTimeError:  # Simulator threw a timeout
+                if loaded_sol:
+                    init_sol = loaded_sol
+                    init_time = loaded_sol.time_to_solve
+                else:
+                    init_sol = sim.online_planner.initial_plan
+                    init_time = sim.online_planner.initial_plan.time_to_solve
+                    init_sol.save(self.agents_num, self.uncertainty, map_type, agent_seed, map_seed, self.min_best_case,
+                                   use_pc, use_bp, sol_folder)
                 octu_cost = -1, -1
                 init_cost = -1, -1
                 octu_time = -1
@@ -364,13 +365,6 @@ class Experiments:
                 min_sic = -1
                 max_sic = -1
                 true_sic = -1
-                nodes_expanded = -1
-                if loaded_sol:
-                    init_time = loaded_sol.time_to_solve
-                elif sim.online_planner.initial_plan:
-                    init_time = sim.online_planner.initial_plan.time_to_solve
-                else:
-                    init_time = -1
 
             with open(temp_path, 'a') as temp_map_result_file:
                 objective = 'Min Best Case' if self.min_best_case else 'Min Worst Case'
@@ -388,7 +382,7 @@ class Experiments:
                     f'{init_cost[1]},' \
                     f'{init_tu},' \
                     f'{init_true_cost},' \
-                    f'{nodes_expanded},' \
+                    f'{init_sol.nodes_expanded},' \
                     f'{octu_cost[0]},' \
                     f'{octu_cost[1]},' \
                     f'{octu_tu},' \
@@ -431,7 +425,7 @@ def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist
         for number_of_agents in agents:
             for sp in sense_prob:
                 exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=50, edge_dist=edge_dist,
-                                            comm_mode=comm_mode, mbc=mbc, maps=maps, pc=pc, bp=bp, time_lim=120)
+                                            comm_mode=comm_mode, mbc=mbc, maps=maps, pc=pc, bp=bp, time_lim=300)
 
     print("Finished Experiments")
 
