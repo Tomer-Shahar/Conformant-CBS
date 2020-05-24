@@ -382,7 +382,7 @@ class Experiments:
                     f'{init_cost[1]},' \
                     f'{init_tu},' \
                     f'{init_true_cost},' \
-                    f'{init_sol.nodes_expanded},' \
+                    f'{init_sol.nodes_generated},' \
                     f'{octu_cost[0]},' \
                     f'{octu_cost[1]},' \
                     f'{octu_tu},' \
