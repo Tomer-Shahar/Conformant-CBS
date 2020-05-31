@@ -245,7 +245,7 @@ if __name__ == '__main__':
     finished = False
     resume_previous_run = False
     d = {}
-    while not finished:
+    while True:
         try:
             resume_previous_run = input('Would you like to use the settings from last run? [Y / N]')
             resume_previous_run = resume_previous_run.lower() == 'y'
@@ -259,10 +259,11 @@ if __name__ == '__main__':
                   f'Edge Distribution: {d["edge_dist"]}\nWith communication: {d["comm_mode"]}\nMinimize best case:'
                   f' {d["mbc"]}\nUse PC: {d["pc"]}\nUse BP: {d["bp"]}\nMaps: {d["maps"]}\n')
             done = input('Is this correct? [Y / N]: ')
-            finished = done.lower() == 'y'
+            if done.lower() == 'y':
+                break
         except ValueError:
             print('Unexpected error. Please enter input values again.')
-            finished = False
-        save_settings(d)
-        run_experiments(u=d['u'], agents=d['agents'], sense_prob=d['sense_prob'], edge_dist=d['edge_dist'],
-                        comm_mode=d['comm_mode'], mbc=d['mbc'], pc=d['pc'], bp=d['bp'], maps=d['maps'])
+
+    save_settings(d)
+    run_experiments(u=d['u'], agents=d['agents'], sense_prob=d['sense_prob'], edge_dist=d['edge_dist'],
+                    comm_mode=d['comm_mode'], mbc=d['mbc'], pc=d['pc'], bp=d['bp'], maps=d['maps'])

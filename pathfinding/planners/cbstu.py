@@ -127,7 +127,7 @@ class CBSTUPlanner:
 
         best_node.sol.time_to_solve = time.time() - self.start_time
         best_node.sol.compute_solution_cost(self.soc)
-        best_node.sol.nodes_expanded = self.open_nodes.entry_count
+        best_node.sol.nodes_generated = self.open_nodes.entry_count
         self.final_constraints = best_node.constraints
         best_node.sol.constraints = best_node.constraints
         best_node.sol.sic = self.root.sol.cost
