@@ -4,7 +4,10 @@ import json
 path = os.getcwd().split(os.path.sep)
 path = os.path.sep.join(path[:-1])
 sys.path.append(path)
-previous_settings_file_path = 'previous_settings.json'
+proj_path = os.path.abspath(os.getcwd())
+proj_path = proj_path.split('Conformant-CBS')
+proj_path = os.path.join(proj_path[0], 'Conformant-CBS', 'pathfinding', 'testing')
+previous_settings_file_path = os.path.join(proj_path, 'previous_settings.json')
 import pathfinding
 from pathfinding.testing.experiments import *
 
