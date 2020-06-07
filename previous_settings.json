@@ -1,0 +1,1 @@
+{"u": [0, 1, 2, 3], "agents": [3, 4, 5, 6], "sense_prob": [0, 100], "edge_dist": ["max", "uni", "min"], "comm_mode": [true, false], "mbc": [true, false], "pc": [true], "bp": [false], "maps": ["small_blank_map", "warehouse_map", "obstacle_map", "obstacle_bottle_neck_map"]}
