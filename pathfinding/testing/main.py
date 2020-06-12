@@ -274,7 +274,8 @@ if __name__ == '__main__':
                 # ToDo: Continue from where we left off as well
             else:
                 d = get_new_user_input_settings()
-
+            if 'reps' not in d:
+                d['reps'] = get_reps()
             print('Your choices were:')
             print(f'Uncertainty: {d["u"]}\nNumber of agents: {d["agents"]}\nSensing Probability: {d["sense_prob"]}\n'
                   f'Edge Distribution: {d["edge_dist"]}\nWith communication: {d["comm_mode"]}\nMinimize best case:'
