@@ -260,7 +260,6 @@ def get_new_user_input_settings():
 
 
 if __name__ == '__main__':
-
     print('Initiating CBSTU tests..')
     finished = False
     resume_previous_run = False
