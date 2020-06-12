@@ -215,6 +215,22 @@ def get_maps():
     return domains
 
 
+def get_reps():
+    legal = False
+    tu = 50
+    while not legal:
+        legal = True
+        tu = input("Enter desired number of reps: ")
+
+        if not is_valid(tu):
+            legal = False
+            continue
+
+        tu = int(tu)
+
+    return tu
+
+
 def save_settings(settings_dict):
     with open(previous_settings_file_path, "w") as settings_file:
         json.dump(settings_dict, settings_file)
@@ -236,9 +252,10 @@ def get_new_user_input_settings():
     pc = get_pc()
     bp = get_bp()
     maps = get_maps()
+    reps = get_reps()
 
     settings_dict = {'u': u, 'agents': agents, 'sense_prob': sense_prob, 'edge_dist': edge_dist,
-                     'comm_mode': comm_mode, 'mbc': mbc, 'pc': pc, 'bp': bp, 'maps': maps}
+                     'comm_mode': comm_mode, 'mbc': mbc, 'pc': pc, 'bp': bp, 'maps': maps, 'reps': reps}
     return settings_dict
 
 
@@ -254,13 +271,14 @@ if __name__ == '__main__':
             resume_previous_run = resume_previous_run.lower() == 'y'
             if resume_previous_run:
                 d = get_previous_settings()
+                # ToDo: Continue from where we left off as well
             else:
                 d = get_new_user_input_settings()
 
             print('Your choices were:')
             print(f'Uncertainty: {d["u"]}\nNumber of agents: {d["agents"]}\nSensing Probability: {d["sense_prob"]}\n'
                   f'Edge Distribution: {d["edge_dist"]}\nWith communication: {d["comm_mode"]}\nMinimize best case:'
-                  f' {d["mbc"]}\nUse PC: {d["pc"]}\nUse BP: {d["bp"]}\nMaps: {d["maps"]}\n')
+                  f' {d["mbc"]}\nUse PC: {d["pc"]}\nUse BP: {d["bp"]}\nMaps: {d["maps"]}\nReps: {d["reps"]}\n')
             done = input('Is this correct? [Y / N]: ')
             if done.lower() == 'y':
                 break
@@ -269,4 +287,4 @@ if __name__ == '__main__':
 
     save_settings(d)
     run_experiments(u=d['u'], agents=d['agents'], sense_prob=d['sense_prob'], edge_dist=d['edge_dist'],
-                    comm_mode=d['comm_mode'], mbc=d['mbc'], pc=d['pc'], bp=d['bp'], maps=d['maps'])
+                    comm_mode=d['comm_mode'], mbc=d['mbc'], pc=d['pc'], bp=d['bp'], maps=d['maps'], reps=d['reps'])

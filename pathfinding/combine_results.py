@@ -110,7 +110,7 @@ def calc_averages_and_write(map_type,
         'Initial Runtime (secs)': initial_time,
         'Online Runtime (secs)': octu_time,
         'Success': octu_success,
-        'Nodes Expanded Initially': nodes_expanded,
+        'Nodes Generated Initially': nodes_expanded,
         'Initial Min SOC': initial_min_cost,
         'Initial Max SOC': initial_max_cost,
         'Initial Uncertainty': initial_uncertainty,
@@ -159,7 +159,7 @@ def write_average_results(run_file):
         min_sic = 0
         max_sic = 0
         true_sic = 0
-        nodes_expanded = 0
+        nodes_generated = 0
         for row in reader:
             if row['Map Seed'] == '':  # Reached end of experiments.
                 break
@@ -189,7 +189,7 @@ def write_average_results(run_file):
                 max_sic += float(row['Max SIC'])
                 true_sic += float(row['True SIC'])
                 if 'nodes expanded initially' in row:
-                    nodes_expanded += float(row['nodes expanded initially'])
+                    nodes_generated += float(row['nodes expanded initially'])
                 if float(row['final true cost']) < float(row['initial true cost']):
                     reduced_tc += 1
                 elif float(row['final true cost']) > float(row['initial true cost']):
@@ -201,7 +201,7 @@ def write_average_results(run_file):
                                 initial_uncertainty, initial_true_cost, final_min_cost, final_max_cost,
                                 final_uncertainty, final_true_cost, objective, uncertainty, sensing_probability,
                                 num_of_agents, num_of_runs, octu_success, comm, distribution, reduced_tc, increased_tc,
-                                same_tc, min_sic, max_sic, true_sic, nodes_expanded)
+                                same_tc, min_sic, max_sic, true_sic, nodes_generated)
 
 
 def write_simulation_results(map_type, row, dist=None):
@@ -230,7 +230,7 @@ def write_simulation_results(map_type, row, dist=None):
         'Initial Runtime (secs)': row['initial time'],
         'Online Runtime (secs)': row['octu Time'],
         'Success': 1 if float(row['octu Time']) >= 0 else 0,
-        'Nodes Expanded Initially': nodes_expanded,
+        'Nodes Generated Initially': nodes_expanded,
         'Initial Min SOC': row['initial Min Cost'],
         'Initial Max SOC': row['initial Max Cost'],
         'Initial Uncertainty': row['initial uncertainty'],
@@ -249,83 +249,11 @@ def write_simulation_results(map_type, row, dist=None):
     })
 
 
-def create_sic_dict():
-    sic_dict = {'small_open_Map': {}, 'circular_map': {}, 'warehouse_map': {}}
-    for map_type in sic_dict:
-        for agents in range(2, 14):
-            sic_dict[map_type][str(agents)] = {}
-            for tu in ['0', '1', '2', '4']:
-                sic_dict[map_type][str(agents)][tu] = {}
-                for seed in range(10737296, 10737346):
-                    sic_dict[map_type][str(agents)][tu][str(seed)] = {'min best case': -1, 'min worst case': -1}
-    for root, dirs, files in os.walk(sol_folder):
-        if 'circular' in root or 'maze' in root:
-            continue
-        for file in files:
-            file_arr = file.split('_')
-            map_seed = file_arr[0].split()[2]
-            agent_num = file_arr[1].split()[0]
-            agent_seed = file_arr[2].split()[2]
-            uncertainty = file_arr[3].split()[0]
-            objective = file_arr[4] == 'min best case'
-            if 'warehouse' in file:
-                map_type = 'warehouse_map'
-            elif 'small' in file:
-                map_type = 'small_blank_map'
-            elif 'obstacle' in file:
-                map_type = 'obstacle_map'
-            else:
-                map_type = 'circular_map'
-            tu_sol = TimeUncertaintySolution.load(agent_num, uncertainty, map_type, agent_seed, map_seed, objective,
-                                                  sol_folder)
-            sic_dict[map_type][agent_num][uncertainty][agent_seed][file_arr[4]] = tu_sol.sic
-
-    return sic_dict
-
-
-def append_sic_values():
-    sic_dict = create_sic_dict()
-    for root, dirs, files in os.walk(input_folder):
-        if 'circular' in root or 'maze' in root:
-            continue
-        for exp_file in files:
-            df = pd.read_csv(os.path.join(root, exp_file))
-            df['Min SIC'] = []
-            df['Max SIC'] = []
-            with open(os.path.join(root, exp_file), 'a', newline='') as exp_result:
-                writer = csv.writer(exp_result, lineterminator='\n')
-                reader = csv.reader(exp_result)
-                row = next(reader)
-                map_seed = row['Map Seed']
-                agent_num = row['Map Seed']
-                agent_seed = row['Map Seed']
-                uncertainty = row['Map Seed']
-                objective = row['Map Seed']
-                row.append('Min SIC, Max SIC')
-                all = []
-                all.append(row)
-                if 'warehouse' in exp_file:
-                    map_type = 'warehouse_map'
-                elif 'small' in exp_file:
-                    map_type = 'small_blank_map'
-                else:
-                    map_type = 'circular_map'
-                for row in reader:
-                    min_sic = sic_dict[map_type][agent_num][uncertainty][agent_seed][objective][0]
-                    max_sic = sic_dict[map_type][agent_num][uncertainty][agent_seed][objective][1]
-                    row.append()
-                    all.append(row)
-
-                writer.writerows(all)
-
-#append_sic_values()
-
-
 # Aggregate all of the data into a single large file
 with open(raw_data_file, 'w', newline='') as raw_file:
     fields = ['Map', 'Map Seed', 'Uncertainty', 'Number of Agents', 'Agent Seed', 'With BP', 'With PC',
               'With Communication', 'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success',
-              'Nodes Expanded', 'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty', 'Initial True Cost',
+              'Nodes Generated Initially', 'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty', 'Initial True Cost',
               'Final Min SOC', 'Final Max SOC', 'Final Uncertainty', 'Distribution', 'Final True Cost', 'Objective',
               'Effect on True Cost', 'True Cost Change', 'Min SIC', 'Max SIC']
     raw_data_writer = csv.DictWriter(raw_file, fieldnames=fields, restval='-', extrasaction='ignore')
@@ -344,7 +272,7 @@ with open(raw_data_file, 'w', newline='') as raw_file:
 with open(average_results_file, 'w', newline='') as avg_file:
     avg_fields = ['Map', 'Uncertainty', 'Number of Agents', 'With BP', 'With PC', 'With Communication',
                   'Sensing Probability', 'Initial Runtime (secs)', 'Online Runtime (secs)', 'Success',
-                  'Nodes Expanded Initially', 'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty',
+                  'Nodes Generated Initially', 'Initial Min SOC', 'Initial Max SOC', 'Initial Uncertainty',
                   'Initial True Cost', 'Final Min SOC', 'Final Max SOC', 'Final Uncertainty', 'Final True Cost',
                   'Objective',  'Reduction in True Cost', 'Distribution', 'Number of Runs', 'Reduced True Cost',
                   'Increased True Cost', 'Same True Cost', 'Min SIC', 'Max SIC', 'Reduction %']

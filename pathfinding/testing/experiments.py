@@ -416,7 +416,7 @@ class Experiments:
                                                         use_pc=use_pc, use_bp=use_bp, maps=maps)
 
 
-def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist=('min', 'max', 'uni', ),
+def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist=('min', 'max', 'uni', ), reps=100,
                     comm_mode=(True, False), mbc=(True, False), pc=(True, ), bp=(False, ), maps=('small_blank_map', )):
 
     exp = Experiments()
@@ -424,7 +424,7 @@ def run_experiments(u=(0, 1, 2, 4), agents=(8, ), sense_prob=(0, 100), edge_dist
     for uncertainty in u:
         for number_of_agents in agents:
             for sp in sense_prob:
-                exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=50, edge_dist=edge_dist,
+                exp.run_online_combinations(number_of_agents, uncertainty, sp, reps=reps, edge_dist=edge_dist,
                                             comm_mode=comm_mode, mbc=mbc, maps=maps, pc=pc, bp=bp, time_lim=300)
 
     print("Finished Experiments")
