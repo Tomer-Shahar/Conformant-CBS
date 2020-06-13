@@ -1,1 +1,1 @@
-{"u": [0, 1, 2, 3, 4, 5, 9], "agents": [9], "sense_prob": [0], "edge_dist": ["uni"], "comm_mode": [false], "mbc": [false], "pc": [true], "bp": [false], "maps": ["small_blank_map"]}
+{"u": [6], "agents": [9], "sense_prob": [0], "edge_dist": ["uni"], "comm_mode": [false], "mbc": [false], "pc": [true], "bp": [false], "maps": ["small_blank_map"], "reps": 100}

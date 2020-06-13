@@ -163,29 +163,32 @@ class TimeUncertaintySolution:
 
         if not os.path.exists(path):
             return None
+        try:
+            with open(path, 'r') as sol_file:
+                json_sol = json.load(sol_file)
+                tu_sol = TimeUncertaintySolution()
+                for agent, path in json_sol['paths'].items():
+                    tuple_path = []
+                    for presence in path:
+                        tuple_path.append((tuple(presence[0]), tuple(presence[1])))
+                    tu_plan = TimeUncertaintyPlan(int(agent), tuple_path, math.inf)
+                    tu_sol.paths[int(agent)] = tu_plan
+                for con in json_sol['constraints']:
+                    if type(con[0][0]) == int:  # it's a vertex constraint
+                        loc = tuple(con[0])
+                    elif type(con[0][0]) == list:  # it's an edge constraint
+                        loc = tuple(con[0][0]), tuple(con[0][1])
+                    else:
+                        raise TypeError
+                    tuple_con = con[1][0][0], tuple(con[1][0][1])
+                    tu_sol.constraints[loc].append(tuple_con)
 
-        with open(path, 'r') as sol_file:
-            json_sol = json.load(sol_file)
-            tu_sol = TimeUncertaintySolution()
-            for agent, path in json_sol['paths'].items():
-                tuple_path = []
-                for presence in path:
-                    tuple_path.append((tuple(presence[0]), tuple(presence[1])))
-                tu_plan = TimeUncertaintyPlan(int(agent), tuple_path, math.inf)
-                tu_sol.paths[int(agent)] = tu_plan
-            for con in json_sol['constraints']:
-                if type(con[0][0]) == int:  # it's a vertex constraint
-                    loc = tuple(con[0])
-                elif type(con[0][0]) == list:  # it's an edge constraint
-                    loc = tuple(con[0][0]), tuple(con[0][1])
-                else:
-                    raise TypeError
-                tuple_con = con[1][0][0], tuple(con[1][0][1])
-                tu_sol.constraints[loc].append(tuple_con)
-
-            tu_sol.time_to_solve = json_sol['time_to_solve']
-            tu_sol.nodes_generated = json_sol['nodes_generated']
-            tu_sol.compute_solution_cost()
-            tu_sol.create_movement_tuples()
-            return tu_sol
+                tu_sol.time_to_solve = json_sol['time_to_solve']
+                tu_sol.nodes_generated = json_sol['nodes_generated']
+                tu_sol.compute_solution_cost()
+                tu_sol.create_movement_tuples()
+                return tu_sol
+        except:
+            os.remove(path)  # Delete the messed up file
+            return None
 
